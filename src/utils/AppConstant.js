@@ -66,7 +66,8 @@ export const FontSize = {
   small: 12,
 };
 
-export const baseUrl = ''; // Add API base URL when ready
+/** Same API host as web `apiClient` / `BACKEND_IP` */
+export const baseUrl = 'https://mutualfunds.meon.co.in/v1';
 
 export const wp = widthPercentageToDP;
 export const hp = heightPercentageToDP;

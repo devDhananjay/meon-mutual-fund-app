@@ -1,19 +1,50 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {View, StatusBar, Image, Text, StyleSheet} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {useDispatch} from 'react-redux';
 import Images from '../../utils/images';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {restoreSession} from '../../store/slices/authSlice';
+import {loadStoredSession} from '../../services/authStorage';
 
 export default function Splash() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const done = useRef(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [navigation]);
+    if (done.current) {
+      return;
+    }
+    let cancelled = false;
+
+    const run = async () => {
+      await new Promise(r => setTimeout(r, 1200));
+      if (cancelled) {
+        return;
+      }
+      const session = await loadStoredSession();
+      done.current = true;
+      if (session) {
+        dispatch(
+          restoreSession({
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
+            user: session.user,
+          }),
+        );
+        navigation.replace('MainTabs');
+      } else {
+        navigation.replace('Login');
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, navigation]);
 
   return (
     <View style={styles.container}>

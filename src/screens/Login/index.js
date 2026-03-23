@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,103 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
 } from 'react-native';
+import {useForm, Controller} from 'react-hook-form';
 import {useNavigation} from '@react-navigation/native';
+import {useDispatch} from 'react-redux';
 import Images from '../../utils/images';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {login as loginAction} from '../../store/slices/authSlice';
+import {loginWithCredentials} from '../../services/authService';
+import {persistAuth, getRememberedUsername, setRememberedUsername} from '../../services/authStorage';
 
 export default function Login() {
   const navigation = useNavigation();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const dispatch = useDispatch();
   const [rememberPassword, setRememberPassword] = useState(false);
-  const [showPassword, setShowPassword] = useState(true);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [apiError, setApiError] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
-  const canSignIn = username.trim().length > 0 && password.trim().length > 0;
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: {errors, isSubmitting},
+  } = useForm({
+    defaultValues: {username: '', password: ''},
+    mode: 'onSubmit',
+  });
 
-  const onSignIn = () => {
-    // TODO: API login - then navigation.replace('Bottom') or Home
+  useEffect(() => {
+    (async () => {
+      const remembered = await getRememberedUsername();
+      if (remembered) {
+        setValue('username', remembered);
+        setRememberPassword(true);
+      }
+      setHydrated(true);
+    })();
+  }, [setValue]);
+
+  const onSubmit = async ({username, password}) => {
+    setApiError('');
+    const u = username.trim();
+    const p = password.trim();
+    if (!u || !p) {
+      setApiError('Please enter both username and password');
+      return;
+    }
+
+    try {
+      const result = await loginWithCredentials(u, p);
+      const body = result?.data;
+      if (body?.status === 'success' && body?.data?.tokens && body?.data?.user) {
+        const {access_token, refresh_token} = body.data.tokens;
+        const userData = body.data.user;
+        await persistAuth({
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          user: userData,
+        });
+        if (rememberPassword) {
+          await setRememberedUsername(u);
+        } else {
+          await setRememberedUsername(null);
+        }
+        dispatch(
+          loginAction({
+            user: userData,
+            accessToken: access_token,
+            refreshToken: refresh_token,
+          }),
+        );
+        navigation.reset({index: 0, routes: [{name: 'MainTabs'}]});
+        return;
+      }
+      setApiError(body?.message || 'Login failed');
+    } catch (err) {
+      const data = err?.data;
+      if (data?.status === 'error' && data?.errors?.non_field_errors?.length) {
+        setApiError(data.errors.non_field_errors[0]);
+      } else if (err?.message) {
+        setApiError(err.message);
+      } else {
+        setApiError('Something went wrong. Please try again.');
+      }
+    }
   };
+
+  if (!hydrated) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+        <ActivityIndicator size="large" color={Colors.themeBlue} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -34,6 +113,12 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
       <View style={styles.content}>
+        {!!apiError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{apiError}</Text>
+          </View>
+        )}
+
         <View style={styles.logoRow}>
           <Image source={Images.themeLogo} style={styles.logoIcon} resizeMode="contain" />
           <View style={styles.brandText}>
@@ -51,59 +136,84 @@ export default function Login() {
 
         <View style={styles.form}>
           <Text style={[Textstyles.medium, styles.label]}>Username</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter username"
-            placeholderTextColor={Colors.GREY}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
+          <Controller
+            control={control}
+            name="username"
+            rules={{required: 'Username is required'}}
+            render={({field: {onChange, onBlur, value}}) => (
+              <TextInput
+                style={[styles.input, errors.username && styles.inputError]}
+                placeholder="Enter username"
+                placeholderTextColor={Colors.GREY}
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSubmitting}
+              />
+            )}
           />
+          {errors.username && (
+            <Text style={styles.fieldError}>{errors.username.message}</Text>
+          )}
 
           <Text style={[Textstyles.medium, styles.label]}>Password</Text>
           <View style={styles.passwordRow}>
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Enter password"
-              placeholderTextColor={Colors.GREY}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={showPassword}
+            <Controller
+              control={control}
+              name="password"
+              rules={{required: 'Password is required'}}
+              render={({field: {onChange, onBlur, value}}) => (
+                <TextInput
+                  style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}
+                  placeholder="Enter password"
+                  placeholderTextColor={Colors.GREY}
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  secureTextEntry={!passwordVisible}
+                  editable={!isSubmitting}
+                />
+              )}
             />
             <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
+              onPress={() => setPasswordVisible(!passwordVisible)}
               style={styles.eyeButton}
               hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-              <Text style={styles.eyeText}>{showPassword ? '👁' : '👁‍🗨'}</Text>
+              <Text style={styles.eyeText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
             </TouchableOpacity>
           </View>
+          {errors.password && (
+            <Text style={styles.fieldError}>{errors.password.message}</Text>
+          )}
 
           <View style={styles.optionsRow}>
             <TouchableOpacity
               onPress={() => setRememberPassword(!rememberPassword)}
-              style={styles.checkRow}>
+              style={styles.checkRow}
+              disabled={isSubmitting}>
               <View style={[styles.checkbox, rememberPassword && styles.checkboxChecked]}>
                 {rememberPassword && <Text style={styles.checkMark}>✓</Text>}
               </View>
-              <Text style={[Textstyles.normal, styles.checkLabel]}>Remember Password</Text>
+              <Text style={[Textstyles.normal, styles.checkLabel]}>Remember username</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ForgotPassword')}
+              disabled={isSubmitting}>
               <Text style={[Textstyles.normal, styles.forgotLink]}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            onPress={onSignIn}
-            disabled={!canSignIn}
-            style={[styles.signInButton, !canSignIn && styles.signInButtonDisabled]}>
-            <Text
-              style={[
-                Textstyles.medium,
-                styles.signInText,
-                !canSignIn && styles.signInTextDisabled,
-              ]}>
-              Sign In
-            </Text>
+            onPress={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
+            style={[styles.signInButton, isSubmitting && styles.signInButtonDisabled]}>
+            {isSubmitting ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={[Textstyles.medium, styles.signInText]}>Sign In</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -112,6 +222,10 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.white,
@@ -119,13 +233,31 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 48,
+  },
+  errorBanner: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 14,
+  },
+  fieldError: {
+    color: '#B91C1C',
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 12,
   },
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   logoIcon: {
     width: 48,
@@ -139,8 +271,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 0.5,
   },
-  meBlue: { color: Colors.themeBlue },
-  onRed: { color: Colors.themeRed },
+  meBlue: {color: Colors.themeBlue},
+  onRed: {color: Colors.themeRed},
   mutualFunds: {
     fontSize: 10,
     letterSpacing: 1,
@@ -155,9 +287,9 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     overflow: 'hidden',
   },
-  underlineSegment: { flex: 1 },
-  underlineBlue: { backgroundColor: Colors.themeBlue },
-  underlineRed: { backgroundColor: Colors.themeRed },
+  underlineSegment: {flex: 1},
+  underlineBlue: {backgroundColor: Colors.themeBlue},
+  underlineRed: {backgroundColor: Colors.themeRed},
   form: {
     flex: 1,
   },
@@ -176,28 +308,33 @@ const styles = StyleSheet.create({
     color: Colors.TEXT_PRIMARY,
     marginBottom: 20,
   },
+  inputError: {
+    borderColor: '#F87171',
+  },
   passwordRow: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 4,
   },
   passwordInput: {
-    paddingRight: 48,
+    paddingRight: 56,
+    marginBottom: 16,
   },
   eyeButton: {
     position: 'absolute',
     right: 12,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
+    top: 10,
   },
   eyeText: {
-    fontSize: 20,
+    fontSize: 14,
+    color: Colors.LINK_BLUE,
   },
   optionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 28,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   checkRow: {
     flexDirection: 'row',
@@ -238,13 +375,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   signInButtonDisabled: {
-    backgroundColor: Colors.BUTTON_DISABLED,
+    opacity: 0.85,
   },
   signInText: {
     fontSize: 16,
     color: Colors.white,
-  },
-  signInTextDisabled: {
-    color: Colors.GREY,
   },
 });
