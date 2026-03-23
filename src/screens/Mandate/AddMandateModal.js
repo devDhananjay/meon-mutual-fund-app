@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {useSelector} from 'react-redux';
@@ -292,7 +293,11 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
                     }}
                     activeOpacity={0.85}>
                     <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(startDate)}</Text>
-                    <Text style={styles.calIcon}>📅</Text>
+                    <Image
+                      source={require('../../assets/Icons/calendarOthers.png')}
+                      style={styles.calIcon}
+                      resizeMode="contain"
+                    />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.dateFieldHalf}>
@@ -311,7 +316,11 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
                     }}
                     activeOpacity={0.85}>
                     <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(endDate)}</Text>
-                    <Text style={styles.calIcon}>📅</Text>
+                    <Image
+                      source={require('../../assets/Icons/calendarOthers.png')}
+                      style={styles.calIcon}
+                      resizeMode="contain"
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -492,7 +501,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   dateTouchTxt: {fontSize: 15, color: Colors.TEXT_PRIMARY, flex: 1},
-  calIcon: {fontSize: 16, marginLeft: 4},
+  calIcon: {width: 16, height: 16, marginLeft: 4},
   inlineIosPicker: {
     marginTop: 12,
     backgroundColor: Colors.white,

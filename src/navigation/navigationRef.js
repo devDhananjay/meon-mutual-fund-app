@@ -69,6 +69,26 @@ export function navigateToMyOrders(navigation) {
   navigation?.navigate?.('MyOrders');
 }
 
+/** Root stack — order detail from My Orders list. */
+export function navigateToOrderDetail(navigation, params) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('OrderDetail', params);
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(
+      CommonActions.navigate({
+        name: 'OrderDetail',
+        params,
+        merge: true,
+      }),
+    );
+    return;
+  }
+  navigation?.navigate?.('OrderDetail', params);
+}
+
 export function navigateToWatchlist(navigation) {
   if (navigationRef.isReady()) {
     navigationRef.navigate('Watchlist');
@@ -93,4 +113,18 @@ export function navigateToMandate(navigation) {
     return;
   }
   navigation?.navigate?.('Mandate');
+}
+
+/** Root stack — open All Funds list for SIP start flow. */
+export function navigateToAllFundsSIP(navigation) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('AllFundsSIP');
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(CommonActions.navigate({name: 'AllFundsSIP', merge: true}));
+    return;
+  }
+  navigation?.navigate?.('AllFundsSIP');
 }

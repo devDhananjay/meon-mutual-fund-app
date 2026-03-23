@@ -1,0 +1,95 @@
+import React from 'react';
+import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+
+const PRIMARY_GREEN = '#00B386';
+const RISK_RED = '#DC2626';
+
+function returnColor(raw) {
+  const n = Number(raw);
+  if (Number.isNaN(n)) {
+    return '#6B7280';
+  }
+  return n >= 0 ? PRIMARY_GREEN : RISK_RED;
+}
+
+function formatPctSigned(raw) {
+  const n = Number(raw);
+  if (Number.isNaN(n)) {
+    return '—';
+  }
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${n.toFixed(2)}%`;
+}
+
+function FundLogo({logoUrl, name}) {
+  if (logoUrl) {
+    return <Image source={{uri: logoUrl}} style={styles.logo} resizeMode="contain" />;
+  }
+  const letter = (name || '?')[0]?.toUpperCase?.() ?? '?';
+  return (
+    <View style={[styles.logo, styles.logoPlaceholder]}>
+      <Text style={styles.logoLetter}>{letter}</Text>
+    </View>
+  );
+}
+
+export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
+  const name = fund?.name ?? '';
+  const rating = fund?.rating ?? 4;
+  const meta = fund?.metaText ?? '';
+  const returnVal =
+    returnPeriodKey === '1y'
+      ? fund?.return1y ?? 0
+      : returnPeriodKey === '5y'
+        ? fund?.return5y ?? 0
+        : fund?.return3y ?? 0;
+
+  return (
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.row}>
+      <View style={styles.left}>
+        <FundLogo logoUrl={fund?.logo_url} name={name} />
+        <View style={styles.middle}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta} · ★ {rating}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.right}>
+        <Text style={[styles.returnVal, {color: returnColor(returnVal)}]} numberOfLines={1}>
+          {formatPctSigned(returnVal)}
+        </Text>
+        <Text style={styles.period}>
+          {returnPeriodKey === '1y' ? '1Y' : returnPeriodKey === '5y' ? '5Y' : '3Y'}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F3F4F6',
+  },
+  left: {flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1},
+  logo: {width: 38, height: 38, borderRadius: 10, backgroundColor: '#F3F4F6'},
+  logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
+  logoLetter: {fontSize: 14, fontWeight: '900', color: PRIMARY_GREEN},
+  middle: {flex: 1, minWidth: 0},
+  name: {fontSize: 13, fontWeight: '800', color: '#111827'},
+  meta: {fontSize: 12, color: '#6B7280', marginTop: 4},
+  right: {alignItems: 'flex-end', minWidth: 92},
+  returnVal: {fontSize: 13, fontWeight: '900'},
+  period: {fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '700'},
+});
+

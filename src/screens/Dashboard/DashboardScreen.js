@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useDispatch, useSelector} from 'react-redux';
 import {CommonActions, useNavigation} from '@react-navigation/native';
-import {navigationRef, navigateToFundDetail} from '../../navigation/navigationRef';
+import {navigationRef, navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {logout} from '../../store/slices/authSlice';
 import {clearAuthStorage} from '../../services/authStorage';
@@ -85,7 +86,7 @@ export default function DashboardScreen() {
   const [signingOut, setSigningOut] = useState(false);
 
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
-  const portfolio = data?.portfolio ?? {};
+  const portfolio = data?.portfolio;
   const holdings = data?.holdings ?? [];
 
   const onOpenFund = useCallback(
@@ -273,14 +274,18 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.sipCard}>
-          <Text style={styles.sipEmoji}>📅</Text>
+          <Image
+            source={require('../../assets/Icons/calendarSip.png')}
+            style={styles.sipEmoji}
+            resizeMode="contain"
+          />
           <View style={styles.sipTextCol}>
             <Text style={[Textstyles.medium, styles.sipTitle]}>
               Invest every month and grow your wealth with SIP
             </Text>
             <TouchableOpacity
               style={styles.sipButton}
-              onPress={() => navigation.navigate('Explore')}
+              onPress={() => navigateToAllFundsSIP(navigation)}
               activeOpacity={0.85}>
               <Text style={[Textstyles.medium, styles.sipButtonText]}>Start a SIP</Text>
             </TouchableOpacity>
@@ -553,7 +558,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.BORDER_GREY,
     marginBottom: 24,
   },
-  sipEmoji: {fontSize: 40},
+  sipEmoji: {width: 40, height: 40},
   sipTextCol: {flex: 1},
   sipTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
   sipButton: {

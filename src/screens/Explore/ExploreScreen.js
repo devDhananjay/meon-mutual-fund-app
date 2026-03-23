@@ -5,16 +5,14 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Image,
   ActivityIndicator,
   ScrollView,
-  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useAllFunds} from '../../hooks/useAllFunds';
-import {navigateToFundDetail} from '../../navigation/navigationRef';
+import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -59,38 +57,19 @@ function mapResultsToFunds(data) {
       return3yr: scheme?.returns?.['3y'],
       return5yr: scheme?.returns?.['5y'],
       logo_url: scheme?.logo_url,
+      groww_rating:
+        scheme?.groww_rating ??
+        scheme?.holdings?.groww_rating ??
+        scheme?.rating ??
+        scheme?.avg_rating ??
+        null,
+      risk_label:
+        scheme?.nfo_risk ??
+        scheme?.risk_label ??
+        scheme?.holdings?.nfo_risk ??
+        null,
     };
   });
-}
-
-function FundRow({item, onPress}) {
-  return (
-    <TouchableOpacity style={styles.row} onPress={() => onPress(item)} activeOpacity={0.7}>
-      <View style={styles.rowLeft}>
-        {item.logo_url ? (
-          <Image source={{uri: item.logo_url}} style={styles.logo} resizeMode="contain" />
-        ) : (
-          <View style={[styles.logo, styles.logoPlaceholder]}>
-            <Text style={styles.logoLetter}>{(item.name || '?')[0]}</Text>
-          </View>
-        )}
-        <View style={styles.rowText}>
-          <Text style={[Textstyles.medium, styles.fundName]} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <Text style={[Textstyles.normal, styles.category]} numberOfLines={1}>
-            {(item.category || '').toLowerCase()}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.returnsCol}>
-        <Text style={styles.retLabel}>1Y</Text>
-        <Text style={[Textstyles.medium, styles.retVal]}>{item.return1yr ?? '—'}</Text>
-        <Text style={styles.retLabel}>3Y</Text>
-        <Text style={[Textstyles.medium, styles.retVal]}>{item.return3yr ?? '—'}</Text>
-      </View>
-    </TouchableOpacity>
-  );
 }
 
 function Chip({label, selected, onPress}) {
@@ -110,83 +89,160 @@ export default function ExploreScreen() {
   const navigation = useNavigation();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page] = useState(0);
-  const [rowsPerPage] = useState(10);
-  const [showMoreCount, setShowMoreCount] = useState(10);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedRisk, setSelectedRisk] = useState('');
-  const isMobile = true;
+  const [listSortMode, setListSortMode] = useState('3y');
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 500);
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  useEffect(() => {
-    setShowMoreCount(10);
-  }, [debouncedSearch, selectedCategory, selectedRisk]);
-
-  const [refreshing, setRefreshing] = useState(false);
-
   const {data, isLoading, error, refetch} = useAllFunds({
-    page,
-    rowsPerPage,
-    showMoreCount,
-    isMobile,
+    page: 0,
+    rowsPerPage: 10,
+    showMoreCount: 12,
+    isMobile: true,
     debouncedSearch,
     selectedCategory,
     selectedRisk,
   });
 
   const allFunds = useMemo(() => mapResultsToFunds(data), [data]);
-  const totalResults = data?.count ?? 0;
-  const hasMore = allFunds.length < totalResults;
+  const popularFunds = allFunds.slice(0, 4);
+  const recentFunds = allFunds.slice(4, 6);
+  const totalFundsCount = data?.count ?? allFunds.length;
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setRefreshing(false);
+  const formatRiskLabel = raw => {
+    if (!raw) {
+      return '';
     }
-  }, [refetch]);
+    const s = String(raw).trim();
+    // Normalize casing for common values like `low`, `Moderate`, `Very High`
+    const words = s.split(/\s+/).filter(Boolean);
+    return words
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const categoryOptions = useMemo(() => {
+    if (!allFunds.length) {
+      return CATEGORIES;
+    }
+    const set = new Set();
+    allFunds.forEach(f => {
+      if (f?.category) {
+        set.add(String(f.category));
+      }
+    });
+    const values = Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+    return [{label: 'All categories', value: ''}, ...values.map(v => ({label: String(v), value: String(v)}))];
+  }, [allFunds]);
+
+  const riskOptions = useMemo(() => {
+    if (!allFunds.length) {
+      return RISKS;
+    }
+    const set = new Set();
+    allFunds.forEach(f => {
+      if (f?.risk_label) {
+        set.add(String(f.risk_label));
+      }
+    });
+    const values = Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+    return [{label: 'All risks', value: ''}, ...values.map(v => ({label: formatRiskLabel(v), value: String(v)}))];
+  }, [allFunds]);
+
+  const formatSignedPct = raw => {
+    if (raw === null || raw === undefined) {
+      return '—';
+    }
+    const s = String(raw).trim().replace('%', '').replace(',', '');
+    const n = Number(s);
+    if (Number.isNaN(n)) {
+      return String(raw);
+    }
+    const sign = n >= 0 ? '+' : '';
+    return `${sign}${n.toFixed(2)}%`;
+  };
+
+  const returnColor = raw => {
+    const s = String(raw ?? '').trim().replace('%', '').replace(',', '');
+    const n = Number(s);
+    if (Number.isNaN(n)) {
+      return Colors.TEXT_PRIMARY;
+    }
+    return n >= 0 ? Colors.green : Colors.red;
+  };
+
+  const safeParsePct = raw => {
+    const s = String(raw ?? '').trim().replace('%', '').replace(',', '');
+    const n = Number(s);
+    if (Number.isNaN(n)) {
+      return null;
+    }
+    return n;
+  };
+
+  const getReturnField = sortKey => {
+    if (sortKey === '1y') {
+      return 'return1yr';
+    }
+    if (sortKey === '5y') {
+      return 'return5yr';
+    }
+    return 'return3yr';
+  };
+
+  const listPeriodLabel = listSortMode === '1y' ? '1Y' : listSortMode === '5y' ? '5Y' : '3Y';
+
+  const sortedAllFunds = useMemo(() => {
+    const field = getReturnField(listSortMode);
+    const list = [...allFunds];
+    list.sort((a, b) => {
+      const av = safeParsePct(a?.[field]) ?? -Infinity;
+      const bv = safeParsePct(b?.[field]) ?? -Infinity;
+      return bv - av; // descending
+    });
+    return list;
+  }, [allFunds, listSortMode]);
 
   const onOpenFund = useCallback(
     fund => {
       const code = pickSchemeCode(fund);
-      if (__DEV__) {
-        console.log('[Explore] onOpenFund', {fund, code});
-      }
       if (!code) {
-        if (__DEV__) {
-          console.warn('[Explore] cannot open fund — no scheme code', fund);
-        }
         return;
       }
-      navigateToFundDetail(navigation, {
-        schemeCode: code,
-        schemeName: fund.name,
-      });
+      navigateToFundDetail(navigation, {schemeCode: code, schemeName: fund.name});
     },
     [navigation],
   );
 
-  const renderItem = useCallback(
-    ({item}) => {
-      if (__DEV__) {
-        console.log('renderItem', item);
-      }
-      return <FundRow item={item} onPress={onOpenFund} />;
-    },
-    [onOpenFund],
-  );
+  const onStartSIP = useCallback(() => {
+    navigateToAllFundsSIP(navigation);
+  }, [navigation]);
 
-  const listHeader = useMemo(
-    () => (
-      <View style={styles.headerBlock}>
-        <Text style={[Textstyles.bold, styles.title]}>All Funds</Text>
+  const initialLoading = isLoading && !data;
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={Colors.themeBlue} />
+          <Text style={[Textstyles.normal, styles.loadingText]}>Loading…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-        <View style={styles.searchWrap}>
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.pageTitle}>Explore</Text>
+        </View>
+
+        <View style={styles.searchBar}>
+          <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
             placeholder="Search funds..."
@@ -198,166 +254,472 @@ export default function ExploreScreen() {
             autoCorrect={false}
           />
           {searchTerm.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearSearch} hitSlop={12}>
+            <TouchableOpacity onPress={() => setSearchTerm('')} hitSlop={12} style={styles.clearSearch}>
               <Text style={styles.clearText}>✕</Text>
             </TouchableOpacity>
           ) : null}
         </View>
 
-        <Text style={[Textstyles.medium, styles.filterLabel]}>Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-          {CATEGORIES.map(c => (
-            <Chip
-              key={c.value || 'all-cat'}
-              label={c.label}
-              selected={selectedCategory === c.value}
-              onPress={() => setSelectedCategory(c.value)}
-            />
-          ))}
-        </ScrollView>
-
-        <Text style={[Textstyles.medium, styles.filterLabel]}>Risk</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-          {RISKS.map(r => (
-            <Chip
-              key={r.value || 'all-risk'}
-              label={r.label}
-              selected={selectedRisk === r.value}
-              onPress={() => setSelectedRisk(r.value)}
-            />
-          ))}
-        </ScrollView>
-
-        <View style={styles.countRow}>
-          <Text style={[Textstyles.normal, styles.countText]}>
-            {totalResults} fund{totalResults !== 1 ? 's' : ''}
-          </Text>
-        </View>
-
         {error ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => refetch()} hitSlop={8}>
-              <Text style={styles.retry}>Retry</Text>
+            <TouchableOpacity onPress={refetch} hitSlop={8} style={styles.retryBtn}>
+              <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : null}
-      </View>
-    ),
-    [error, refetch, searchTerm, selectedCategory, selectedRisk, totalResults],
-  );
 
-  const listFooter = useMemo(() => {
-    if (!hasMore || totalResults <= 5) {
-      return <View style={{height: 24}} />;
-    }
-    return (
-      <View style={styles.footerMore}>
-        {isLoading ? (
-          <ActivityIndicator color={Colors.themeBlue} />
-        ) : (
-          <TouchableOpacity style={styles.showMoreBtn} onPress={() => setShowMoreCount(c => c + 10)} activeOpacity={0.85}>
-            <Text style={[Textstyles.medium, styles.showMoreText]}>Show more</Text>
-            <Text style={styles.showMoreChevron}>▼</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }, [hasMore, totalResults, isLoading]);
-
-  const initialLoading = isLoading && !data;
-
-  if (initialLoading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-          <Text style={[Textstyles.normal, styles.loadingText]}>Loading funds…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <FlatList
-        data={allFunds}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ListHeaderComponent={listHeader}
-        ListFooterComponent={listFooter}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[Textstyles.medium, styles.emptyTitle]}>No funds found</Text>
-            <Text style={[Textstyles.normal, styles.emptySub]}>Try a different search or filters</Text>
+        <View style={styles.heroCard}>
+          <Image
+            source={require('../../assets/Icons/calendarSip.png')}
+            style={styles.heroEmoji}
+            resizeMode="contain"
+          />
+          <View style={styles.heroTextCol}>
+            <Text style={styles.heroTitle}>Invest every month and grow your wealth with SIP</Text>
+            <TouchableOpacity style={styles.heroButton} onPress={onStartSIP} activeOpacity={0.85}>
+              <Text style={styles.heroButtonTxt}>Start a SIP</Text>
+            </TouchableOpacity>
           </View>
-        }
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.themeBlue} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Popular Funds</Text>
+          <TouchableOpacity onPress={onStartSIP} hitSlop={10}>
+            <Text style={styles.viewAll}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.grid}>
+          {popularFunds.map((f, idx) => (
+            <TouchableOpacity
+              key={f.id ?? idx}
+              style={styles.popCard}
+              activeOpacity={0.75}
+              onPress={() => onOpenFund(f)}>
+              <View style={styles.popTopRow}>
+                <View style={styles.popTop}>
+                  {f.logo_url ? (
+                    <Image source={{uri: f.logo_url}} style={styles.popLogo} resizeMode="contain" />
+                  ) : (
+                    <View style={[styles.popLogo, styles.logoPlaceholder]}>
+                      <Text style={styles.logoLetter}>{(f.name || '?')[0]}</Text>
+                    </View>
+                  )}
+                  <View style={styles.popTextCol}>
+                    <Text style={styles.popName} numberOfLines={2}>
+                      {f.name}
+                    </Text>
+                    {f.category ? (
+                      <Text style={styles.popCategory} numberOfLines={1}>
+                        {String(f.category).toLowerCase()}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.popReturnCol}>
+                  <Text style={styles.popPeriodLabel}>1Y</Text>
+                  <Text style={[styles.popReturnVal, {color: returnColor(f.return1yr)}]}>
+                    {formatSignedPct(f.return1yr)}
+                  </Text>
+                </View>
+              </View>
+              {f.groww_rating != null ? (
+                <View style={styles.popRatingRow}>
+                  <Text style={styles.popStar}>★</Text>
+                  <Text style={styles.popRatingVal}>
+                    {(() => {
+                      const n = Number(f.groww_rating);
+                      return Number.isNaN(n) ? '—' : n;
+                    })()}
+                  </Text>
+                </View>
+              ) : null}
+              {f.risk_label ? (
+                <View style={styles.riskPill}>
+                  <Text style={styles.riskTxt}>{String(f.risk_label).replace(/Risk/i, '').trim()} Risk</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recently Viewed</Text>
+          <View />
+        </View>
+
+        <View style={styles.recentRow}>
+          {recentFunds.length ? (
+            recentFunds.map((f, idx) => (
+              <TouchableOpacity
+                key={f.id ?? idx}
+                style={styles.recentCard}
+                activeOpacity={0.75}
+                onPress={() => onOpenFund(f)}>
+                {f.logo_url ? (
+                  <Image source={{uri: f.logo_url}} style={styles.recentLogo} resizeMode="contain" />
+                ) : (
+                  <View style={[styles.recentLogo, styles.logoPlaceholder]}>
+                    <Text style={styles.logoLetter}>{(f.name || '?')[0]}</Text>
+                  </View>
+                )}
+                <View style={styles.recentTextCol}>
+                  <Text style={styles.recentName} numberOfLines={2}>
+                    {f.name}
+                  </Text>
+                  {f.risk_label ? (
+                    <View style={styles.recentRiskRow}>
+                      <Text style={styles.recentRiskTxt}>
+                        {String(f.risk_label).replace(/Risk/i, '').trim()} Risk
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.recentRight}>
+                  <Text style={[styles.recentReturn, {color: returnColor(f.return1yr)}]}>
+                    {formatSignedPct(f.return1yr)}
+                  </Text>
+                  <Text style={styles.recentPeriod}>1Y</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.recentEmpty}>
+              <Text style={styles.recentEmptyTxt}>View a fund to see it here.</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.allFundsBlock}>
+          <View style={styles.allFundsHeader}>
+            <View style={styles.allFundsHeaderLeft}>
+              <Text style={[Textstyles.bold, styles.allFundsTitle]}>All Funds</Text>
+              <Text style={styles.allFundsCount}>
+                {totalFundsCount} Funds
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.sortRightBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                const order = ['1y', '3y', '5y'];
+                const idx = order.indexOf(listSortMode);
+                const next = order[(idx + 1) % order.length];
+                setListSortMode(next);
+              }}>
+              <View style={styles.sortRightInner}>
+                <Text style={styles.sortRightTxt}>{listPeriodLabel} Returns</Text>
+                <Text style={styles.sortRightChevron}>⌄</Text>
+              </View>
+              <View style={styles.sortDottedUnderline} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterBlock}>
+            <Text style={styles.filterLabel}>Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {categoryOptions.map(c => (
+                <Chip
+                  key={c.value || 'all-cat'}
+                  label={c.label}
+                  selected={selectedCategory === c.value}
+                  onPress={() => setSelectedCategory(c.value)}
+                />
+              ))}
+            </ScrollView>
+
+            <Text style={styles.filterLabel}>Risk</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {riskOptions.map(r => (
+                <Chip
+                  key={r.value || 'all-risk'}
+                  label={r.label}
+                  selected={selectedRisk === r.value}
+                  onPress={() => setSelectedRisk(r.value)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.fundsListCard}>
+            {sortedAllFunds.slice(0, 10).map((f, idx) => {
+              const field = getReturnField(listSortMode);
+              const raw = f?.[field];
+              const ratingNum = f?.groww_rating != null ? Number(f.groww_rating) : null;
+              const ratingText = ratingNum === null || Number.isNaN(ratingNum) ? '—' : ratingNum;
+
+              return (
+                <TouchableOpacity
+                  key={f.id ?? idx}
+                  style={styles.fundRow}
+                  activeOpacity={0.7}
+                  onPress={() => onOpenFund(f)}>
+                  <View style={styles.fundRowLeft}>
+                    {f.logo_url ? (
+                      <Image source={{uri: f.logo_url}} style={styles.fundRowLogo} resizeMode="contain" />
+                    ) : (
+                      <View style={[styles.fundRowLogo, styles.logoPlaceholder]}>
+                        <Text style={styles.logoLetter}>{(f.name || '?')[0]}</Text>
+                      </View>
+                    )}
+                    <View style={styles.fundRowText}>
+                      <Text style={styles.fundRowName} numberOfLines={1}>
+                        {f.name}
+                      </Text>
+                      <Text style={styles.fundRowCat} numberOfLines={1}>
+                        {String(f.category || '').toLowerCase()}
+                      </Text>
+                      <View style={styles.fundRowStarLine}>
+                        <Text style={styles.starTxt}>★</Text>
+                        <Text style={styles.starVal}>{ratingText}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.fundRowRight}>
+                    <Text style={[styles.returnBig, {color: returnColor(raw)}]}>
+                      {formatSignedPct(raw)}
+                    </Text>
+                    <Text style={styles.periodSmall}>{listPeriodLabel}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f9f9f9',
-  },
-  loadingBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
+  safe: {flex: 1, backgroundColor: '#F9FAFB'},
+  scrollContent: {paddingBottom: 28},
+
+  loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingText: {marginTop: 12, color: Colors.GREY, fontSize: 15},
-  listContent: {
-    paddingBottom: 32,
-  },
-  headerBlock: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 22,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 12,
-  },
-  searchWrap: {
+
+  header: {paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6},
+  pageTitle: {fontSize: 22, fontWeight: '800', color: Colors.TEXT_PRIMARY},
+
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
     borderRadius: 10,
+    marginHorizontal: 16,
     paddingHorizontal: 12,
-    marginBottom: 16,
+    paddingVertical: 10,
+    marginBottom: 14,
   },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: Colors.TEXT_PRIMARY,
-  },
+  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 6},
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
-  filterLabel: {
-    fontSize: 13,
-    color: Colors.GREY,
-    marginBottom: 8,
+
+  errorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  chipScroll: {
-    marginBottom: 12,
-    maxHeight: 40,
+  errorText: {flex: 1, color: '#B91C1C', fontSize: 13},
+  retryBtn: {paddingVertical: 6, paddingHorizontal: 10},
+  retryText: {color: Colors.themeBlue, fontWeight: '600'},
+
+  heroCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    gap: 12,
   },
+  heroEmoji: {width: 34, height: 34},
+  heroTextCol: {flex: 1},
+  heroTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
+  heroButton: {
+    backgroundColor: '#22C55E',
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  heroButtonTxt: {color: Colors.white, fontSize: 15, fontWeight: '700'},
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  sectionTitle: {fontSize: 16, fontWeight: '800', color: Colors.TEXT_PRIMARY},
+  viewAll: {color: Colors.themeBlue, fontWeight: '700'},
+
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 22,
+  },
+  popCard: {
+    width: '48%',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    padding: 12,
+  },
+  popTop: {flexDirection: 'row', alignItems: 'center'},
+  popTopRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  popReturnCol: {alignItems: 'flex-end'},
+  popLogo: {width: 36, height: 36, borderRadius: 10, marginRight: 10},
+  logoPlaceholder: {
+    backgroundColor: Colors.offWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+  },
+  logoLetter: {fontSize: 14, fontWeight: '800', color: Colors.themeBlue},
+  popTextCol: {flex: 1, minWidth: 0},
+  popName: {fontSize: 13, fontWeight: '700', color: Colors.TEXT_PRIMARY, lineHeight: 18},
+  popCategory: {fontSize: 12, color: Colors.GREY, marginTop: 4},
+  popPeriodLabel: {fontSize: 11, color: Colors.GREY, fontWeight: '700', marginBottom: 4},
+  popReturnVal: {fontSize: 14, fontWeight: '900'},
+
+  riskPill: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+  },
+  riskTxt: {fontSize: 12, fontWeight: '700', color: Colors.GREY},
+
+  popRatingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6},
+  popStar: {color: '#9CA3AF', fontSize: 12},
+  popRatingVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '700'},
+
+  recentRow: {flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 18},
+  recentCard: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  recentLogo: {width: 34, height: 34, borderRadius: 10},
+  recentTextCol: {flex: 1, paddingLeft: 0},
+  recentName: {fontSize: 13, fontWeight: '700', color: Colors.TEXT_PRIMARY, lineHeight: 18, flexShrink: 1},
+  recentRiskRow: {marginTop: 6},
+  recentRiskTxt: {fontSize: 12, color: Colors.GREY, fontWeight: '700'},
+  recentRight: {alignItems: 'flex-end', minWidth: 72},
+  recentReturn: {fontSize: 13, fontWeight: '900'},
+  recentPeriod: {fontSize: 11, color: Colors.GREY, marginTop: 4},
+  recentEmpty: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentEmptyTxt: {fontSize: 13, color: Colors.GREY, textAlign: 'center'},
+  bottomSpacer: {height: 24},
+
+  allFundsBlock: {paddingBottom: 18},
+  allFundsHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  allFundsHeaderLeft: {flex: 1},
+  allFundsTitle: {fontSize: 16, marginBottom: 6, color: Colors.TEXT_PRIMARY},
+  allFundsCount: {fontSize: 14, color: Colors.GREY, marginTop: 2},
+
+  sortRightBtn: {paddingLeft: 10, paddingRight: 6, alignItems: 'flex-end'},
+  sortRightInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
+  sortRightTxt: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  sortRightChevron: {fontSize: 12, color: Colors.GREY},
+  sortDottedUnderline: {
+    marginTop: 6,
+    width: 120,
+    borderBottomWidth: 2,
+    borderBottomColor: '#D1D5DB',
+    borderStyle: 'dotted',
+  },
+
+  fundsListCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    overflow: 'hidden',
+    marginHorizontal: 16,
+  },
+
+  fundRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  fundRowLeft: {flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 10},
+  fundRowLogo: {width: 38, height: 38, borderRadius: 10, marginRight: 10},
+  fundRowText: {flex: 1, minWidth: 0},
+  fundRowName: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  fundRowCat: {fontSize: 12, color: Colors.GREY, marginTop: 4},
+  fundRowStarLine: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
+  starTxt: {color: '#9CA3AF', fontSize: 12},
+  starVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '700'},
+
+  fundRowRight: {alignItems: 'flex-end', minWidth: 90},
+  returnBig: {fontSize: 13, fontWeight: '900'},
+  periodSmall: {fontSize: 11, color: Colors.GREY, marginTop: 4},
+
+  filterBlock: {paddingHorizontal: 0, marginTop: 10, marginBottom: 12},
+  filterLabel: {fontSize: 13, color: Colors.GREY, marginLeft: 6, marginBottom: 8, marginTop: 6},
+  chipScroll: {marginBottom: 12, paddingHorizontal: 16, maxHeight: 40},
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 22,
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
@@ -367,127 +729,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F2FE',
     borderColor: Colors.themeBlue,
   },
-  chipText: {
-    fontSize: 13,
-    color: Colors.TEXT_PRIMARY,
-  },
-  chipTextSelected: {
-    color: Colors.themeBlue,
-    fontWeight: '600',
-  },
-  countRow: {
-    marginBottom: 8,
-  },
-  countText: {
-    fontSize: 14,
-    color: Colors.GREY,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FEF2F2',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  errorText: {flex: 1, color: '#B91C1C', fontSize: 13},
-  retry: {color: Colors.themeBlue, fontWeight: '600'},
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.white,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-  },
-  rowLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  logoPlaceholder: {
-    backgroundColor: Colors.offWhite,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-  },
-  logoLetter: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.themeBlue,
-  },
-  rowText: {
-    flex: 1,
-  },
-  fundName: {
-    fontSize: 14,
-    color: Colors.TEXT_PRIMARY,
-    lineHeight: 20,
-  },
-  category: {
-    fontSize: 12,
-    color: Colors.GREY,
-    marginTop: 4,
-    textTransform: 'lowercase',
-  },
-  returnsCol: {
-    alignItems: 'flex-end',
-  },
-  retLabel: {
-    fontSize: 10,
-    color: Colors.GREY,
-  },
-  retVal: {
-    fontSize: 13,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 4,
-  },
-  empty: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 16,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 8,
-  },
-  emptySub: {
-    fontSize: 14,
-    color: Colors.GREY,
-    textAlign: 'center',
-  },
-  footerMore: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  showMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  showMoreText: {
-    color: Colors.themeBlue,
-    fontSize: 16,
-  },
-  showMoreChevron: {
-    color: Colors.themeBlue,
-    fontSize: 12,
-  },
+  chipText: {fontSize: 12, color: Colors.TEXT_PRIMARY, fontWeight: '600'},
+  chipTextSelected: {color: Colors.themeBlue, fontWeight: '700'},
 });
