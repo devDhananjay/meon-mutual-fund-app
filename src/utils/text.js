@@ -2,20 +2,20 @@ import {StyleSheet, Platform} from 'react-native';
 
 const Textstyles = StyleSheet.create({
   bold: {
-    fontFamily: Platform.OS === 'android' ? 'Poppins-Bold' : 'Poppins-Bold',
+    fontFamily: Platform.OS === 'android' ? 'Figtree-Bold' : 'Figtree-Bold',
     fontWeight: '700',
   },
   extraBold: {
     fontFamily:
-      Platform.OS === 'android' ? 'Poppins-ExtraBold' : 'Poppins-ExtraBold',
+      Platform.OS === 'android' ? 'Figtree-ExtraBold' : 'Figtree-ExtraBold',
     fontWeight: '800',
   },
   normal: {
-    fontFamily: Platform.OS === 'android' ? 'Poppins-Regular' : 'Poppins-Regular',
+    fontFamily: Platform.OS === 'android' ? 'Figtree-Regular' : 'Figtree-Regular',
     fontWeight: '400',
   },
   medium: {
-    fontFamily: Platform.OS === 'android' ? 'Poppins-Medium' : 'Poppins-Medium',
+    fontFamily: Platform.OS === 'android' ? 'Figtree-Medium' : 'Figtree-Medium',
     fontWeight: '500',
   },
 });

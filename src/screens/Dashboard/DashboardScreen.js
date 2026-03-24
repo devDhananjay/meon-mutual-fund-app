@@ -4,19 +4,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Pressable,
   Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useDispatch, useSelector} from 'react-redux';
-import {CommonActions, useNavigation} from '@react-navigation/native';
-import {navigationRef, navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
+import {useSelector} from 'react-redux';
+import {useNavigation} from '@react-navigation/native';
+import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
-import {logout} from '../../store/slices/authSlice';
-import {clearAuthStorage} from '../../services/authStorage';
 import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -29,61 +26,119 @@ function formatInr(value) {
   if (Number.isNaN(n)) {
     return String(value);
   }
-  return `₹${n.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const isInt = Math.abs(n - Math.round(n)) < 0.000001;
+  const digits = isInt ? 0 : 2;
+  return `₹${n.toLocaleString('en-IN', {minimumFractionDigits: digits, maximumFractionDigits: digits})}`;
 }
 
-const SORT_MODES = [
-  {key: 'Day', label: 'Day'},
-  {key: 'Returns', label: 'Returns'},
-  {key: 'Current', label: 'Current'},
-];
+function formatSignedInr(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    return '—';
+  }
+  const sign = n < 0 ? '-' : '+';
+  return `${sign}${formatInr(Math.abs(n))}`;
+}
+
+function formatAbsPct(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    return '—';
+  }
+  return `${Math.abs(n).toFixed(2)}%`;
+}
+
+function splitGrowthType(raw) {
+  const s = String(raw ?? '').trim();
+  const lower = s.toLowerCase();
+  const directGrowth = 'direct growth';
+  const regularGrowth = 'regular growth';
+
+  if (lower.endsWith(directGrowth)) {
+    return {base: s.slice(0, Math.max(0, s.length - directGrowth.length)).trim(), suffix: 'Direct Growth'};
+  }
+  if (lower.endsWith(regularGrowth)) {
+    return {
+      base: s.slice(0, Math.max(0, s.length - regularGrowth.length)).trim(),
+      suffix: 'Regular Growth',
+    };
+  }
+
+  return {base: s, suffix: ''};
+}
+
+const SORT_ORDER = ['Day', 'Returns', 'Current'];
+const SORT_MODE_LABEL = {
+  Day: '1D Returns',
+  Returns: 'Total Returns',
+  Current: 'Current Invested',
+};
+
+function FundLogo({uri, name}) {
+  if (uri) {
+    return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
+  }
+  const letter = (name || '?')[0]?.toUpperCase?.() ?? '?';
+  return (
+    <View style={[styles.fundLogo, styles.fundLogoPh]}>
+      <Text style={styles.fundLogoLetter}>{letter}</Text>
+    </View>
+  );
+}
 
 function HoldingRow({fund, sortMode, onOpenFund}) {
-  let value = '';
-  let subValue = '';
-  let valueStyle = styles.holdingValueNeutral;
+  const fullName = fund?.scheme_name ?? fund?.base_scheme_name ?? '';
+  const {base, suffix} = splitGrowthType(fullName);
+  const logo = fund?.logo_url ?? fund?.logo ?? fund?.scheme_logo_url;
+
+  let rightBig = '';
+  let rightSmall = '';
+  let rightBigColor = styles.statValueNeutral;
 
   if (sortMode === 'Day') {
-    value = formatInr(fund.one_day_return);
-    subValue = `${fund.one_day_return_per ?? '—'}%`;
-    valueStyle =
-      Number(fund.one_day_return) < 0 ? styles.negativeText : styles.positiveText;
+    rightBig = formatSignedInr(fund?.one_day_return);
+    rightSmall = formatAbsPct(fund?.one_day_return_per);
+    rightBigColor = Number(fund?.one_day_return) < 0 ? styles.negativeText : styles.positiveText;
   } else if (sortMode === 'Returns') {
-    value = formatInr(fund.total_return);
-    subValue = `${fund.total_return_per ?? '—'}%`;
-    valueStyle =
-      Number(fund.total_return) < 0 ? styles.negativeText : styles.positiveText;
+    rightBig = formatSignedInr(fund?.total_return);
+    rightSmall = formatAbsPct(fund?.total_return_per);
+    rightBigColor = Number(fund?.total_return) < 0 ? styles.negativeText : styles.positiveText;
   } else {
-    value = formatInr(fund.current_holding);
-    subValue = `Invested ${formatInr(fund.amount)}`;
-    valueStyle = styles.holdingValueNeutral;
+    rightBig = formatInr(fund?.current_holding);
+    rightSmall = formatInr(fund?.amount);
+    rightBigColor = styles.statValueNeutral;
   }
 
   return (
     <TouchableOpacity
-      style={styles.holdingRow}
+      style={styles.holdingCard}
       onPress={() => onOpenFund(fund)}
       activeOpacity={0.7}>
       <View style={styles.holdingLeft}>
-        <Text style={[Textstyles.medium, styles.schemeName]} numberOfLines={2}>
-          {fund.scheme_name}
-        </Text>
-        <Text style={[Textstyles.normal, styles.subValue]}>{subValue}</Text>
+        <FundLogo uri={logo} name={base || fullName} />
+        <View style={styles.fundTextCol}>
+          <Text style={[Textstyles.bold, styles.fundName]} numberOfLines={2}>
+            {base || fullName || 'Fund'}
+          </Text>
+          {suffix ? <Text style={[Textstyles.medium, styles.growthLabel]}>{suffix}</Text> : null}
+        </View>
       </View>
-      <Text style={[Textstyles.medium, valueStyle]}>{value}</Text>
+
+      <View style={styles.holdingRight}>
+        <Text style={[Textstyles.bold, styles.rightBig, rightBigColor]}>{rightBig}</Text>
+        {rightSmall ? <Text style={[Textstyles.medium, styles.rightSmall]}>{rightSmall}</Text> : null}
+      </View>
     </TouchableOpacity>
   );
 }
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-  const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
-  const firstName = user?.first_name || user?.name || 'there';
+  const firstName = user?.full_name || user?.name || 'there';
 
   const [holdingVisible, setHoldingVisible] = useState(true);
-  const [sortMode, setSortMode] = useState('Day');
-  const [signingOut, setSigningOut] = useState(false);
+  const [sortMode, setSortMode] = useState('Current');
 
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
   const portfolio = data?.portfolio;
@@ -106,107 +161,65 @@ export default function DashboardScreen() {
     [navigation],
   );
 
-  const onLogout = useCallback(async () => {
-    setSigningOut(true);
-    try {
-      await clearAuthStorage();
-      dispatch(logout());
-      if (navigationRef.isReady()) {
-        navigationRef.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{name: 'Login'}],
-          }),
-        );
-      }
-    } finally {
-      setSigningOut(false);
-    }
-  }, [dispatch]);
+  const cycleSortMode = useCallback(() => {
+    setSortMode(prev => {
+      const idx = SORT_ORDER.indexOf(prev);
+      return SORT_ORDER[(idx + 1) % SORT_ORDER.length];
+    });
+  }, []);
+
+  const sortHeaderLabel = SORT_MODE_LABEL[sortMode] ?? 'Current Invested';
 
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
         <View style={styles.topRow}>
-          <View style={styles.greetingWrap}>
-            <Text style={[Textstyles.bold, styles.welcome]}>Welcome {firstName},</Text>
-            <Text style={[Textstyles.normal, styles.subGreeting]}>
-              {"Here's what's happening with your investment today."}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={onLogout}
-            disabled={signingOut}
-            style={styles.logoutBtn}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            {signingOut ? (
-              <ActivityIndicator size="small" color={Colors.themeBlue} />
-            ) : (
-              <Text style={[Textstyles.medium, styles.logoutText]}>Log out</Text>
-            )}
-          </TouchableOpacity>
+          <Text style={[Textstyles.bold, styles.welcome]}>Welcome {firstName},</Text>
         </View>
 
         <TouchableOpacity
           style={styles.searchBar}
           onPress={() => navigation.navigate('Explore')}
           activeOpacity={0.8}>
-          <Text style={[Textstyles.normal, styles.searchPlaceholder]}>Search for Mutual Fund</Text>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <Text style={[Textstyles.normal, styles.searchPlaceholder]}>Search mutual funds...</Text>
         </TouchableOpacity>
 
-        <View style={styles.investCard}>
-          <View style={styles.investCardHeader}>
-            <Text style={[Textstyles.bold, styles.investTitle]}>Investment</Text>
-            <TouchableOpacity
-              onPress={() => setHoldingVisible(v => !v)}
-              style={styles.toggleBtn}
-              hitSlop={{top: 6, bottom: 6}}>
-              <Text style={[Textstyles.medium, styles.toggleText]}>
-                {holdingVisible ? 'Hide' : 'View'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.holdingsTitleRow}>
+        <View style={styles.holdingsCard}>
+          <View style={styles.holdingsHeaderRow}>
             <View>
-              <Text style={[Textstyles.normal, styles.holdingsLabel]}>
-                Holdings ({holdings.length})
-              </Text>
+              <Text style={[Textstyles.normal, styles.holdingsLabel]}>Holdings ({holdings.length})</Text>
               <Text style={[Textstyles.bold, styles.holdingsBig]}>
                 {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setHoldingVisible(v => !v)}
-              style={styles.eyeFab}
-              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Text style={styles.eyeFabText}>{holdingVisible ? '👁' : '•••'}</Text>
-            </TouchableOpacity>
+
+            <View style={styles.holdingsIcons}>
+              <TouchableOpacity
+                onPress={refetch}
+                style={styles.iconCircle}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                activeOpacity={0.75}>
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={Colors.themeBlue} />
+                ) : (
+                  <Text style={styles.iconCircleTxt}>↻</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setHoldingVisible(v => !v)}
+                style={styles.iconCircle}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                activeOpacity={0.75}>
+                <Text style={styles.iconCircleTxt}>{holdingVisible ? '👁' : '•••'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {holdingVisible && (
-            <View style={styles.statsGrid}>
-              <View style={styles.statCell}>
-                <Text style={styles.statLabel}>Invested Value</Text>
-                <Text style={[Textstyles.bold, styles.statValue]}>
-                  {formatInr(portfolio?.total_amount)}
-                </Text>
-              </View>
-              <View style={styles.statCell}>
-                <Text style={[styles.statLabel, styles.statLabelRight]}>Total Returns</Text>
-                <Text
-                  style={[
-                    Textstyles.bold,
-                    styles.statValue,
-                    styles.statValueRight,
-                    Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
-                  ]}>
-                  {Number(portfolio?.total_return) < 0 ? '-' : ''}
-                  {formatInr(Math.abs(Number(portfolio?.total_return) || 0))} (
-                  {portfolio?.total_return_per ?? '—'}%)
-                </Text>
-              </View>
-              <View style={styles.statCell}>
+            <View style={styles.statsCol}>
+              <View style={styles.statRow}>
                 <Text style={styles.statLabel}>1D Returns</Text>
                 <Text
                   style={[
@@ -214,42 +227,38 @@ export default function DashboardScreen() {
                     styles.statValue,
                     Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
                   ]}>
-                  {Number(portfolio?.one_day_return) < 0 ? '-' : ''}
-                  {formatInr(Math.abs(Number(portfolio?.one_day_return) || 0))} (
-                  {portfolio?.one_day_return_per ?? '—'}%)
+                  {formatSignedInr(portfolio?.one_day_return)} ({formatAbsPct(portfolio?.one_day_return_per)})
                 </Text>
               </View>
-              <View style={styles.statCell}>
-                <Text style={[styles.statLabel, styles.statLabelRight]}>XIRR</Text>
-                <Text style={[Textstyles.bold, styles.statValue, styles.statValueRight]}>
-                  {portfolio?.xirr != null ? `${portfolio.xirr}%` : `${portfolio?.total_return_per ?? '—'}%`}
+
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Total Returns</Text>
+                <Text
+                  style={[
+                    Textstyles.bold,
+                    styles.statValue,
+                    Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
+                  ]}>
+                  {formatSignedInr(portfolio?.total_return)} ({formatAbsPct(portfolio?.total_return_per)})
+                </Text>
+              </View>
+
+              <View style={styles.statRow}>
+                <Text style={styles.statLabel}>Invested</Text>
+                <Text style={[Textstyles.bold, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
+              </View>
+
+              <View style={styles.statRow}>
+                <View style={styles.xirrLabelRow}>
+                  <Text style={styles.statLabel}>XIRR</Text>
+                  <Text style={styles.caretDown}>⌄</Text>
+                </View>
+                <Text style={[Textstyles.bold, styles.statValue]}>
+                  {portfolio?.xirr != null ? `${Number(portfolio.xirr).toFixed(2)}%` : '—'}
                 </Text>
               </View>
             </View>
           )}
-        </View>
-
-        <View style={styles.holdingsSectionHeader}>
-          <Text style={[Textstyles.medium, styles.sectionTitle]}>
-            {holdings.length} Funds
-          </Text>
-          <View style={styles.sortRow}>
-            {SORT_MODES.map(m => (
-              <Pressable
-                key={m.key}
-                onPress={() => setSortMode(m.key)}
-                style={[styles.sortChip, sortMode === m.key && styles.sortChipActive]}>
-                <Text
-                  style={[
-                    Textstyles.medium,
-                    styles.sortChipText,
-                    sortMode === m.key && styles.sortChipTextActive,
-                  ]}>
-                  {m.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
       </View>
     ),
@@ -258,20 +267,27 @@ export default function DashboardScreen() {
       holdings.length,
       holdingVisible,
       navigation,
-      onLogout,
       portfolio,
-      signingOut,
-      sortMode,
+      refreshing,
+      refetch,
     ],
   );
 
   const listFooter = useMemo(
     () => (
       <View style={styles.footer}>
-        <View style={styles.importRow}>
-          <Text style={[Textstyles.normal, styles.importText]}>Import External Funds</Text>
+        <TouchableOpacity
+          style={styles.importBtn}
+          onPress={() => navigation.navigate('Explore')}
+          activeOpacity={0.85}>
+          <View style={styles.importLeft}>
+            <View style={styles.importIconCircle}>
+              <Text style={styles.importIconTxt}>⤴</Text>
+            </View>
+            <Text style={[Textstyles.medium, styles.importText]}>Import External Funds</Text>
+          </View>
           <Text style={styles.chevron}>›</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.sipCard}>
           <Image
@@ -296,13 +312,6 @@ export default function DashboardScreen() {
     [navigation],
   );
 
-  const renderItem = useCallback(
-    ({item}) => (
-      <HoldingRow fund={item} sortMode={sortMode} onOpenFund={onOpenFund} />
-    ),
-    [sortMode, onOpenFund],
-  );
-
   if (isPending && !refreshing) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -325,32 +334,50 @@ export default function DashboardScreen() {
         </View>
       ) : null}
 
-      <FlatList
-        data={holdings}
-        keyExtractor={(item, index) => String(item.scheme_code ?? item.isin ?? index)}
-        renderItem={renderItem}
-        ListHeaderComponent={listHeader}
-        ListFooterComponent={listFooter}
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={[Textstyles.normal, styles.emptyText]}>No holdings yet</Text>
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.themeBlue} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.themeBlue} />}
+        showsVerticalScrollIndicator={false}>
+        {listHeader}
+
+        <View style={styles.stocksCard}>
+          <TouchableOpacity style={styles.listHeaderRow} activeOpacity={0.85} onPress={cycleSortMode}>
+            <View style={styles.sortLeft}>
+              <Text style={styles.sortIcon}>⇅</Text>
+              <Text style={styles.sortLabel}>Sort</Text>
+            </View>
+
+            <View style={styles.sortRight}>
+              <Text style={styles.sortValueText}>{sortHeaderLabel}</Text>
+              {sortMode === 'Current' ? <Text style={styles.sortAngle}> &lt;&gt;</Text> : null}
+              <Text style={styles.sortCaret}>⌄</Text>
+            </View>
+          </TouchableOpacity>
+
+          {holdings.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={[Textstyles.normal, styles.emptyText]}>No holdings yet</Text>
+            </View>
+          ) : null}
+
+          {holdings.map((item, index) => (
+            <HoldingRow
+              key={String(item.scheme_code ?? item.isin ?? index)}
+              fund={item}
+              sortMode={sortMode}
+              onOpenFund={onOpenFund}
+            />
+          ))}
+        </View>
+
+        {listFooter}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f9f9f9',
-  },
+  safe: {flex: 1, backgroundColor: '#F0F2F5'},
   loadingBox: {
     flex: 1,
     justifyContent: 'center',
@@ -381,36 +408,20 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 32,
   },
+  scrollContent: {
+    paddingBottom: 32,
+  },
   headerBlock: {
     paddingHorizontal: 16,
     paddingTop: 8,
   },
   topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  greetingWrap: {flex: 1, paddingRight: 8},
   welcome: {
-    fontSize: 22,
+    fontSize: 24,
     color: Colors.TEXT_PRIMARY,
-    marginBottom: 4,
-  },
-  subGreeting: {
-    fontSize: 14,
-    color: Colors.GREY,
-    lineHeight: 20,
-  },
-  logoutBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    minWidth: 72,
-    alignItems: 'flex-end',
-  },
-  logoutText: {
-    color: Colors.LINK_BLUE,
-    fontSize: 15,
+    fontWeight: '800',
   },
   searchBar: {
     backgroundColor: Colors.white,
@@ -419,47 +430,31 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginBottom: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
+  searchIcon: {fontSize: 16, color: Colors.GREY, opacity: 0.9},
   searchPlaceholder: {
     color: Colors.GREY,
     fontSize: 15,
   },
-  investCard: {
+  holdingsCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-  },
-  investCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
-  },
-  investTitle: {fontSize: 18, color: Colors.TEXT_PRIMARY},
-  toggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: Colors.offWhite,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
   },
-  toggleText: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  holdingsTitleRow: {
+  holdingsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    alignItems: 'flex-start',
   },
-  holdingsLabel: {fontSize: 16, color: Colors.GREY},
-  holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 4},
-  eyeFab: {
+  holdingsIcons: {flexDirection: 'row', gap: 10, paddingLeft: 12},
+  iconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -469,84 +464,116 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.white,
   },
-  eyeFabText: {fontSize: 18},
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-    marginHorizontal: -8,
-  },
-  statCell: {
-    width: '50%',
-    paddingHorizontal: 8,
-    marginBottom: 12,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: Colors.GREY,
-    marginBottom: 4,
-  },
-  statLabelRight: {textAlign: 'right'},
-  statValue: {fontSize: 16, color: Colors.TEXT_PRIMARY},
-  statValueRight: {textAlign: 'right'},
-  positiveText: {color: '#059669'},
-  negativeText: {color: '#DC2626'},
-  holdingsSectionHeader: {
+  iconCircleTxt: {fontSize: 18},
+  holdingsLabel: {fontSize: 14, color: Colors.GREY},
+  holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 4},
+  statsCol: {marginTop: 12},
+  statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    flexWrap: 'wrap',
-    gap: 8,
+    paddingVertical: 10,
   },
-  sectionTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY},
-  sortRow: {flexDirection: 'row', gap: 6},
-  sortChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: Colors.lightWhite,
+  statLabel: {fontSize: 14, color: Colors.GREY},
+  statValue: {fontSize: 16, color: Colors.TEXT_PRIMARY},
+  statValueNeutral: {color: Colors.TEXT_PRIMARY},
+  positiveText: {color: '#059669'},
+  negativeText: {color: '#DC2626'},
+  sortDivider: {
+    height: 1,
+    backgroundColor: Colors.BORDER_GREY,
+    marginTop: 12,
+    marginHorizontal: -16,
   },
-  sortChipActive: {
-    backgroundColor: '#E0F2FE',
-    borderWidth: 1,
-    borderColor: Colors.themeBlue,
-  },
-  sortChipText: {fontSize: 12, color: Colors.GREY},
-  sortChipTextActive: {color: Colors.themeBlue},
-  holdingRow: {
+  listHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.BORDER_GREY,
   },
-  holdingLeft: {flex: 1, paddingRight: 12},
-  schemeName: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  subValue: {fontSize: 12, color: Colors.GREY, marginTop: 4},
-  holdingValueNeutral: {color: Colors.TEXT_PRIMARY},
+  sortLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  sortIcon: {fontSize: 18, color: Colors.GREY},
+  sortLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  sortRight: {flexDirection: 'row', alignItems: 'center'},
+  sortValueText: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700', marginRight: 6},
+  sortCaret: {fontSize: 14, color: Colors.GREY, marginLeft: 6},
+  sortAngle: {fontSize: 14, color: Colors.GREY},
+  xirrLabelRow: {flexDirection: 'row', alignItems: 'center'},
+  caretDown: {fontSize: 14, color: Colors.GREY, marginLeft: 6},
+  holdingCard: {
+    marginHorizontal: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+    marginBottom: 0,
+  },
+  stocksCard: {
+    marginHorizontal: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    overflow: 'hidden',
+  },
+  holdingLeft: {flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0},
+  holdingRight: {alignItems: 'flex-end', minWidth: 90, marginLeft: 12},
+  fundLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fundLogoPh: {borderWidth: 1, borderColor: Colors.BORDER_GREY},
+  fundLogoLetter: {fontSize: 14, fontWeight: '800', color: Colors.themeBlue},
+  fundTextCol: {flex: 1, minWidth: 0, marginLeft: 12},
+  fundName: {fontSize: 14, color: Colors.TEXT_PRIMARY, lineHeight: 18},
+  growthLabel: {fontSize: 12, color: Colors.GREY, marginTop: 3},
+  rightBig: {fontSize: 16, color: Colors.TEXT_PRIMARY},
+  rightSmall: {fontSize: 14, color: Colors.GREY, marginTop: 4},
   emptyBox: {
     padding: 32,
     alignItems: 'center',
   },
   emptyText: {color: Colors.GREY},
   footer: {paddingHorizontal: 16, marginTop: 8},
-  importRow: {
+  importBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 16,
-    opacity: 0.55,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
   },
-  importText: {fontSize: 15, color: Colors.TEXT_PRIMARY},
+  importLeft: {flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0},
+  importIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E8F4FC',
+    borderWidth: 1,
+    borderColor: '#D6F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  importIconTxt: {fontSize: 16},
+  importText: {fontSize: 15, color: Colors.TEXT_PRIMARY, marginRight: 12},
   chevron: {fontSize: 22, color: Colors.GREY},
   sipCard: {
     flexDirection: 'row',

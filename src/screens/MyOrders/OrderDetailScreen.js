@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
 import {navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {extractOrderAuthUrl, fetchOrderStatus, processOrderPayment} from '../../services/ordersService';
 import {
   pickOrderTitle,
   pickOrderAmountRaw,
@@ -24,6 +26,7 @@ import {
   pickFolio,
   pickOrderIdDisplay,
   formatOrderTypeLabel,
+  normalizeStatusKey,
   statusCategory,
 } from './orderHelpers';
 
@@ -131,7 +134,56 @@ function buildTimelineSteps(order) {
 export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const order = route.params?.order;
+  const user = useSelector(s => s.auth.user);
+  const routeOrder = route.params?.order;
+  const [resolvedOrder, setResolvedOrder] = useState(routeOrder || null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const order = resolvedOrder || routeOrder;
+
+  useEffect(() => {
+    setResolvedOrder(routeOrder || null);
+  }, [routeOrder]);
+
+  const statusLookupId = routeOrder?.id ?? routeOrder?.order_id;
+
+  useEffect(() => {
+    if (!statusLookupId) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setStatusLoading(true);
+        const res = await fetchOrderStatus(statusLookupId);
+        const root = res?.data?.data ?? res?.data ?? {};
+        const detail = root?.order ?? root?.result ?? root;
+        if (!cancelled && detail && typeof detail === 'object') {
+          setResolvedOrder(prev => ({...(prev || {}), ...detail}));
+          if (__DEV__) {
+            console.log('[OrderDetail] status api merged', {
+              statusLookupId,
+              detail,
+            });
+          }
+        }
+      } catch (e) {
+        if (__DEV__) {
+          console.log('[OrderDetail] status api failed', {
+            statusLookupId,
+            error: e?.message || String(e),
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setStatusLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusLookupId]);
 
   const title = useMemo(() => pickOrderTitle(order || {}), [order]);
   const amount = useMemo(() => formatInr(pickOrderAmountRaw(order)), [order]);
@@ -153,6 +205,78 @@ export default function OrderDetailScreen() {
   }, [navigation, order, title]);
 
   const logo = order?.logo_url ?? order?.logo;
+  const orderNumber =
+    order?.bse_order_id ??
+    order?.transaction_number ??
+    order?.order_number ??
+    order?.order_no ??
+    order?.order_id ??
+    order?.id;
+  const hasAuthMarker =
+    !!order?.authenticated_at ||
+    !!order?.auth_date ||
+    !!order?.verified_at ||
+    order?.is_authenticated === true ||
+    String(order?.auth_status ?? '').toUpperCase() === 'Y';
+  const statusKey = normalizeStatusKey(status);
+  const canPayNow =
+    orderNumber != null &&
+    cat !== 'success' &&
+    cat !== 'failed' &&
+    (hasAuthMarker ||
+      statusKey.includes('AUTHENTICATED') ||
+      statusKey.includes('PAYMENT_REQUIRED') ||
+      statusKey.includes('AUTHENTICATION_REQUIRED'));
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[OrderDetail] pay-now eligibility', {
+        orderNumber,
+        status,
+        cat,
+        hasAuthMarker,
+        authenticated_at: order?.authenticated_at,
+        auth_date: order?.auth_date,
+        auth_status: order?.auth_status,
+        canPayNow,
+      });
+    }
+  }, [canPayNow, cat, hasAuthMarker, order?.auth_date, order?.auth_status, order?.authenticated_at, orderNumber, status]);
+
+  const onPayNow = useCallback(async () => {
+    const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
+    const totalAmount = Number(String(pickOrderAmountRaw(order)).replace(/,/g, '')) || 0;
+    if (!orderNumber || !clientCode || !totalAmount) {
+      return;
+    }
+    try {
+      setPaymentLoading(true);
+      if (__DEV__) {
+        console.log('[OrderDetail] pay-now request', {
+          orderNumber,
+          totalAmount,
+          status: pickOrderStatus(order),
+          auth_status: order?.auth_status,
+          authenticated_at: order?.authenticated_at,
+        });
+      }
+      const res = await processOrderPayment({
+        clientCode,
+        modeOfPayment: 'DIRECT',
+        orderNumber,
+        totalAmount,
+      });
+      const url = extractOrderAuthUrl(res?.data);
+      if (__DEV__) {
+        console.log('[OrderDetail] pay-now response', {orderNumber, hasUrl: !!url, data: res?.data});
+      }
+      if (url) {
+        navigation.navigate('MandateAuthWebview', {uri: url, title: 'Complete payment'});
+      }
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [navigation, order, orderNumber, user]);
 
   if (!order) {
     return (
@@ -247,6 +371,18 @@ export default function OrderDetailScreen() {
           <Text style={styles.noticeIcon}>⚡</Text>
           <Text style={styles.noticeTxt}>Speedy order completion in just 1 working day.</Text>
         </View>
+
+        {statusLoading ? (
+          <View style={styles.statusLoadingRow}>
+            <Text style={styles.statusLoadingTxt}>Refreshing order status...</Text>
+          </View>
+        ) : null}
+
+        {canPayNow ? (
+          <TouchableOpacity style={styles.payNowBtn} onPress={onPayNow} activeOpacity={0.9} disabled={paymentLoading}>
+            <Text style={styles.payNowTxt}>{paymentLoading ? 'Processing...' : 'Pay Now'}</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Order Status</Text>
         <View style={styles.timelineCard}>
@@ -394,6 +530,20 @@ const styles = StyleSheet.create({
   },
   noticeIcon: {fontSize: 18, marginRight: 8},
   noticeTxt: {flex: 1, fontSize: 13, color: '#92400E', lineHeight: 18},
+  payNowBtn: {
+    backgroundColor: '#22C55E',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  payNowTxt: {fontSize: 15, color: Colors.white, fontWeight: '700'},
+  statusLoadingRow: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  statusLoadingTxt: {fontSize: 12, color: '#6B7280'},
   sectionTitle: {fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
   timelineCard: {
     backgroundColor: Colors.white,

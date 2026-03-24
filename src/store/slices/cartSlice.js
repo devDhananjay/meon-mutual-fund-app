@@ -10,7 +10,8 @@ const cartSlice = createSlice({
       state.items = action.payload;
     },
     addToCart(state, action) {
-      const {fund, amount, isSIP, sipFrequency, logo_url} = action.payload;
+      const {fund, amount, isSIP, sipFrequency, sipDate, sipDurationYears, mandateId, mandateLabel, logo_url} =
+        action.payload;
       const idx = state.items.findIndex(
         item => item.fund.scheme_code === fund.scheme_code,
       );
@@ -20,6 +21,10 @@ const cartSlice = createSlice({
         amount,
         isSIP: !!isSIP,
         sipFrequency: isSIP ? sipFrequency : undefined,
+        sipDate: isSIP ? sipDate : undefined,
+        sipDurationYears: isSIP ? sipDurationYears : undefined,
+        mandateId: isSIP ? mandateId : undefined,
+        mandateLabel: isSIP ? mandateLabel : undefined,
         addedAt: idx >= 0 ? state.items[idx].addedAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         logo_url: logo_url ?? fund?.logo_url,
@@ -35,7 +40,8 @@ const cartSlice = createSlice({
       state.items = state.items.filter(item => item.fund.scheme_code !== code);
     },
     updateCartItem(state, action) {
-      const {fundCode, amount, isSIP, sipFrequency} = action.payload;
+      const {fundCode, amount, isSIP, sipFrequency, sipDate, sipDurationYears, mandateId, mandateLabel} =
+        action.payload;
       const idx = state.items.findIndex(item => item.fund.scheme_code === fundCode);
       if (idx >= 0) {
         state.items[idx] = {
@@ -43,6 +49,10 @@ const cartSlice = createSlice({
           amount,
           isSIP: !!isSIP,
           sipFrequency: isSIP ? sipFrequency : undefined,
+          sipDate: isSIP ? sipDate : undefined,
+          sipDurationYears: isSIP ? sipDurationYears : undefined,
+          mandateId: isSIP ? mandateId : undefined,
+          mandateLabel: isSIP ? mandateLabel : undefined,
           updatedAt: new Date().toISOString(),
         };
       }

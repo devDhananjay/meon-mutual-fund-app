@@ -122,7 +122,7 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   }, [visible]);
 
   const investorName = useMemo(() => {
-    const fn = (user?.first_name || '').trim();
+    const fn = (user?.full_name || '').trim();
     const ln = (user?.last_name || '').trim();
     if (fn && ln) {
       return `${fn} ${ln}`;

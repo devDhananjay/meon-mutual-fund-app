@@ -29,8 +29,8 @@ const ICON_BG = '#E8F4FC';
 const WEB_ORIGIN = 'https://mutualfunds.meon.co.in';
 
 function getInitials(user) {
-  const fn = (user?.first_name || '').trim();
-  const ln = (user?.last_name || '').trim();
+  const fn = (user?.full_name || user?.first_name || '').trim();
+  const ln = (user?.full_name || user?.last_name || '').trim();
   if (fn && ln) {
     return `${fn[0]}${ln[0]}`.toUpperCase();
   }
@@ -46,7 +46,7 @@ function getInitials(user) {
 }
 
 function getDisplayName(user) {
-  const fn = (user?.first_name || '').trim();
+  const fn = (user?.full_name || user?.first_name || '').trim();
   const ln = (user?.last_name || '').trim();
   if (fn && ln) {
     return `${fn} ${ln}`;
@@ -54,7 +54,7 @@ function getDisplayName(user) {
   if (user?.name) {
     return user.name;
   }
-  return user?.email || 'Member';
+  return user?.full_name || 'Member';
 }
 
 function getMemberSinceLine(user) {
@@ -188,15 +188,14 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>Profile</Text>
 
         <View style={styles.profileHeaderCard}>
           <TouchableOpacity style={styles.closeBtn} onPress={goDashboard} hitSlop={12}>
-            <Text style={styles.closeTxt}>✕</Text>
+            <Text style={[styles.closeTxt, Textstyles.bold]}>✕</Text>
           </TouchableOpacity>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarTxt}>{initials}</Text>
+              <Text style={[styles.avatarTxt, Textstyles.bold]}>{initials}</Text>
             </View>
             <View style={styles.profileTextCol}>
               <Text style={[Textstyles.bold, styles.displayName]} numberOfLines={2}>

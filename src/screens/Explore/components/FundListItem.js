@@ -4,21 +4,36 @@ import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 const PRIMARY_GREEN = '#00B386';
 const RISK_RED = '#DC2626';
 
-function returnColor(raw) {
-  const n = Number(raw);
+function safeParsePct(raw) {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  const s = String(raw).trim().replace('%', '').replace(',', '');
+  if (!s) {
+    return null;
+  }
+  const n = Number(s);
   if (Number.isNaN(n)) {
+    return null;
+  }
+  return n;
+}
+
+function returnColor(raw) {
+  const n = safeParsePct(raw);
+  if (n === null) {
     return '#6B7280';
   }
   return n >= 0 ? PRIMARY_GREEN : RISK_RED;
 }
 
 function formatPctSigned(raw) {
-  const n = Number(raw);
-  if (Number.isNaN(n)) {
+  const n = safeParsePct(raw);
+  if (n === null) {
     return '—';
   }
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
+  const sign = n >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(n).toFixed(2)}%`;
 }
 
 function FundLogo({logoUrl, name}) {
@@ -39,10 +54,12 @@ export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
   const meta = fund?.metaText ?? '';
   const returnVal =
     returnPeriodKey === '1y'
-      ? fund?.return1y ?? 0
+      ? fund?.return1y
       : returnPeriodKey === '5y'
-        ? fund?.return5y ?? 0
-        : fund?.return3y ?? 0;
+        ? fund?.return5y
+        : returnPeriodKey === '7y'
+          ? fund?.return7y
+          : fund?.return3y;
 
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.row}>
@@ -63,7 +80,7 @@ export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
           {formatPctSigned(returnVal)}
         </Text>
         <Text style={styles.period}>
-          {returnPeriodKey === '1y' ? '1Y' : returnPeriodKey === '5y' ? '5Y' : '3Y'}
+          {returnPeriodKey === '1y' ? '1Y' : returnPeriodKey === '5y' ? '5Y' : returnPeriodKey === '7y' ? '7Y' : '3Y'}
         </Text>
       </View>
     </TouchableOpacity>

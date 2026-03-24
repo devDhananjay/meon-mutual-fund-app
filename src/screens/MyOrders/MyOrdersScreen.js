@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,15 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
 import {useOrdersData} from '../../hooks/useOrdersData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {
+  extractOrderAuthUrl,
+  isAuthenticatedOrderState,
+  processOrderPayment,
+} from '../../services/ordersService';
 import {
   pickOrderTitle,
   pickOrderAmountRaw,
@@ -119,13 +125,64 @@ function FilterSlidersIcon() {
   );
 }
 
-function OrderCard({item, onPressOrder}) {
+function pickOrderNumber(item) {
+  return (
+    item?.bse_order_id ??
+    item?.transaction_number ??
+    item?.order_number ??
+    item?.order_no ??
+    item?.order_id ??
+    item?.id
+  );
+}
+
+function canShowPayNow(item) {
+  const status = pickOrderStatus(item);
+  const completionSignals = [status, item?.order_status, item?.state, item?.payment_status]
+    .filter(Boolean)
+    .join(' ');
+  const completeKey = normalizeStatusKey(completionSignals);
+  const isAlreadyComplete =
+    completeKey.includes('SUCCESS') ||
+    completeKey.includes('COMPLETE') ||
+    completeKey.includes('EXECUTED') ||
+    completeKey.includes('SETTLED') ||
+    completeKey.includes('PAID');
+
+  const statusSignals = [
+    status,
+    item?.remarks,
+    item?.order_status,
+    item?.state,
+    item?.payment_status,
+    item?.auth_status,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const hasAuthMarker =
+    !!item?.authenticated_at ||
+    !!item?.auth_date ||
+    !!item?.verified_at ||
+    item?.is_authenticated === true ||
+    String(item?.auth_status ?? '').toUpperCase() === 'Y';
+
+  return (
+    pickOrderNumber(item) != null &&
+    !isAlreadyComplete &&
+    (isAuthenticatedOrderState(statusSignals) || hasAuthMarker)
+  );
+}
+
+function OrderCard({item, onPressOrder, onPayNow, payingOrderId}) {
   const name = pickOrderTitle(item);
   const typeLabel = formatOrderTypeLabel(pickOrderType(item));
   const amount = formatInr(pickOrderAmountRaw(item));
   const investDate = formatDate(pickOrderDate(item));
   const status = pickOrderStatus(item);
   const logo = item.logo_url ?? item.logo;
+  const orderId = pickOrderNumber(item);
+  const canPayNow = canShowPayNow(item);
 
   return (
     <TouchableOpacity style={styles.orderCard} onPress={() => onPressOrder(item)} activeOpacity={0.75}>
@@ -151,6 +208,17 @@ function OrderCard({item, onPressOrder}) {
           <StatusBadge label={status} />
         </View>
       </View>
+      {canPayNow ? (
+        <TouchableOpacity
+          style={styles.payNowBtn}
+          onPress={() => onPayNow(item)}
+          activeOpacity={0.9}
+          disabled={String(payingOrderId) === String(orderId)}>
+          <Text style={styles.payNowTxt}>
+            {String(payingOrderId) === String(orderId) ? 'Processing...' : 'Pay Now'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -257,6 +325,7 @@ function FilterSheet({
 export default function MyOrdersScreen() {
   const navigation = useNavigation();
   const showBack = navigation.canGoBack();
+  const user = useSelector(s => s.auth.user);
   const {data, isPending, error, refreshing, refetch} = useOrdersData();
   const orders = data?.results ?? EMPTY_ORDERS;
   const totalCount = data?.count ?? orders.length;
@@ -268,6 +337,7 @@ export default function MyOrdersScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftStatus, setDraftStatus] = useState('all');
   const [draftType, setDraftType] = useState('all');
+  const [payingOrderId, setPayingOrderId] = useState(null);
 
   const openFilter = useCallback(() => {
     setDraftStatus(statusFilter);
@@ -303,6 +373,22 @@ export default function MyOrdersScreen() {
     });
   }, [orders, search, statusFilter, typeFilter]);
 
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+    const sample = orders.slice(0, 8).map(o => ({
+      id: pickOrderNumber(o),
+      status: pickOrderStatus(o),
+      order_status: o?.order_status,
+      payment_status: o?.payment_status,
+      auth_status: o?.auth_status,
+      authenticated_at: o?.authenticated_at,
+      canPayNow: canShowPayNow(o),
+    }));
+    console.log('[MyOrders] pay-now snapshot', sample);
+  }, [orders]);
+
   const onPressOrder = useCallback(
     item => {
       navigation.navigate('OrderDetail', {order: item});
@@ -310,9 +396,54 @@ export default function MyOrdersScreen() {
     [navigation],
   );
 
+  const onPayNow = useCallback(
+    async item => {
+      const orderNumber = pickOrderNumber(item);
+      const totalAmount = Number(String(pickOrderAmountRaw(item)).replace(/,/g, '')) || 0;
+      const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
+      if (!orderNumber || !clientCode || !totalAmount) {
+        Alert.alert('Pay Now', 'Required payment fields missing for this order.');
+        return;
+      }
+      try {
+        setPayingOrderId(orderNumber);
+        if (__DEV__) {
+          console.log('[MyOrders] pay-now request', {
+            orderNumber,
+            totalAmount,
+            status: pickOrderStatus(item),
+            order_status: item?.order_status,
+            payment_status: item?.payment_status,
+            auth_status: item?.auth_status,
+          });
+        }
+        const res = await processOrderPayment({
+          clientCode,
+          modeOfPayment: 'DIRECT',
+          orderNumber,
+          totalAmount,
+        });
+        const url = extractOrderAuthUrl(res?.data);
+        if (__DEV__) {
+          console.log('[MyOrders] pay-now response', {orderNumber, hasUrl: !!url, data: res?.data});
+        }
+        if (url) {
+          navigation.navigate('MandateAuthWebview', {uri: url, title: 'Complete payment'});
+        } else {
+          Alert.alert('Pay Now', 'Payment URL not found for this order.');
+        }
+      } finally {
+        setPayingOrderId(null);
+      }
+    },
+    [navigation, user],
+  );
+
   const renderItem = useCallback(
-    ({item}) => <OrderCard item={item} onPressOrder={onPressOrder} />,
-    [onPressOrder],
+    ({item}) => (
+      <OrderCard item={item} onPressOrder={onPressOrder} onPayNow={onPayNow} payingOrderId={payingOrderId} />
+    ),
+    [onPressOrder, onPayNow, payingOrderId],
   );
 
   const listHeader = useMemo(
@@ -519,6 +650,14 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   statusPillTxt: {fontSize: 11, fontWeight: '700'},
+  payNowBtn: {
+    marginTop: 12,
+    backgroundColor: '#22C55E',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  payNowTxt: {color: Colors.white, fontSize: 14, fontWeight: '700'},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,

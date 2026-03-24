@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Figtree-Bold.ttf",
+      "sha1": "1586d644f8cd8fe4a5b71da994784a7af1159ed7"
+    },
+    {
+      "path": "assets/fonts/Figtree-ExtraBold.ttf",
+      "sha1": "8f994f2ad55ed49ca639e8fe4192dd94bf58c75b"
+    },
+    {
+      "path": "assets/fonts/Figtree-Medium.ttf",
+      "sha1": "aa96041fb30ee8604ca86e4cddd75f499fa7dcc5"
+    },
+    {
+      "path": "assets/fonts/Figtree-Regular.ttf",
+      "sha1": "9920bf004413ec1a30718aac3dc5a6cc8e00fceb"
+    }
+  ]
+}

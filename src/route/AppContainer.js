@@ -11,7 +11,7 @@ import FundDetailScreen from '../screens/FundDetail/FundDetailScreen';
 import CartScreen from '../screens/Cart/CartScreen';
 import MyOrdersScreen from '../screens/MyOrders/MyOrdersScreen';
 import OrderDetailScreen from '../screens/MyOrders/OrderDetailScreen';
-import AllFundsSIPScreen from '../screens/Explore/AllFundsSIPScreen';
+import AllMutualFundsScreen from '../screens/Explore/AllMutualFundsScreen';
 import WatchlistScreen from '../screens/Watchlist/WatchlistScreen';
 import MandateScreen from '../screens/Mandate/MandateScreen';
 import MandateDetailScreen from '../screens/Mandate/MandateDetailScreen';
@@ -40,7 +40,7 @@ export default function AppContainer() {
         <Stack.Screen name="Cart" component={CartScreen} />
         <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
         <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-        <Stack.Screen name="AllFundsSIP" component={AllFundsSIPScreen} />
+        <Stack.Screen name="AllFundsSIP" component={AllMutualFundsScreen} />
         <Stack.Screen name="Watchlist" component={WatchlistScreen} />
         <Stack.Screen name="Mandate" component={MandateScreen} />
         <Stack.Screen name="MandateDetail" component={MandateDetailScreen} />

@@ -33,6 +33,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 12.34,
     return3y: 34.52,
     return5y: 40.01,
+    return7y: 40.01,
     scheme_code: null,
   },
   {
@@ -45,6 +46,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 10.12,
     return3y: 34.52,
     return5y: 38.5,
+    return7y: 38.5,
     scheme_code: null,
   },
   {
@@ -57,6 +59,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 9.22,
     return3y: 34.52,
     return5y: 36.2,
+    return7y: 36.2,
     scheme_code: null,
   },
   {
@@ -69,6 +72,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 8.66,
     return3y: 34.52,
     return5y: 35.0,
+    return7y: 35.0,
     scheme_code: null,
   },
   {
@@ -81,6 +85,7 @@ const MOCK_ALL_FUNDS = [
     return1y: -3.2,
     return3y: -34.52,
     return5y: -18.4,
+    return7y: -18.4,
     scheme_code: null,
   },
   {
@@ -93,6 +98,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 7.1,
     return3y: 34.52,
     return5y: 31.9,
+    return7y: 31.9,
     scheme_code: null,
   },
   {
@@ -105,6 +111,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 5.5,
     return3y: 34.52,
     return5y: 28.0,
+    return7y: 28.0,
     scheme_code: null,
   },
   {
@@ -117,6 +124,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 4.2,
     return3y: 18.75,
     return5y: 22.7,
+    return7y: 22.7,
     scheme_code: null,
   },
   {
@@ -129,6 +137,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 3.7,
     return3y: -5.1,
     return5y: 12.3,
+    return7y: 12.3,
     scheme_code: null,
   },
   {
@@ -141,6 +150,7 @@ const MOCK_ALL_FUNDS = [
     return1y: 6.4,
     return3y: 34.52,
     return5y: 24.0,
+    return7y: 24.0,
     scheme_code: null,
   },
 ];
@@ -178,12 +188,14 @@ function mapApiResultsToFunds(apiData) {
       scheme_code: code,
       name: scheme?.base_scheme_name || scheme?.name || 'Unnamed Fund',
       logo_url: scheme?.logo_url,
+      category: scheme?.scheme_type ?? scheme?.category ?? null,
       rating: rating == null ? 4 : Number(rating),
       riskLabel: riskLabel == null ? 'High Risk' : String(riskLabel),
       metaText: 'Commodities silver',
       return1y: returns?.['1y'],
       return3y: returns?.['3y'],
       return5y: returns?.['5y'],
+      return7y: returns?.['7y'],
     };
   });
 }
@@ -194,14 +206,15 @@ export default function ExplorePixelPerfectScreen() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortPeriodKey, setSortPeriodKey] = useState('3y'); // 1y | 3y | 5y
-  const [indexOnly, setIndexOnly] = useState(false);
-  const [flexiCap, setFlexiCap] = useState(true);
-  const [selectedSector, setSelectedSector] = useState('All');
-
-  const sectorOptions = useMemo(() => ['All', 'Technology', 'Healthcare', 'Financials'], []);
+  const [selectedCategory, setSelectedCategory] = useState(''); // '' means All categories
+  const [selectedRisk, setSelectedRisk] = useState(''); // '' means All risks
 
   const sortLabel = useMemo(() => {
-    return sortPeriodKey === '1y' ? '1Y Returns' : sortPeriodKey === '5y' ? '5Y Returns' : '3Y Returns';
+    return sortPeriodKey === '5y'
+      ? '5Y Returns'
+      : sortPeriodKey === '7y'
+        ? '7Y Returns'
+        : '3Y Returns';
   }, [sortPeriodKey]);
 
   useEffect(() => {
@@ -209,34 +222,91 @@ export default function ExplorePixelPerfectScreen() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const {data, isLoading} = useAllFunds({
+  const categoryOptions = useMemo(
+    () => [
+      {label: 'All categories', value: ''},
+      {label: 'Small Cap', value: 'Small Cap'},
+      {label: 'Mid Cap', value: 'Mid Cap'},
+      {label: 'Large Cap', value: 'Large Cap'},
+    ],
+    [],
+  );
+
+  const riskOptions = useMemo(
+    () => [
+      {label: 'All risks', value: ''},
+      {label: 'Low', value: 'low'},
+      {label: 'Moderate', value: 'Moderate'},
+      {label: 'High', value: 'High'},
+      {label: 'Very High', value: 'Very High'},
+    ],
+    [],
+  );
+
+  // Home query (Popular/Recent) - ONLY unfiltered (so category/risk filters don't affect these sections).
+  const {data: homeData, isLoading: homeLoading} = useAllFunds({
+    page: 0,
+    rowsPerPage: 10,
+    showMoreCount: 10,
+    isMobile: true,
+    debouncedSearch: '',
+    selectedCategory: '',
+    selectedRisk: '',
+  });
+
+  // List query (All Mutual Funds) - filtered by category/risk from website.
+  const {data: listData, isLoading: listLoading} = useAllFunds({
     page: 0,
     rowsPerPage: 10,
     showMoreCount: 20,
     isMobile: true,
     debouncedSearch,
-    selectedCategory: '',
-    selectedRisk: '',
+    selectedCategory,
+    selectedRisk,
   });
 
-  const apiFunds = useMemo(() => mapApiResultsToFunds(data), [data]);
-  const displayFunds = apiFunds.length ? apiFunds : MOCK_ALL_FUNDS;
-  const popularFunds = useMemo(() => displayFunds.slice(0, 4), [displayFunds]);
-  const recentlyViewed = useMemo(() => displayFunds.slice(1, 3), [displayFunds]);
-  const count = data?.count ?? 1245;
+  const homeFunds = useMemo(() => mapApiResultsToFunds(homeData), [homeData]);
+  const listFunds = useMemo(() => mapApiResultsToFunds(listData), [listData]);
+
+  const popularFunds = useMemo(() => {
+    const list = homeFunds.length ? homeFunds : MOCK_ALL_FUNDS;
+    return list.slice(0, 4);
+  }, [homeFunds]);
+
+  const recentlyViewed = useMemo(() => {
+    const list = homeFunds.length ? homeFunds : MOCK_ALL_FUNDS;
+    return list.slice(4, 6);
+  }, [homeFunds]);
+
+  const sortedListFunds = useMemo(() => {
+    const list = listFunds.length ? listFunds : MOCK_ALL_FUNDS;
+  const getVal = item => {
+      const raw =
+        sortPeriodKey === '1y'
+          ? item?.return1y
+          : sortPeriodKey === '5y'
+            ? item?.return5y
+            : sortPeriodKey === '7y'
+              ? item?.return7y
+              : item?.return3y;
+      const s = raw === null || raw === undefined ? '' : String(raw).trim().replace('%', '').replace(',', '');
+      const n = s ? Number(s) : NaN;
+      return Number.isNaN(n) ? -Infinity : n;
+    };
+    const copy = [...list];
+    copy.sort((a, b) => getVal(b) - getVal(a));
+    return copy;
+  }, [listFunds, sortPeriodKey]);
+
+  const count = listData?.count ?? sortedListFunds.length;
 
   const onPressSort = useCallback(
     key => {
-      if (key === '1y' || key === '3y' || key === '5y') {
+      if (key === '3y' || key === '5y' || key === '7y') {
         setSortPeriodKey(key);
-        return;
       }
-      const order = ['1y', '3y', '5y'];
-      const idx = order.indexOf(sortPeriodKey);
-      const next = order[(idx + 1) % order.length];
-      setSortPeriodKey(next);
     },
-    [sortPeriodKey],
+    [],
   );
 
   const onPressFund = useCallback(
@@ -256,7 +326,10 @@ export default function ExplorePixelPerfectScreen() {
     navigateToAllFundsSIP(navigation);
   }, [navigation]);
 
-  if (isLoading && (!data || !data.results)) {
+  if (
+    (!homeData && homeLoading) &&
+    (!listData && listLoading)
+  ) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.loadingBox}>
@@ -270,7 +343,7 @@ export default function ExplorePixelPerfectScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[Textstyles.extraBold, styles.title]}>Explore</Text>
+          <Text style={[Textstyles.bold, styles.title]}>Explore</Text>
         </View>
 
         <View style={styles.searchWrap}>
@@ -329,29 +402,31 @@ export default function ExplorePixelPerfectScreen() {
           ))}
         </ScrollView>
 
-        <Text style={[Textstyles.bold, styles.allFundsTitle]}>All Mutual Funds</Text>
+        <View style={styles.allFundsHeadRow}>
+          <Text style={[Textstyles.bold, styles.allFundsTitle]}>All Mutual Funds</Text>
+          <TouchableOpacity onPress={onStartSIP} hitSlop={10} activeOpacity={0.85}>
+            <Text style={styles.viewAll}>View all</Text>
+          </TouchableOpacity>
+        </View>
 
         <FilterBar
           count={count}
           sortLabel={sortLabel}
           onPressSort={onPressSort}
-          indexOnly={indexOnly}
-          onToggleIndexOnly={() => setIndexOnly(v => !v)}
-          flexiCap={flexiCap}
-          onToggleFlexiCap={() => setFlexiCap(v => !v)}
-          sectorOptions={sectorOptions}
-          selectedSector={selectedSector}
-          onSelectSector={setSelectedSector}
+          categoryOptions={categoryOptions}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          riskOptions={riskOptions}
+          selectedRisk={selectedRisk}
+          onSelectRisk={setSelectedRisk}
         />
 
         <View style={styles.list}>
-          {displayFunds.slice(0, 10).map((f, idx) => (
+          {sortedListFunds.slice(0, 10).map((f, idx) => (
             <FundListItem
               key={f.id ?? idx}
-              fund={{
-                ...f,
-                returnPeriodKey: sortPeriodKey,
-              }}
+                fund={f}
+                returnPeriodKey={sortPeriodKey}
               onPress={() => onPressFund(f)}
             />
           ))}
@@ -440,7 +515,14 @@ const styles = StyleSheet.create({
   recentContent: {paddingHorizontal: 16, gap: 12},
   recentItem: {width: 220},
 
-  allFundsTitle: {paddingHorizontal: 16, marginBottom: 8, fontSize: 16, color: Colors.TEXT_PRIMARY},
+  allFundsHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  allFundsTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
 
   list: {paddingBottom: 18},
   bottomPad: {height: 30},

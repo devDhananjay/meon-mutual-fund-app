@@ -205,7 +205,7 @@ export default function MyFoliosScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <Text style={styles.pageTitle}>My Folios</Text>
+        <Text style={[styles.pageTitle, Textstyles.bold]}>My Folios</Text>
         <View style={styles.card}>
           <View style={styles.searchWrap}>
             <Text style={styles.searchIcon}>⌕</Text>

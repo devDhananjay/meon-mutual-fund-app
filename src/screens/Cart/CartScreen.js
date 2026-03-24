@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -10,6 +10,13 @@ import {
   selectCartItems,
   selectCartTotal,
 } from '../../store/slices/cartSlice';
+import {
+  authenticateOrder,
+  buildOrderPlacePayload,
+  createCartOrder,
+  extractOrderId,
+  extractOrderAuthUrl,
+} from '../../services/ordersService';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 
@@ -104,6 +111,14 @@ function CartLineItem({item, onRemove, onChangeAmount, onToggleSip}) {
         </View>
       </View>
       <Text style={styles.minNote}>Min. {formatInr(min)}</Text>
+      {item.isSIP ? (
+        <Text style={styles.sipMeta}>
+          {`SIP: ${item.sipFrequency || 'Monthly'}${item.sipDate ? ` • Date ${item.sipDate}` : ''}${
+            item.sipDurationYears ? ` • ${item.sipDurationYears}Y` : ''
+          }`}
+        </Text>
+      ) : null}
+      {item.isSIP && item.mandateLabel ? <Text style={styles.sipMeta}>Mandate: {item.mandateLabel}</Text> : null}
 
       <TouchableOpacity style={styles.removeRow} onPress={() => onRemove(item.fund.scheme_code)} hitSlop={12}>
         <Text style={styles.removeTxt}>Remove</Text>
@@ -117,6 +132,10 @@ export default function CartScreen() {
   const dispatch = useDispatch();
   const items = useSelector(selectCartItems);
   const total = useSelector(selectCartTotal);
+  const [pendingOrderId, setPendingOrderId] = useState(null);
+  const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
 
   const onRemove = useCallback(
     code => {
@@ -165,12 +184,83 @@ export default function CartScreen() {
     ]);
   }, [dispatch, items.length]);
 
-  const onCheckout = useCallback(() => {
-    Alert.alert(
-      'Checkout',
-      'Payment and mandate flow (same as website) can be wired here — e.g. WebView or native payment SDK.',
-    );
-  }, []);
+  const onCheckout = useCallback(async () => {
+    if (items.length === 0) {
+      return;
+    }
+    try {
+      setCheckoutLoading(true);
+      const orderBodies = items.map(item =>
+        buildOrderPlacePayload({
+          schemeCode: item?.fund?.scheme_code,
+          amount: Number(item?.amount) || minAmountForItem(item),
+          isSip: !!item?.isSIP,
+          sipFrequency: item?.sipFrequency,
+          sipDate: item?.sipDate,
+          sipDurationYears: Number(item?.sipDurationYears),
+          mandateId: item?.mandateId,
+        }),
+      );
+      const responses = await createCartOrder(orderBodies);
+      const firstOrderId = responses.map(r => extractOrderId(r?.data)).find(Boolean) ?? null;
+      const firstAuthUrl = responses.map(r => extractOrderAuthUrl(r?.data)).find(Boolean) ?? null;
+      if (firstAuthUrl) {
+        setPendingGatewayUrl(firstAuthUrl);
+      }
+      if (firstOrderId) {
+        setPendingOrderId(firstOrderId);
+        Alert.alert('Order placed', 'Please tap "Authenticate & Continue" to proceed.');
+      } else {
+        Alert.alert('Order placed', 'Your order request is submitted. You can track it in My Orders.', [
+          {text: 'My Orders', onPress: () => navigation.navigate('MyOrders')},
+          {text: 'OK'},
+        ]);
+      }
+    } catch (e) {
+      Alert.alert('Checkout failed', String(e?.message || 'Could not place order.'));
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, [items, navigation]);
+
+  const onAuthenticateAndContinue = useCallback(async () => {
+    if (pendingGatewayUrl) {
+      navigation.navigate('MandateAuthWebview', {
+        uri: pendingGatewayUrl,
+        title: 'Authenticate order',
+      });
+      return;
+    }
+    if (!pendingOrderId) {
+      return;
+    }
+    try {
+      setAuthLoading(true);
+      const res = await authenticateOrder(pendingOrderId);
+      const authUrl = extractOrderAuthUrl(res?.data);
+      if (authUrl) {
+        setPendingGatewayUrl(authUrl);
+        navigation.navigate('MandateAuthWebview', {
+          uri: authUrl,
+          title: 'Authenticate order',
+        });
+      } else {
+        Alert.alert('Authenticate', 'Could not get payment gateway URL.');
+      }
+    } catch (e) {
+      const msg = String(e?.message || '');
+      if (msg.toLowerCase().includes('already in authenticated status') && pendingGatewayUrl) {
+        navigation.navigate('MandateAuthWebview', {
+          uri: pendingGatewayUrl,
+          title: 'Authenticate order',
+        });
+        return;
+      }
+      Alert.alert('Authenticate failed', msg || 'Could not start authentication.');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [navigation, pendingGatewayUrl, pendingOrderId]);
 
   const listHeader = useMemo(
     () => (
@@ -257,9 +347,19 @@ export default function CartScreen() {
             <Text style={styles.footerLabel}>Total</Text>
             <Text style={styles.footerTotal}>{formatInr(total)}</Text>
           </View>
-          <TouchableOpacity style={styles.checkout} onPress={onCheckout} activeOpacity={0.9}>
-            <Text style={[Textstyles.medium, styles.checkoutTxt]}>Proceed to checkout</Text>
-          </TouchableOpacity>
+          {pendingOrderId ? (
+            <TouchableOpacity style={styles.checkout} onPress={onAuthenticateAndContinue} activeOpacity={0.9} disabled={authLoading}>
+              <Text style={[Textstyles.medium, styles.checkoutTxt]}>
+                {authLoading ? 'Authenticating...' : 'Authenticate & Continue'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.checkout} onPress={onCheckout} activeOpacity={0.9} disabled={checkoutLoading}>
+              <Text style={[Textstyles.medium, styles.checkoutTxt]}>
+                {checkoutLoading ? 'Placing order...' : 'Proceed to checkout'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
     </SafeAreaView>
@@ -383,6 +483,7 @@ const styles = StyleSheet.create({
   amtDisplay: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, minWidth: 100, textAlign: 'center'},
   amtDisplayPad: {marginHorizontal: 8},
   minNote: {fontSize: 11, color: '#9CA3AF', marginTop: 6},
+  sipMeta: {fontSize: 11, color: '#6B7280', marginTop: 4},
   removeRow: {alignSelf: 'flex-end', marginTop: 10},
   removeTxt: {fontSize: 14, color: '#DC2626', fontWeight: '600'},
   emptyWrap: {paddingTop: 8},
