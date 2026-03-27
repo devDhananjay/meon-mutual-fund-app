@@ -3,18 +3,39 @@ import {normalizeJourneyListResponse} from './listResponseUtils';
 
 /** Web parity: order history list (auth required). */
 export async function fetchOrderList(params = {}) {
-  return apiClient.get('/api/journey/mf/order/list/', {
-    params: {
-      page: 1,
-      page_size: 50,
-      ...params,
-    },
-  });
+  const endpoint = '/api/journey/mf/order/list/';
+  const payload = {
+    page: 1,
+    page_size: 50,
+    ...params,
+  };
+  if (__DEV__) {
+    console.log('[order/list] request', {endpoint, params: payload});
+  }
+  const res = await apiClient.get(endpoint, {params: payload});
+  if (__DEV__) {
+    console.log('[order/list] response', {
+      success: res?.success,
+      data: res?.data,
+    });
+  }
+  return res;
 }
 
 /** Web parity: order detail/status by order id. */
 export async function fetchOrderStatus(orderId) {
-  return apiClient.get(`/api/journey/mf/order/${orderId}/status/`);
+  const endpoint = `/api/journey/mf/order/${orderId}/status/`;
+  if (__DEV__) {
+    console.log('[order/status] request', {endpoint, orderId});
+  }
+  const res = await apiClient.get(endpoint);
+  if (__DEV__) {
+    console.log('[order/status] response', {
+      success: res?.success,
+      data: res?.data,
+    });
+  }
+  return res;
 }
 
 export function normalizeOrdersResponse(apiBody) {
@@ -53,6 +74,59 @@ export function buildOrderPlacePayload({
   };
 }
 
+/**
+ * Redemption order (web parity: `/api/journey/mf/order/place/` with buy_sell R).
+ * - Amount mode: rupee value, all_redeem N unless full amount matches cap.
+ * - Quantity / units mode: pass units; amount often 0 when API expects units only.
+ * - Redeem all: all_redeem Y (amount placeholder per gateway patterns).
+ * SWP is not supported in-app (separate transaction type on web).
+ */
+export function buildRedeemPlacePayload({
+  schemeCode,
+  folioNumber = '',
+  redeemByAmount,
+  amount,
+  units,
+  allRedeem,
+}) {
+  const folio = String(folioNumber ?? '').trim();
+  const base = {
+    transaction_code: 'NEW',
+    scheme_code: schemeCode,
+    buy_sell: 'R',
+    buy_sell_type: 'FRESH',
+    dp_txn: 'P',
+    kyc_status: 'Y',
+    euin_flag: 'N',
+    min_redeem: 'N',
+    dpc: 'Y',
+    folio_number: folio,
+  };
+
+  if (allRedeem) {
+    return {
+      ...base,
+      all_redeem: 'Y',
+      amount: 1,
+    };
+  }
+
+  if (redeemByAmount) {
+    return {
+      ...base,
+      all_redeem: 'N',
+      amount: Math.max(0, Math.round(Number(amount))),
+    };
+  }
+
+  const u = Number(units);
+  return {
+    ...base,
+    all_redeem: 'N',
+    units: Number.isFinite(u) ? u : 0,
+  };
+}
+
 export async function createSingleOrder(body) {
   if (__DEV__) {
     console.log('[order/place] request', {
@@ -63,6 +137,44 @@ export async function createSingleOrder(body) {
   const res = await apiClient.post(ORDER_PLACE_ENDPOINT, body);
   if (__DEV__) {
     console.log('[order/place] response', {
+      success: res?.success,
+      data: res?.data,
+    });
+  }
+  return res;
+}
+
+export function buildOrderCancelPayload(order) {
+  const root = order ?? {};
+  const amountRaw = root?.all_redeem === 'Y' ? '1' : root?.amount ?? root?.order_amount ?? root?.total_amount;
+  return {
+    transaction_code: 'CXL',
+    scheme_code: root?.scheme_code ?? root?.schemeCode ?? root?.schemeCode?.scheme_code,
+    buy_sell: root?.buy_sell ?? root?.buySell ?? 'P',
+    buy_sell_type: root?.buy_sell_type ?? root?.buySellType ?? 'FRESH',
+    dp_txn: root?.dp_txn ?? 'P',
+    all_redeem: root?.all_redeem ?? 'N',
+    amount: Number(amountRaw),
+    folio_number: root?.folio_number ?? root?.folio_no ?? '',
+    kyc_status: root?.kyc_status ?? 'Y',
+    euin_flag: root?.euin_flag ?? 'N',
+    min_redeem: root?.min_redeem ?? 'N',
+    dpc: root?.dpc ?? 'Y',
+    order_id: root?.order_id ?? root?.orderId ?? root?.id,
+  };
+}
+
+export async function createCancelOrder(order) {
+  const body = buildOrderCancelPayload(order);
+  if (__DEV__) {
+    console.log('[order/cancel] request', {
+      endpoint: ORDER_PLACE_ENDPOINT,
+      payload: body,
+    });
+  }
+  const res = await apiClient.post(ORDER_PLACE_ENDPOINT, body);
+  if (__DEV__) {
+    console.log('[order/cancel] response', {
       success: res?.success,
       data: res?.data,
     });
@@ -131,6 +243,7 @@ export async function processOrderPayment({
   modeOfPayment = 'DIRECT',
   orderNumber,
   vpaId = '',
+  neftReference = '',
   totalAmount,
 }) {
   const numericOrder = Number(orderNumber);
@@ -140,6 +253,7 @@ export async function processOrderPayment({
     mode_of_payment: modeOfPayment,
     order_numbers: Number.isFinite(numericOrder) ? numericOrder : orderNumber,
     vpa_id: vpaId,
+    NEFTReference: neftReference || undefined,
     total_amount: Number.isFinite(numericAmount) ? numericAmount : totalAmount,
   };
   if (__DEV__) {

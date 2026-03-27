@@ -9,8 +9,10 @@ import {
   RefreshControl,
   TextInput,
   Image,
+  StatusBar,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import AppTabHeader from '../../components/AppTabHeader';
 import {useNavigation} from '@react-navigation/native';
 import {navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
@@ -21,12 +23,10 @@ import Textstyles from '../../utils/text';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
-const HEADER_ROW_BG = '#F5F6F8';
-const GREEN_BTN = '#22C55E';
+const GREEN_CTA = '#22C55E';
 const LOSS_RED = '#DC2626';
-const GAIN_GREEN = '#059669';
-const LOSS_PILL_BG = '#FEE2E2';
-const GAIN_PILL_BG = '#DCFCE7';
+const GAIN_GREEN = '#16A34A';
+const LABEL_GRAY = '#6B7280';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -36,7 +36,9 @@ function formatInr(value) {
   if (Number.isNaN(n)) {
     return String(value);
   }
-  return `₹${n.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const isInt = Math.abs(n - Math.round(n)) < 0.000001;
+  const digits = isInt ? 0 : 2;
+  return `₹ ${n.toLocaleString('en-IN', {minimumFractionDigits: digits, maximumFractionDigits: digits})}`;
 }
 
 function sumHoldings(holdings, field) {
@@ -59,6 +61,41 @@ function gainLossFromHolding(item) {
   return {abs: diff, pct, isGain: diff >= 0};
 }
 
+function formatGainLossLine(item) {
+  const {abs, pct, isGain} = gainLossFromHolding(item);
+  const absNum = Math.abs(abs);
+  const absStr = `${abs >= 0 ? '+' : '-'}₹${absNum.toLocaleString('en-IN', {maximumFractionDigits: 2})}`;
+  if (pct != null && !Number.isNaN(pct)) {
+    return {text: `${absStr} (${pct >= 0 ? '+' : ''}${Number(pct).toFixed(2)}%)`, isGain};
+  }
+  return {text: absStr, isGain};
+}
+
+function pickXirr(item) {
+  const raw = item?.xirr ?? item?.scheme_xirr ?? item?.current_xirr ?? item?.portfolio_xirr ?? item?.xirr_value;
+  if (raw === null || raw === undefined || raw === '') {
+    return null;
+  }
+  const n = Number(raw);
+  if (Number.isNaN(n)) {
+    return null;
+  }
+  return n;
+}
+
+/** Top-right duration badge (e.g. 3Y) — uses API fields when present. */
+function pickDurationLabel(item) {
+  const lbl = item?.duration_label ?? item?.tenure ?? item?.holding_tenure;
+  if (lbl != null && String(lbl).trim() !== '') {
+    return String(lbl).trim();
+  }
+  const y = item?.duration_years ?? item?.holding_years ?? item?.investment_years;
+  if (y != null && !Number.isNaN(Number(y))) {
+    return `${Number(y)}Y`;
+  }
+  return null;
+}
+
 function FundLogo({name, uri}) {
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
@@ -71,66 +108,64 @@ function FundLogo({name, uri}) {
   );
 }
 
-function GainLossBlock({item}) {
-  const {abs, pct, isGain} = gainLossFromHolding(item);
-  const absStr = `${abs >= 0 ? '+' : '-'}${formatInr(Math.abs(abs))}`;
-  const pctStr =
-    pct != null && !Number.isNaN(pct)
-      ? `${pct >= 0 ? '+' : ''}${Number(pct).toFixed(2)}%`
-      : '—';
-  const color = isGain ? GAIN_GREEN : LOSS_RED;
-  const pillBg = isGain ? GAIN_PILL_BG : LOSS_PILL_BG;
-
-  return (
-    <View style={styles.glBlock}>
-      <Text style={[styles.glAbs, {color}]}>{absStr}</Text>
-      <View style={[styles.pill, {backgroundColor: pillBg}]}>
-        <Text style={[styles.pillTxt, {color}]}>{pctStr}</Text>
-      </View>
-    </View>
-  );
-}
-
-function FolioHoldingRow({item, index, onOpenFund, onInvestMore}) {
-  const name = (item.scheme_name ?? item.base_scheme_name ?? 'Fund').toUpperCase();
+function FolioHoldingRow({item, onOpenFund, onInvestMore}) {
+  const rawName = item.scheme_name ?? item.base_scheme_name ?? 'Fund';
+  const name = typeof rawName === 'string' ? rawName.trim() : String(rawName);
   const logo = item.logo_url ?? item.logo;
+  const duration = pickDurationLabel(item);
+  const {text: glText, isGain} = formatGainLossLine(item);
+  const glColor = isGain ? GAIN_GREEN : LOSS_RED;
+  const xirr = pickXirr(item);
+  const currentVal = formatInr(item.current_holding);
 
   return (
-    <View style={styles.tableRow}>
-      <View style={styles.rowTop}>
-        <Text style={styles.serial}>{String(index + 1).padStart(2, '0')}</Text>
-        <FundLogo name={name} uri={logo} />
-        <View style={styles.nameCol}>
-          <Text style={styles.fundNameCaps} numberOfLines={3}>
+    <View style={styles.folioCard}>
+      <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenFund(item)} style={styles.cardTap}>
+        <View style={styles.cardTopRow}>
+          <FundLogo name={name} uri={logo} />
+          <Text style={styles.fundName} numberOfLines={2}>
             {name}
           </Text>
+          {duration ? (
+            <Text style={styles.durationBadge}>{duration}</Text>
+          ) : (
+            <View style={styles.durationPlaceholder} />
+          )}
         </View>
-      </View>
 
-      <View style={styles.metricsRow}>
-        <View style={styles.metricCell}>
-          <Text style={styles.metricLabel}>Invested</Text>
-          <Text style={styles.metricVal}>{formatInr(item.amount)}</Text>
+        <View style={styles.metrics3Col}>
+          <View style={styles.metricCol}>
+            <Text style={styles.metricLabel}>Invested Value</Text>
+            <Text style={styles.metricValueDark}>{formatInr(item.amount)}</Text>
+          </View>
+          <View style={styles.metricCol}>
+            <Text style={styles.metricLabel}>Gain/Loss</Text>
+            <Text style={[styles.metricValueGl, {color: glColor}]} numberOfLines={2}>
+              {glText}
+            </Text>
+          </View>
+          <View style={styles.metricCol}>
+            <View style={styles.xirrLabelRow}>
+              <Text style={styles.metricLabel}>XIRR</Text>
+              <Text style={styles.xirrChev}>▼</Text>
+            </View>
+            <Text style={styles.metricValueDark}>{xirr != null ? `${xirr.toFixed(2)}%` : '—'}</Text>
+          </View>
         </View>
-        <View style={styles.metricCell}>
-          <Text style={styles.metricLabel}>Current</Text>
-          <Text style={styles.metricVal}>{formatInr(item.current_holding)}</Text>
-        </View>
-        <View style={styles.metricCell}>
-          <Text style={styles.metricLabel}>Gain / Loss</Text>
-          <GainLossBlock item={item} />
-        </View>
-      </View>
+      </TouchableOpacity>
 
-      <View style={styles.actionsRow}>
+      <View style={styles.cardDivider} />
+
+      <View style={styles.cardFooter}>
+        <View style={styles.currentBlock}>
+          <Text style={styles.metricLabel}>Current Value</Text>
+          <Text style={[styles.currentValue, {color: GAIN_GREEN}]}>{currentVal}</Text>
+        </View>
         <TouchableOpacity
           style={styles.investMoreBtn}
           onPress={() => onInvestMore(item)}
           activeOpacity={0.88}>
-          <Text style={styles.investMoreTxt}>Invest More</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onOpenFund(item)} hitSlop={12} activeOpacity={0.7}>
-          <Text style={styles.viewDetail}>Details ›</Text>
+          <Text style={styles.investMoreTxt}>Invest more</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -140,10 +175,10 @@ function FolioHoldingRow({item, index, onOpenFund, onInvestMore}) {
 export default function MyFoliosScreen() {
   const navigation = useNavigation();
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
-  const holdings = data?.holdings ?? [];
   const [search, setSearch] = useState('');
 
   const filteredHoldings = useMemo(() => {
+    const holdings = data?.holdings ?? [];
     const q = search.trim().toLowerCase();
     if (!q) {
       return holdings;
@@ -152,7 +187,7 @@ export default function MyFoliosScreen() {
       const n = (h.scheme_name ?? h.base_scheme_name ?? '').toLowerCase();
       return n.includes(q);
     });
-  }, [holdings, search]);
+  }, [data?.holdings, search]);
 
   const sections = useMemo(() => groupHoldingsByFolio(filteredHoldings), [filteredHoldings]);
 
@@ -178,40 +213,42 @@ export default function MyFoliosScreen() {
   );
 
   const renderSectionHeader = useCallback(
-    ({section: {title, data: secData = []}}) => (
-      <View style={styles.sectionHead}>
-        <Text style={[Textstyles.bold, styles.sectionTitle]}>{title}</Text>
-        <Text style={styles.sectionMeta}>
-          {secData.length} fund{secData.length !== 1 ? 's' : ''} · {formatInr(sumHoldings(secData, 'current_holding'))}{' '}
-          current
-        </Text>
-      </View>
-    ),
-    [],
+    ({section}) => {
+      const onlyDefault = sections.length === 1 && section.folioKey === 'default';
+      if (onlyDefault) {
+        return null;
+      }
+      const secData = section.data ?? [];
+      return (
+        <View style={styles.sectionHead}>
+          <Text style={[Textstyles.heading, styles.sectionTitle]}>{section.title}</Text>
+          <Text style={styles.sectionMeta}>
+            {secData.length} fund{secData.length !== 1 ? 's' : ''} · {formatInr(sumHoldings(secData, 'current_holding'))}{' '}
+            current
+          </Text>
+        </View>
+      );
+    },
+    [sections],
   );
 
   const renderItem = useCallback(
-    ({item, index}) => (
-      <FolioHoldingRow
-        item={item}
-        index={index}
-        onOpenFund={onOpenFund}
-        onInvestMore={onInvestMore}
-      />
+    ({item}) => (
+      <FolioHoldingRow item={item} onOpenFund={onOpenFund} onInvestMore={onInvestMore} />
     ),
     [onOpenFund, onInvestMore],
   );
 
   const listHeader = useMemo(
     () => (
-      <View style={styles.pageHead}>
-        <Text style={[styles.pageTitle, Textstyles.bold]}>My Folios</Text>
-        <View style={styles.card}>
-          <View style={styles.searchWrap}>
+      <View>
+        <AppTabHeader title="My Folios" />
+        <View style={styles.searchOuter}>
+          <View style={styles.searchCard}>
             <Text style={styles.searchIcon}>⌕</Text>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search folios..."
+              placeholder="Search orders..."
               placeholderTextColor={Colors.GREY}
               value={search}
               onChangeText={setSearch}
@@ -220,7 +257,6 @@ export default function MyFoliosScreen() {
               autoCorrect={false}
             />
           </View>
-         
         </View>
       </View>
     ),
@@ -229,7 +265,8 @@ export default function MyFoliosScreen() {
 
   if (isPending && !refreshing) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
           <Text style={[Textstyles.normal, styles.loadingTxt]}>Loading folios…</Text>
@@ -239,7 +276,8 @@ export default function MyFoliosScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
@@ -262,7 +300,7 @@ export default function MyFoliosScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <View style={styles.card}>
+            <View style={styles.emptyCard}>
               <Text style={[Textstyles.medium, styles.emptyTitle]}>No folios match</Text>
               <Text style={[Textstyles.normal, styles.emptySub]}>
                 {search ? 'Try another search or clear the filter.' : 'Invest from Explore to see holdings here.'}
@@ -283,103 +321,91 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: PAGE_BG},
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingTxt: {marginTop: 12, color: Colors.GREY},
-  pageHead: {paddingHorizontal: 16, paddingTop: 8},
-  pageTitle: {fontSize: 24, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 12},
-  card: {
+  searchOuter: {paddingHorizontal: 16, marginTop: 4, marginBottom: 8},
+  searchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: CARD_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
+  listContent: {paddingBottom: 32, paddingHorizontal: 16},
+  sectionHead: {
+    paddingTop: 12,
     paddingBottom: 8,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY},
+  sectionMeta: {fontSize: 13, color: LABEL_GRAY, marginTop: 4},
+  folioCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    marginBottom: 12,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: CARD_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8, opacity: 0.85},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
-  tableHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: HEADER_ROW_BG,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: CARD_BORDER,
-  },
-  th: {fontSize: 11, fontWeight: '700', color: '#374151', textTransform: 'uppercase'},
-  thSerial: {width: 36},
-  thFund: {flex: 1, paddingRight: 6},
-  thNum: {width: 72, textAlign: 'right'},
-  thGl: {width: 88, textAlign: 'right'},
-  listContent: {paddingBottom: 32, paddingHorizontal: 16},
-  sectionHead: {
-    paddingTop: 16,
-    paddingBottom: 8,
-    paddingHorizontal: 4,
-  },
-  sectionTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY},
-  sectionMeta: {fontSize: 13, color: '#6B7280', marginTop: 4},
-  tableRow: {
-    backgroundColor: Colors.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    padding: 12,
-    marginBottom: 10,
-    marginHorizontal: 0,
-  },
-  rowTop: {flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10},
-  serial: {fontSize: 13, color: '#9CA3AF', width: 28, fontWeight: '600', marginTop: 4},
-  fundLogo: {width: 36, height: 36, borderRadius: 6, marginRight: 10},
+  cardTap: {padding: 14},
+  cardTopRow: {flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14},
+  fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 10},
   fundLogoPh: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#E5E7EB',
   },
-  fundLogoLetter: {fontSize: 14, fontWeight: '800', color: '#B91C1C'},
-  nameCol: {flex: 1},
-  fundNameCaps: {fontSize: 13, fontWeight: '700', color: '#111827', lineHeight: 18},
-  metricsRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10, marginTop: 4},
-  metricCell: {minWidth: '30%', flexGrow: 1, marginBottom: 8},
-  metricLabel: {fontSize: 11, color: '#6B7280', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3},
-  metricVal: {fontSize: 14, fontWeight: '600', color: '#111827'},
-  glBlock: {alignItems: 'flex-start'},
-  glAbs: {fontSize: 14, fontWeight: '700', marginBottom: 4},
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
+  fundLogoLetter: {fontSize: 16, fontWeight: '500', color: '#374151'},
+  fundName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.TEXT_PRIMARY,
+    lineHeight: 20,
+    paddingRight: 8,
   },
-  pillTxt: {fontSize: 12, fontWeight: '700'},
-  actionsRow: {
+  durationBadge: {fontSize: 12, fontWeight: '600', color: LABEL_GRAY, marginTop: 2},
+  durationPlaceholder: {width: 28},
+  metrics3Col: {flexDirection: 'row', justifyContent: 'space-between', gap: 8},
+  metricCol: {flex: 1, minWidth: 0},
+  metricLabel: {fontSize: 12, color: LABEL_GRAY, marginBottom: 6},
+  metricValueDark: {fontSize: 15, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  metricValueGl: {fontSize: 13, fontWeight: '500', lineHeight: 18},
+  xirrLabelRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 6},
+  xirrChev: {fontSize: 8, color: LABEL_GRAY, marginLeft: 3, marginTop: 1},
+  cardDivider: {height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB', marginHorizontal: 14},
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
+  currentBlock: {flex: 1},
+  currentValue: {fontSize: 16, fontWeight: '500', marginTop: 2},
   investMoreBtn: {
-    backgroundColor: GREEN_BTN,
+    backgroundColor: GREEN_CTA,
     paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 6,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
-  investMoreTxt: {color: Colors.white, fontSize: 14, fontWeight: '600'},
-  viewDetail: {fontSize: 14, color: Colors.themeBlue, fontWeight: '600'},
+  investMoreTxt: {color: Colors.white, fontSize: 14, fontWeight: '500'},
   errorBanner: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -395,6 +421,13 @@ const styles = StyleSheet.create({
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
   retry: {color: Colors.themeBlue, fontWeight: '600'},
   emptyWrap: {paddingHorizontal: 0, paddingTop: 8},
+  emptyCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    padding: 20,
+  },
   emptyTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, marginBottom: 8, textAlign: 'center'},
   emptySub: {fontSize: 14, color: Colors.GREY, textAlign: 'center', marginBottom: 16},
   cta: {

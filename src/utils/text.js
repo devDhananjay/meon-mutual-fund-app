@@ -1,21 +1,37 @@
 import {StyleSheet, Platform} from 'react-native';
 
+const FIGTREE = {
+  regular: Platform.OS === 'android' ? 'Figtree-Regular' : 'Figtree-Regular',
+  medium: Platform.OS === 'android' ? 'Figtree-Medium' : 'Figtree-Medium',
+  bold: Platform.OS === 'android' ? 'Figtree-Bold' : 'Figtree-Bold',
+};
+
+/**
+ * - normal: body
+ * - medium: default emphasis (replaces heavy bold usage)
+ * - heading: screen/section titles only
+ * - bold: alias of medium (legacy); prefer medium
+ * - extraBold: alias of medium (legacy); do not use 800 for body
+ */
 const Textstyles = StyleSheet.create({
-  bold: {
-    fontFamily: Platform.OS === 'android' ? 'Figtree-Bold' : 'Figtree-Bold',
+  heading: {
+    fontFamily: FIGTREE.bold,
     fontWeight: '700',
   },
-  extraBold: {
-    fontFamily:
-      Platform.OS === 'android' ? 'Figtree-ExtraBold' : 'Figtree-ExtraBold',
-    fontWeight: '800',
+  medium: {
+    fontFamily: FIGTREE.medium,
+    fontWeight: '500',
   },
   normal: {
-    fontFamily: Platform.OS === 'android' ? 'Figtree-Regular' : 'Figtree-Regular',
+    fontFamily: FIGTREE.regular,
     fontWeight: '400',
   },
-  medium: {
-    fontFamily: Platform.OS === 'android' ? 'Figtree-Medium' : 'Figtree-Medium',
+  bold: {
+    fontFamily: FIGTREE.medium,
+    fontWeight: '500',
+  },
+  extraBold: {
+    fontFamily: FIGTREE.medium,
     fontWeight: '500',
   },
 });

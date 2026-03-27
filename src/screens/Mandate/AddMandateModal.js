@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DatePicker from 'react-native-date-picker';
 import {useSelector} from 'react-redux';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -108,7 +108,6 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   const [submitting, setSubmitting] = useState(false);
   /** Which date is being edited — nested Modal + RN Modal breaks iOS; use one inline (iOS) / dialog (Android) picker. */
   const [datePickerFor, setDatePickerFor] = useState(null);
-  const androidPickRef = useRef(null);
 
   useEffect(() => {
     setEndDate(prev => (prev < startDate ? new Date(startDate) : prev));
@@ -117,7 +116,6 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   useEffect(() => {
     if (!visible) {
       setDatePickerFor(null);
-      androidPickRef.current = null;
     }
   }, [visible]);
 
@@ -143,7 +141,6 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
     setEndDate(e);
     setTypePickerOpen(false);
     setDatePickerFor(null);
-    androidPickRef.current = null;
   }, []);
 
   const handleClose = useCallback(() => {
@@ -195,22 +192,20 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
     }
   }, [amount, endDate, mandateType, onClose, onOpenWeb, onSuccess, reset, startDate]);
 
-  const onAndroidDateChange = useCallback((event, date) => {
-    const field = androidPickRef.current;
-    if (event?.type === 'dismissed') {
-      androidPickRef.current = null;
-      setDatePickerFor(null);
-      return;
-    }
-    if (date && field) {
-      if (field === 'start') {
+  const onConfirmDatePicker = useCallback(
+    date => {
+      if (datePickerFor === 'start') {
         setStartDate(date);
       } else {
         setEndDate(date);
       }
-    }
-    androidPickRef.current = null;
-    setTimeout(() => setDatePickerFor(null), 0);
+      setDatePickerFor(null);
+    },
+    [datePickerFor],
+  );
+
+  const onCancelDatePicker = useCallback(() => {
+    setDatePickerFor(null);
   }, []);
 
   return (
@@ -284,10 +279,8 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
                     onPress={() => {
                       setDatePickerFor(p => {
                         if (p === 'start') {
-                          androidPickRef.current = null;
                           return null;
                         }
-                        androidPickRef.current = 'start';
                         return 'start';
                       });
                     }}
@@ -307,10 +300,8 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
                     onPress={() => {
                       setDatePickerFor(p => {
                         if (p === 'end') {
-                          androidPickRef.current = null;
                           return null;
                         }
-                        androidPickRef.current = 'end';
                         return 'end';
                       });
                     }}
@@ -325,50 +316,21 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
                 </View>
               </View>
 
-              {datePickerFor !== null && Platform.OS === 'ios' ? (
-                <View style={styles.inlineIosPicker}>
-                  <View style={styles.inlineIosBar}>
-                    <Text style={styles.inlineIosTitle}>
-                      {datePickerFor === 'start' ? 'Start date' : 'End date'}
-                    </Text>
-                    <TouchableOpacity onPress={() => setDatePickerFor(null)} hitSlop={10}>
-                      <Text style={styles.inlineIosDone}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={datePickerFor === 'start' ? startDate : endDate}
-                    mode="date"
-                    display="spinner"
-                    themeVariant="light"
-                    minimumDate={datePickerFor === 'start' ? MIN_PICK_DATE : startDate}
-                    maximumDate={datePickerFor === 'start' ? endDate : MAX_PICK_DATE}
-                    onChange={(e, d) => {
-                      if (d) {
-                        if (datePickerFor === 'start') {
-                          setStartDate(d);
-                        } else {
-                          setEndDate(d);
-                        }
-                      }
-                    }}
-                    style={styles.iosSpinnerInline}
-                  />
-                </View>
+              {datePickerFor !== null ? (
+                <DatePicker
+                  modal
+                  open={true}
+                  date={datePickerFor === 'start' ? startDate : endDate}
+                  mode="date"
+                  minimumDate={datePickerFor === 'start' ? MIN_PICK_DATE : startDate}
+                  maximumDate={datePickerFor === 'start' ? endDate : MAX_PICK_DATE}
+                  onConfirm={onConfirmDatePicker}
+                  onCancel={onCancelDatePicker}
+                  title={null}
+                />
               ) : null}
             </View>
           </ScrollView>
-
-          {Platform.OS === 'android' && datePickerFor !== null ? (
-            <DateTimePicker
-              key={datePickerFor}
-              value={datePickerFor === 'start' ? startDate : endDate}
-              mode="date"
-              display="default"
-              minimumDate={datePickerFor === 'start' ? MIN_PICK_DATE : startDate}
-              maximumDate={datePickerFor === 'start' ? endDate : MAX_PICK_DATE}
-              onChange={onAndroidDateChange}
-            />
-          ) : null}
 
           <View style={styles.actions}>
             <TouchableOpacity
@@ -425,7 +387,7 @@ const styles = StyleSheet.create({
   sheetScroll: {maxHeight: 520, paddingHorizontal: 16},
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#6B7280',
     marginBottom: 8,
     marginTop: 4,
@@ -521,7 +483,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   inlineIosTitle: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  inlineIosDone: {fontSize: 16, fontWeight: '700', color: PRIMARY},
+  inlineIosDone: {fontSize: 16, fontWeight: '500', color: PRIMARY},
   iosSpinnerInline: {alignSelf: 'center', height: 216, width: '100%'},
   actions: {
     flexDirection: 'row',
@@ -540,7 +502,7 @@ const styles = StyleSheet.create({
     borderColor: PRIMARY,
     alignItems: 'center',
   },
-  btnCancelTxt: {fontSize: 16, fontWeight: '700', color: PRIMARY},
+  btnCancelTxt: {fontSize: 16, fontWeight: '500', color: PRIMARY},
   btnSubmit: {
     flex: 1,
     marginLeft: 8,
@@ -552,5 +514,5 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   btnSubmitDisabled: {opacity: 0.7},
-  btnSubmitTxt: {fontSize: 16, fontWeight: '700', color: Colors.white},
+  btnSubmitTxt: {fontSize: 16, fontWeight: '500', color: Colors.white},
 });

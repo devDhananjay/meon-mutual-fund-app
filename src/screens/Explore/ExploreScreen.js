@@ -396,7 +396,7 @@ export default function ExploreScreen() {
         <View style={styles.allFundsBlock}>
           <View style={styles.allFundsHeader}>
             <View style={styles.allFundsHeaderLeft}>
-              <Text style={[Textstyles.bold, styles.allFundsTitle]}>All Funds</Text>
+              <Text style={[Textstyles.heading, styles.allFundsTitle]}>All Funds</Text>
               <Text style={styles.allFundsCount}>
                 {totalFundsCount} Funds
               </Text>
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   loadingText: {marginTop: 12, color: Colors.GREY, fontSize: 15},
 
   header: {paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6},
-  pageTitle: {fontSize: 22, fontWeight: '800', color: Colors.TEXT_PRIMARY},
+  pageTitle: {fontSize: 22, fontWeight: '700', color: Colors.TEXT_PRIMARY},
 
   searchBar: {
     flexDirection: 'row',
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
   },
-  heroButtonTxt: {color: Colors.white, fontSize: 15, fontWeight: '700'},
+  heroButtonTxt: {color: Colors.white, fontSize: 15, fontWeight: '500'},
 
   sectionHeader: {
     flexDirection: 'row',
@@ -573,8 +573,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 10,
   },
-  sectionTitle: {fontSize: 16, fontWeight: '800', color: Colors.TEXT_PRIMARY},
-  viewAll: {color: Colors.themeBlue, fontWeight: '700'},
+  sectionTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  viewAll: {color: Colors.themeBlue, fontWeight: '500'},
 
   grid: {
     flexDirection: 'row',
@@ -602,12 +602,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
   },
-  logoLetter: {fontSize: 14, fontWeight: '800', color: Colors.themeBlue},
+  logoLetter: {fontSize: 14, fontWeight: '500', color: Colors.themeBlue},
   popTextCol: {flex: 1, minWidth: 0},
-  popName: {fontSize: 13, fontWeight: '700', color: Colors.TEXT_PRIMARY, lineHeight: 18},
+  popName: {fontSize: 13, fontWeight: '500', color: Colors.TEXT_PRIMARY, lineHeight: 18},
   popCategory: {fontSize: 12, color: Colors.GREY, marginTop: 4},
-  popPeriodLabel: {fontSize: 11, color: Colors.GREY, fontWeight: '700', marginBottom: 4},
-  popReturnVal: {fontSize: 14, fontWeight: '900'},
+  popPeriodLabel: {fontSize: 11, color: Colors.GREY, fontWeight: '500', marginBottom: 4},
+  popReturnVal: {fontSize: 14, fontWeight: '500'},
 
   riskPill: {
     marginTop: 8,
@@ -617,11 +617,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#F3F4F6',
   },
-  riskTxt: {fontSize: 12, fontWeight: '700', color: Colors.GREY},
+  riskTxt: {fontSize: 12, fontWeight: '500', color: Colors.GREY},
 
   popRatingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6},
   popStar: {color: '#9CA3AF', fontSize: 12},
-  popRatingVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '700'},
+  popRatingVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '500'},
 
   recentRow: {flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 18},
   recentCard: {
@@ -637,11 +637,11 @@ const styles = StyleSheet.create({
   },
   recentLogo: {width: 34, height: 34, borderRadius: 10},
   recentTextCol: {flex: 1, paddingLeft: 0},
-  recentName: {fontSize: 13, fontWeight: '700', color: Colors.TEXT_PRIMARY, lineHeight: 18, flexShrink: 1},
+  recentName: {fontSize: 13, fontWeight: '500', color: Colors.TEXT_PRIMARY, lineHeight: 18, flexShrink: 1},
   recentRiskRow: {marginTop: 6},
-  recentRiskTxt: {fontSize: 12, color: Colors.GREY, fontWeight: '700'},
+  recentRiskTxt: {fontSize: 12, color: Colors.GREY, fontWeight: '500'},
   recentRight: {alignItems: 'flex-end', minWidth: 72},
-  recentReturn: {fontSize: 13, fontWeight: '900'},
+  recentReturn: {fontSize: 13, fontWeight: '500'},
   recentPeriod: {fontSize: 11, color: Colors.GREY, marginTop: 4},
   recentEmpty: {
     flex: 1,
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
 
   sortRightBtn: {paddingLeft: 10, paddingRight: 6, alignItems: 'flex-end'},
   sortRightInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  sortRightTxt: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  sortRightTxt: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   sortRightChevron: {fontSize: 12, color: Colors.GREY},
   sortDottedUnderline: {
     marginTop: 6,
@@ -703,14 +703,14 @@ const styles = StyleSheet.create({
   fundRowLeft: {flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 10},
   fundRowLogo: {width: 38, height: 38, borderRadius: 10, marginRight: 10},
   fundRowText: {flex: 1, minWidth: 0},
-  fundRowName: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  fundRowName: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   fundRowCat: {fontSize: 12, color: Colors.GREY, marginTop: 4},
   fundRowStarLine: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
   starTxt: {color: '#9CA3AF', fontSize: 12},
-  starVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '700'},
+  starVal: {color: '#9CA3AF', fontSize: 12, fontWeight: '500'},
 
   fundRowRight: {alignItems: 'flex-end', minWidth: 90},
-  returnBig: {fontSize: 13, fontWeight: '900'},
+  returnBig: {fontSize: 13, fontWeight: '500'},
   periodSmall: {fontSize: 11, color: Colors.GREY, marginTop: 4},
 
   filterBlock: {paddingHorizontal: 0, marginTop: 10, marginBottom: 12},
@@ -730,5 +730,5 @@ const styles = StyleSheet.create({
     borderColor: Colors.themeBlue,
   },
   chipText: {fontSize: 12, color: Colors.TEXT_PRIMARY, fontWeight: '600'},
-  chipTextSelected: {color: Colors.themeBlue, fontWeight: '700'},
+  chipTextSelected: {color: Colors.themeBlue, fontWeight: '500'},
 });

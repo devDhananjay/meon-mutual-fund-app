@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   authLink: {minWidth: 88, alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 4},
-  authLinkTxt: {fontSize: 15, fontWeight: '700', color: PRIMARY},
+  authLinkTxt: {fontSize: 15, fontWeight: '500', color: PRIMARY},
   scroll: {flex: 1},
   scrollContent: {paddingHorizontal: 16, paddingBottom: 32},
   tabBar: {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   subHeadTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY},
   badge: {paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8},
-  badgeTxt: {fontSize: 11, fontWeight: '700', textTransform: 'capitalize'},
+  badgeTxt: {fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
   gridCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,

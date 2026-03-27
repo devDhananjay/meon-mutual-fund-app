@@ -1,0 +1,142 @@
+diff --git a/node_modules/@react-native-community/datetimepicker/src/DateTimePickerAndroid.android.js b/node_modules/@react-native-community/datetimepicker/src/DateTimePickerAndroid.android.js
+index 51d657f..65c08c2 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/DateTimePickerAndroid.android.js
++++ b/node_modules/@react-native-community/datetimepicker/src/DateTimePickerAndroid.android.js
+@@ -13,11 +13,8 @@ import {
+ import invariant from 'invariant';
+ 
+ import type {AndroidNativeProps} from './types';
+-import {
+-  getOpenPicker,
+-  validateAndroidProps,
+-  materialPickers,
+-} from './androidUtils';
++import {validateAndroidProps} from './validateAndroidProps';
++import {getOpenPicker, materialPickers} from './androidUtils';
+ import defaultPickers from './picker';
+ import {
+   createDateTimeSetEvtParams,
+diff --git a/node_modules/@react-native-community/datetimepicker/src/androidUtils.js b/node_modules/@react-native-community/datetimepicker/src/androidUtils.js
+index 6601214..b71a787 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/androidUtils.js
++++ b/node_modules/@react-native-community/datetimepicker/src/androidUtils.js
+@@ -5,8 +5,6 @@
+ import {ANDROID_DISPLAY, ANDROID_MODE} from './constants';
+ import defaultPickers from './picker';
+ import type {AndroidNativeProps, DateTimePickerResult} from './types';
+-import {sharedPropsValidation} from './utils';
+-import invariant from 'invariant';
+ import {processColor} from 'react-native';
+ import MaterialDatePickerAndroid from './materialdatepicker';
+ import MaterialTimePickerAndroid from './materialtimepicker';
+@@ -107,40 +105,6 @@ function getOpenPicker(
+   }
+ }
+ 
+-function validateAndroidProps(props: AndroidNativeProps) {
+-  sharedPropsValidation({value: props?.value});
+-
+-  if (props.design !== 'material') validateMaterial3PropsNotUsed(props);
+-
+-  const {mode, display} = props;
+-  invariant(
+-    !(display === ANDROID_DISPLAY.calendar && mode === ANDROID_MODE.time) &&
+-      !(display === ANDROID_DISPLAY.clock && mode === ANDROID_MODE.date),
+-    `display: ${display} and mode: ${mode} cannot be used together.`,
+-  );
+-  if (
+-    props?.positiveButtonLabel !== undefined ||
+-    props?.negativeButtonLabel !== undefined ||
+-    props?.neutralButtonLabel !== undefined
+-  ) {
+-    console.warn(
+-      'positiveButtonLabel, negativeButtonLabel and neutralButtonLabel are deprecated.' +
+-        'Use positive / negative / neutralButton prop instead.',
+-    );
+-  }
+-}
+-
+-function validateMaterial3PropsNotUsed(props: AndroidNativeProps) {
+-  if (props.initialInputMode)
+-    console.warn('initialInputMode prop is not supported in default pickers.');
+-
+-  if (props.title !== undefined)
+-    console.warn('title prop is not supported in default pickers.');
+-
+-  if (props.fullscreen !== undefined)
+-    console.warn('fullscreen prop is not supported in default pickers.');
+-}
+-
+ const materialPickers: {
+   date: typeof MaterialDatePickerAndroid,
+   time: typeof MaterialTimePickerAndroid,
+@@ -150,4 +114,5 @@ const materialPickers: {
+   [ANDROID_MODE.time]: MaterialTimePickerAndroid,
+ };
+ 
+-export {getOpenPicker, validateAndroidProps, materialPickers};
++export {getOpenPicker, materialPickers};
++export {validateAndroidProps} from './validateAndroidProps';
+diff --git a/node_modules/@react-native-community/datetimepicker/src/datetimepicker.android.js b/node_modules/@react-native-community/datetimepicker/src/datetimepicker.android.js
+index 21868da..c0a923b 100644
+--- a/node_modules/@react-native-community/datetimepicker/src/datetimepicker.android.js
++++ b/node_modules/@react-native-community/datetimepicker/src/datetimepicker.android.js
+@@ -6,7 +6,7 @@ import {ANDROID_DISPLAY, ANDROID_MODE} from './constants';
+ import {useEffect} from 'react';
+ 
+ import type {AndroidNativeProps} from './types';
+-import {validateAndroidProps} from './androidUtils';
++import {validateAndroidProps} from './validateAndroidProps';
+ import {DateTimePickerAndroid} from './DateTimePickerAndroid';
+ 
+ export default function RNDateTimePickerAndroid(
+diff --git a/node_modules/@react-native-community/datetimepicker/src/validateAndroidProps.js b/node_modules/@react-native-community/datetimepicker/src/validateAndroidProps.js
+new file mode 100644
+index 0000000..d3617f0
+--- /dev/null
++++ b/node_modules/@react-native-community/datetimepicker/src/validateAndroidProps.js
+@@ -0,0 +1,44 @@
++/**
++ * Split out from androidUtils so Android pickers can validate props without
++ * pulling in the full picker graph first (fixes partial init under NOBRIDGE).
++ * @format
++ * @flow strict-local
++ */
++import {ANDROID_DISPLAY, ANDROID_MODE} from './constants';
++import type {AndroidNativeProps} from './types';
++import {sharedPropsValidation} from './utils';
++import invariant from 'invariant';
++
++function validateMaterial3PropsNotUsed(props: AndroidNativeProps) {
++  if (props.initialInputMode)
++    console.warn('initialInputMode prop is not supported in default pickers.');
++
++  if (props.title !== undefined)
++    console.warn('title prop is not supported in default pickers.');
++
++  if (props.fullscreen !== undefined)
++    console.warn('fullscreen prop is not supported in default pickers.');
++}
++
++export function validateAndroidProps(props: AndroidNativeProps) {
++  sharedPropsValidation({value: props?.value});
++
++  if (props.design !== 'material') validateMaterial3PropsNotUsed(props);
++
++  const {mode, display} = props;
++  invariant(
++    !(display === ANDROID_DISPLAY.calendar && mode === ANDROID_MODE.time) &&
++      !(display === ANDROID_DISPLAY.clock && mode === ANDROID_MODE.date),
++    `display: ${display} and mode: ${mode} cannot be used together.`,
++  );
++  if (
++    props?.positiveButtonLabel !== undefined ||
++    props?.negativeButtonLabel !== undefined ||
++    props?.neutralButtonLabel !== undefined
++  ) {
++    console.warn(
++      'positiveButtonLabel, negativeButtonLabel and neutralButtonLabel are deprecated.' +
++        'Use positive / negative / neutralButton prop instead.',
++    );
++  }
++}

@@ -302,7 +302,7 @@ export default function CartScreen() {
           <Text style={styles.back}>‹ Back</Text>
         </TouchableOpacity>
         <View style={styles.toolbarMid}>
-          <Text style={[Textstyles.bold, styles.toolbarTitle]}>Cart</Text>
+          <Text style={[Textstyles.heading, styles.toolbarTitle]}>Cart</Text>
           {items.length > 0 ? (
             <View style={[styles.badge, styles.badgeMargin]}>
               <Text style={styles.badgeTxt}>{items.length}</Text>
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  badgeTxt: {color: Colors.white, fontSize: 12, fontWeight: '800'},
+  badgeTxt: {color: Colors.white, fontSize: 12, fontWeight: '500'},
   toolbarSpacer: {width: 48},
   clearAll: {fontSize: 15, color: '#DC2626', fontWeight: '600'},
   pageHead: {paddingHorizontal: 16, paddingBottom: 8},
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {fontSize: 14, color: '#6B7280'},
   summaryVal: {fontSize: 16, fontWeight: '600', color: Colors.TEXT_PRIMARY},
-  summaryTotal: {fontSize: 20, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  summaryTotal: {fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   summaryHint: {fontSize: 11, color: '#9CA3AF', marginTop: 4, lineHeight: 16},
   listContent: {paddingHorizontal: 16, paddingBottom: 140},
   lineCard: {
@@ -438,9 +438,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  logoL: {fontSize: 18, fontWeight: '800', color: THEME_BLUE},
+  logoL: {fontSize: 18, fontWeight: '500', color: THEME_BLUE},
   lineBody: {flex: 1},
-  schemeCaps: {fontSize: 13, fontWeight: '700', color: '#111827', lineHeight: 18},
+  schemeCaps: {fontSize: 13, fontWeight: '500', color: '#111827', lineHeight: 18},
   schemeCode: {fontSize: 11, color: '#9CA3AF', marginTop: 6},
   typeRow: {flexDirection: 'row', marginTop: 12},
   typeChipLeft: {marginRight: 8},
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   stepTxt: {fontSize: 20, color: '#374151', fontWeight: '600', marginTop: -2},
-  amtDisplay: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, minWidth: 100, textAlign: 'center'},
+  amtDisplay: {fontSize: 16, fontWeight: '500', color: Colors.TEXT_PRIMARY, minWidth: 100, textAlign: 'center'},
   amtDisplayPad: {marginHorizontal: 8},
   minNote: {fontSize: 11, color: '#9CA3AF', marginTop: 6},
   sipMeta: {fontSize: 11, color: '#6B7280', marginTop: 4},
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   footerLabel: {fontSize: 15, color: '#6B7280'},
-  footerTotal: {fontSize: 22, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  footerTotal: {fontSize: 22, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   checkout: {
     backgroundColor: GREEN_BTN,
     borderRadius: 10,

@@ -8,12 +8,22 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Modal,
+  Pressable,
+  Platform,
+  StatusBar,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
-import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
+import {
+  navigateToAllFundsSIP,
+  navigateToFundDetail,
+  navigateToRedeem,
+} from '../../navigation/navigationRef';
+import {HeaderActionCluster} from '../../components/AppTabHeader';
 import {pickSchemeCode} from '../../utils/schemeCode';
+import {pickHoldingCurrentValue, pickHoldingFolio, pickHoldingUnits} from '../../utils/holdingRedeem';
 import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -86,7 +96,7 @@ function FundLogo({uri, name}) {
   );
 }
 
-function HoldingRow({fund, sortMode, onOpenFund}) {
+function HoldingRow({fund, sortMode, onHoldingPress}) {
   const fullName = fund?.scheme_name ?? fund?.base_scheme_name ?? '';
   const {base, suffix} = splitGrowthType(fullName);
   const logo = fund?.logo_url ?? fund?.logo ?? fund?.scheme_logo_url;
@@ -112,12 +122,12 @@ function HoldingRow({fund, sortMode, onOpenFund}) {
   return (
     <TouchableOpacity
       style={styles.holdingCard}
-      onPress={() => onOpenFund(fund)}
+      onPress={() => onHoldingPress(fund)}
       activeOpacity={0.7}>
       <View style={styles.holdingLeft}>
         <FundLogo uri={logo} name={base || fullName} />
         <View style={styles.fundTextCol}>
-          <Text style={[Textstyles.bold, styles.fundName]} numberOfLines={2}>
+          <Text style={[Textstyles.medium, styles.fundName]} numberOfLines={2}>
             {base || fullName || 'Fund'}
           </Text>
           {suffix ? <Text style={[Textstyles.medium, styles.growthLabel]}>{suffix}</Text> : null}
@@ -125,7 +135,7 @@ function HoldingRow({fund, sortMode, onOpenFund}) {
       </View>
 
       <View style={styles.holdingRight}>
-        <Text style={[Textstyles.bold, styles.rightBig, rightBigColor]}>{rightBig}</Text>
+        <Text style={[Textstyles.medium, styles.rightBig, rightBigColor]}>{rightBig}</Text>
         {rightSmall ? <Text style={[Textstyles.medium, styles.rightSmall]}>{rightSmall}</Text> : null}
       </View>
     </TouchableOpacity>
@@ -134,32 +144,58 @@ function HoldingRow({fund, sortMode, onOpenFund}) {
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const user = useSelector(s => s.auth.user);
   const firstName = user?.full_name || user?.name || 'there';
 
   const [holdingVisible, setHoldingVisible] = useState(true);
   const [sortMode, setSortMode] = useState('Current');
+  const [holdingActionFund, setHoldingActionFund] = useState(null);
 
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
   const portfolio = data?.portfolio;
   const holdings = data?.holdings ?? [];
 
-  const onOpenFund = useCallback(
-    fund => {
-      const code = pickSchemeCode(fund);
-      if (__DEV__) {
-        console.log('[Dashboard] onOpenFund', {fund, code});
-      }
-      if (!code) {
-        return;
-      }
-      navigateToFundDetail(navigation, {
-        schemeCode: code,
-        schemeName: fund?.scheme_name,
-      });
-    },
-    [navigation],
-  );
+  const onHoldingPress = useCallback(fund => {
+    setHoldingActionFund(fund);
+  }, []);
+
+  const closeHoldingModal = useCallback(() => setHoldingActionFund(null), []);
+
+  const onModalInvestmentDetails = useCallback(() => {
+    const fund = holdingActionFund;
+    setHoldingActionFund(null);
+    if (!fund) {
+      return;
+    }
+    const code = pickSchemeCode(fund);
+    if (!code) {
+      return;
+    }
+    navigateToFundDetail(navigation, {
+      schemeCode: code,
+      schemeName: fund?.scheme_name,
+    });
+  }, [holdingActionFund, navigation]);
+
+  const onModalRedeem = useCallback(() => {
+    const fund = holdingActionFund;
+    setHoldingActionFund(null);
+    if (!fund) {
+      return;
+    }
+    const code = pickSchemeCode(fund);
+    if (!code) {
+      return;
+    }
+    navigateToRedeem(navigation, {
+      schemeCode: code,
+      schemeName: fund?.scheme_name ?? fund?.base_scheme_name,
+      folioNumber: pickHoldingFolio(fund),
+      availableUnits: pickHoldingUnits(fund),
+      maxAmount: pickHoldingCurrentValue(fund),
+    });
+  }, [holdingActionFund, navigation]);
 
   const cycleSortMode = useCallback(() => {
     setSortMode(prev => {
@@ -170,11 +206,16 @@ export default function DashboardScreen() {
 
   const sortHeaderLabel = SORT_MODE_LABEL[sortMode] ?? 'Current Invested';
 
+  const headerPadTop = insets.top + 18;
+
   const listHeader = useMemo(
     () => (
-      <View style={styles.headerBlock}>
+      <View style={[styles.headerBlock, {paddingTop: headerPadTop}]}>
         <View style={styles.topRow}>
-          <Text style={[Textstyles.bold, styles.welcome]}>Welcome {firstName},</Text>
+          <Text style={[Textstyles.heading, styles.welcome]} numberOfLines={2}>
+            Welcome {firstName},
+          </Text>
+          <HeaderActionCluster />
         </View>
 
         <TouchableOpacity
@@ -189,7 +230,7 @@ export default function DashboardScreen() {
           <View style={styles.holdingsHeaderRow}>
             <View>
               <Text style={[Textstyles.normal, styles.holdingsLabel]}>Holdings ({holdings.length})</Text>
-              <Text style={[Textstyles.bold, styles.holdingsBig]}>
+              <Text style={[Textstyles.medium, styles.holdingsBig]}>
                 {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
               </Text>
             </View>
@@ -223,7 +264,7 @@ export default function DashboardScreen() {
                 <Text style={styles.statLabel}>1D Returns</Text>
                 <Text
                   style={[
-                    Textstyles.bold,
+                    Textstyles.medium,
                     styles.statValue,
                     Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
                   ]}>
@@ -235,7 +276,7 @@ export default function DashboardScreen() {
                 <Text style={styles.statLabel}>Total Returns</Text>
                 <Text
                   style={[
-                    Textstyles.bold,
+                    Textstyles.medium,
                     styles.statValue,
                     Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
                   ]}>
@@ -245,7 +286,7 @@ export default function DashboardScreen() {
 
               <View style={styles.statRow}>
                 <Text style={styles.statLabel}>Invested</Text>
-                <Text style={[Textstyles.bold, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
+                <Text style={[Textstyles.medium, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
               </View>
 
               <View style={styles.statRow}>
@@ -253,7 +294,7 @@ export default function DashboardScreen() {
                   <Text style={styles.statLabel}>XIRR</Text>
                   <Text style={styles.caretDown}>⌄</Text>
                 </View>
-                <Text style={[Textstyles.bold, styles.statValue]}>
+                <Text style={[Textstyles.medium, styles.statValue]}>
                   {portfolio?.xirr != null ? `${Number(portfolio.xirr).toFixed(2)}%` : '—'}
                 </Text>
               </View>
@@ -264,6 +305,7 @@ export default function DashboardScreen() {
     ),
     [
       firstName,
+      headerPadTop,
       holdings.length,
       holdingVisible,
       navigation,
@@ -314,7 +356,8 @@ export default function DashboardScreen() {
 
   if (isPending && !refreshing) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F0F2F5" />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
           <Text style={[Textstyles.normal, styles.loadingText]}>Loading portfolio…</Text>
@@ -323,8 +366,14 @@ export default function DashboardScreen() {
     );
   }
 
+  const modalFund = holdingActionFund;
+  const modalName = modalFund?.scheme_name ?? modalFund?.base_scheme_name ?? 'Fund';
+  const modalLogo = modalFund?.logo_url ?? modalFund?.logo ?? modalFund?.scheme_logo_url;
+  const modalInvested = modalFund?.amount;
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F0F2F5" />
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
@@ -365,19 +414,69 @@ export default function DashboardScreen() {
               key={String(item.scheme_code ?? item.isin ?? index)}
               fund={item}
               sortMode={sortMode}
-              onOpenFund={onOpenFund}
+              onHoldingPress={onHoldingPress}
             />
           ))}
         </View>
 
         {listFooter}
       </ScrollView>
+
+      <Modal
+        visible={!!holdingActionFund}
+        animationType="slide"
+        transparent
+        onRequestClose={closeHoldingModal}>
+        <Pressable style={styles.holdingModalBackdrop} onPress={closeHoldingModal}>
+          <View style={styles.holdingModalSheet}>
+            <View style={styles.holdingModalHandle} />
+            <TouchableOpacity
+              style={styles.holdingModalHeader}
+              onPress={onModalInvestmentDetails}
+              activeOpacity={0.85}>
+              <FundLogo uri={modalLogo} name={modalName} />
+              <Text style={[Textstyles.medium, styles.holdingModalTitle]} numberOfLines={2}>
+                {modalName}
+              </Text>
+              <Text style={styles.holdingModalChevron}>›</Text>
+            </TouchableOpacity>
+
+            <View style={styles.holdingModalDivider} />
+
+            <View style={styles.holdingModalRow}>
+              <Text style={styles.holdingModalLabel}>Invested Value</Text>
+              <Text style={[Textstyles.medium, styles.holdingModalValue]}>{formatInr(modalInvested)}</Text>
+            </View>
+
+            <View style={styles.holdingModalDivider} />
+
+            <TouchableOpacity style={styles.holdingModalAction} onPress={onModalRedeem} activeOpacity={0.8}>
+              <View style={styles.holdingModalActionIconWrap}>
+                <Text style={styles.holdingModalActionIconTxt}>₹</Text>
+              </View>
+              <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Redeem</Text>
+              <Text style={styles.holdingModalChevron}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.holdingModalAction}
+              onPress={onModalInvestmentDetails}
+              activeOpacity={0.8}>
+              <View style={styles.holdingModalActionIconWrap}>
+                <Text style={styles.holdingModalActionIconTxt}>☰</Text>
+              </View>
+              <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Investment Details</Text>
+              <Text style={styles.holdingModalChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#F0F2F5'},
+  safe: {flex: 1, backgroundColor: '#EEF1F6'},
   loadingBox: {
     flex: 1,
     justifyContent: 'center',
@@ -413,27 +512,38 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   topRow: {
-    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 12,
   },
   welcome: {
+    flex: 1,
     fontSize: 24,
     color: Colors.TEXT_PRIMARY,
-    fontWeight: '800',
+    fontWeight: '700',
+    lineHeight: 30,
+    paddingRight: 4,
   },
   searchBar: {
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginBottom: 12,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, opacity: 0.9},
   searchPlaceholder: {
@@ -442,11 +552,16 @@ const styles = StyleSheet.create({
   },
   holdingsCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   holdingsHeaderRow: {
     flexDirection: 'row',
@@ -496,9 +611,9 @@ const styles = StyleSheet.create({
   },
   sortLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
   sortIcon: {fontSize: 18, color: Colors.GREY},
-  sortLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  sortLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   sortRight: {flexDirection: 'row', alignItems: 'center'},
-  sortValueText: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700', marginRight: 6},
+  sortValueText: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginRight: 6},
   sortCaret: {fontSize: 14, color: Colors.GREY, marginLeft: 6},
   sortAngle: {fontSize: 14, color: Colors.GREY},
   xirrLabelRow: {flexDirection: 'row', alignItems: 'center'},
@@ -520,11 +635,73 @@ const styles = StyleSheet.create({
   stocksCard: {
     marginHorizontal: 16,
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
+  holdingModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  holdingModalSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    paddingHorizontal: 0,
+  },
+  holdingModalHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  holdingModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  holdingModalTitle: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 20},
+  holdingModalChevron: {fontSize: 22, color: Colors.GREY, fontWeight: '300'},
+  holdingModalDivider: {height: 1, backgroundColor: Colors.BORDER_GREY, marginHorizontal: 16},
+  holdingModalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  holdingModalLabel: {fontSize: 15, color: Colors.GREY},
+  holdingModalValue: {fontSize: 16, color: Colors.TEXT_PRIMARY},
+  holdingModalAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  holdingModalActionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  holdingModalActionIconTxt: {fontSize: 18, color: Colors.TEXT_PRIMARY},
+  holdingModalActionTxt: {flex: 1, fontSize: 16, color: Colors.TEXT_PRIMARY},
   holdingLeft: {flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0},
   holdingRight: {alignItems: 'flex-end', minWidth: 90, marginLeft: 12},
   fundLogo: {
@@ -536,7 +713,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   fundLogoPh: {borderWidth: 1, borderColor: Colors.BORDER_GREY},
-  fundLogoLetter: {fontSize: 14, fontWeight: '800', color: Colors.themeBlue},
+  fundLogoLetter: {fontSize: 14, fontWeight: '500', color: Colors.themeBlue},
   fundTextCol: {flex: 1, minWidth: 0, marginLeft: 12},
   fundName: {fontSize: 14, color: Colors.TEXT_PRIMARY, lineHeight: 18},
   growthLabel: {fontSize: 12, color: Colors.GREY, marginTop: 3},

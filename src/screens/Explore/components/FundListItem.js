@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
   left: {flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1},
   logo: {width: 38, height: 38, borderRadius: 10, backgroundColor: '#F3F4F6'},
   logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 14, fontWeight: '900', color: PRIMARY_GREEN},
+  logoLetter: {fontSize: 14, fontWeight: '500', color: PRIMARY_GREEN},
   middle: {flex: 1, minWidth: 0},
-  name: {fontSize: 13, fontWeight: '800', color: '#111827'},
+  name: {fontSize: 13, fontWeight: '500', color: '#111827'},
   meta: {fontSize: 12, color: '#6B7280', marginTop: 4},
   right: {alignItems: 'flex-end', minWidth: 92},
-  returnVal: {fontSize: 13, fontWeight: '900'},
-  period: {fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '700'},
+  returnVal: {fontSize: 13, fontWeight: '500'},
+  period: {fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '500'},
 });
 

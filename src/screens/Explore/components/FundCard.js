@@ -96,12 +96,12 @@ const styles = StyleSheet.create({
   },
   logo: {borderRadius: 10, backgroundColor: '#F3F4F6'},
   logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 13, fontWeight: '800', color: PRIMARY_GREEN},
+  logoLetter: {fontSize: 13, fontWeight: '500', color: PRIMARY_GREEN},
   nameCol: {flex: 1, minWidth: 0},
-  fundName: {fontSize: 12, fontWeight: '800', color: '#111827', lineHeight: 16},
+  fundName: {fontSize: 12, fontWeight: '500', color: '#111827', lineHeight: 16},
   returnCol: {alignItems: 'flex-end'},
-  period: {fontSize: 10, color: '#6B7280', fontWeight: '700'},
-  returnVal: {fontSize: 13, fontWeight: '900', marginTop: 2},
+  period: {fontSize: 10, color: '#6B7280', fontWeight: '500'},
+  returnVal: {fontSize: 13, fontWeight: '500', marginTop: 2},
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -110,13 +110,13 @@ const styles = StyleSheet.create({
   },
   ratingRow: {flexDirection: 'row', alignItems: 'center', gap: 6},
   star: {color: '#9CA3AF', fontSize: 11},
-  ratingTxt: {color: '#9CA3AF', fontSize: 11, fontWeight: '700'},
+  ratingTxt: {color: '#9CA3AF', fontSize: 11, fontWeight: '500'},
   riskBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     maxWidth: 120,
   },
-  riskTxt: {color: '#FFFFFF', fontSize: 10, fontWeight: '800'},
+  riskTxt: {color: '#FFFFFF', fontSize: 10, fontWeight: '500'},
 });
 

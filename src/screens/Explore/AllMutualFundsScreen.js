@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
   backChevron: {fontSize: 28, color: PRIMARY_GREEN, fontWeight: '400'},
-  title: {flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800', color: Colors.TEXT_PRIMARY},
+  title: {flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
   topRightSpacer: {width: 44},
 
   searchWrap: {

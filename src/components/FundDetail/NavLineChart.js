@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
+import WebView from 'react-native-webview';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 
@@ -51,8 +52,130 @@ function NativeNavSparkline({values, lineColor, width}) {
   );
 }
 
+function NativeNavLineChart({values, lineColor, width}) {
+  const pad = 10;
+  const innerW = Math.max(1, width - pad * 2);
+  const innerH = CHART_H - pad * 2;
+
+  const n = values.length;
+  if (n < 2) return null;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+
+  const xStep = innerW / (n - 1);
+
+  const points = values.map((v, i) => {
+    const pct = (v - min) / span;
+    return {
+      x: pad + i * xStep,
+      y: pad + (1 - pct) * innerH,
+    };
+  });
+
+  const THICKNESS = 2;
+
+  return (
+    <View style={styles.nativeLineRoot}>
+      {points.slice(0, -1).map((p1, i) => {
+        const p2 = points[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (!Number.isFinite(len) || len <= 0.1) return null;
+
+        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+
+        return (
+          <View
+            key={`seg-${i}`}
+            style={[
+              styles.nativeLineSegment,
+              {
+                left: midX - len / 2,
+                top: midY - THICKNESS / 2,
+                width: len,
+                height: THICKNESS,
+                backgroundColor: lineColor,
+                transform: [{rotateZ: `${angleDeg}deg`}],
+              },
+            ]}
+          />
+        );
+      })}
+      <View
+        style={[
+          styles.nativeLineDot,
+          {
+            left: points[points.length - 1].x - 3,
+            top: points[points.length - 1].y - 3,
+            backgroundColor: lineColor,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+function buildApexLineChartHTML({labels, series, lineColor}) {
+  const labelsJson = JSON.stringify(labels);
+  const seriesJson = JSON.stringify(series);
+
+  // Uses the same approach as Meon-CRM (ApexCharts in WebView + HTML string)
+  return `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+      #line-chart { width: 100%; height: ${CHART_H}px; }
+    </style>
+  </head>
+  <body>
+    <div id="line-chart"></div>
+    <script>
+      (function () {
+        var options = {
+          chart: { type: 'line', height: ${CHART_H}, toolbar: { show: false }, zoom: { enabled: false } },
+          series: ${seriesJson},
+          colors: ['${lineColor}'],
+          stroke: { curve: 'smooth', width: 2 },
+          dataLabels: { enabled: false },
+          fill: {
+            type: 'gradient',
+            gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.0, stops: [0, 90, 100] }
+          },
+          grid: { borderColor: '#F3F4F6' },
+          xaxis: { categories: ${labelsJson}, labels: { show: false } },
+          yaxis: { labels: { show: false } },
+          legend: { show: false },
+          tooltip: { enabled: true }
+        };
+        var chart = new ApexCharts(document.querySelector("#line-chart"), options);
+        chart.render();
+      })();
+    </script>
+  </body>
+</html>
+`;
+}
+
 export default function NavLineChart({graphData = [], graphLoading, timeFrame, onTimeFrameChange}) {
   const range = timeFrame || '1M';
+
+  const toMs = d => {
+    const raw = d?.date || d?.nav_date || d?.timestamp;
+    if (typeof raw === 'number') {
+      return raw < 1e12 ? raw * 1000 : raw;
+    }
+    const ms = new Date(raw).getTime();
+    return Number.isFinite(ms) ? ms : NaN;
+  };
 
   const filteredData = useMemo(() => {
     const days = RANGE_MAP[range] || 30;
@@ -62,44 +185,80 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     return graphData.slice(-days);
   }, [graphData, range]);
 
+  // Plot strictly oldest -> latest so trend direction matches web.
+  const chartData = useMemo(() => {
+    if (!filteredData.length) return [];
+    return [...filteredData]
+      .map(d => ({...d, __ms: toMs(d)}))
+      .filter(d => Number.isFinite(d.__ms))
+      .sort((a, b) => a.__ms - b.__ms);
+  }, [filteredData]);
+
   const {absoluteReturn, percentReturn, isGain} = useMemo(() => {
-    const fd = filteredData;
+    const fd = chartData;
     if (fd.length < 2) {
       return {absoluteReturn: 0, percentReturn: 0, isGain: true};
     }
-    const last = Number(fd[fd.length - 1].nav_value);
-    const first = Number(fd[0].nav_value);
-    const abs = first - last;
-    const pct = last ? (abs / last) * 100 : 0;
+    const oldest = Number(fd[0].nav_value);
+    const latest = Number(fd[fd.length - 1].nav_value);
+    const abs = latest - oldest;
+    const pct = oldest ? (abs / oldest) * 100 : 0;
     return {
       absoluteReturn: abs,
       percentReturn: pct,
       isGain: abs >= 0,
     };
-  }, [filteredData]);
+  }, [chartData]);
 
   const chartWidth = Math.min(Dimensions.get('window').width - 32, 400);
   const lineColor = isGain ? '#16a34a' : '#dc2626';
 
   const {values, chartKey} = useMemo(() => {
-    if (!filteredData.length) {
+    if (!chartData.length) {
       return {values: [0], chartKey: 'empty'};
     }
-    const vals = filteredData.map(d => Number(d.nav_value) || 0);
-    const first = filteredData[0]?.nav_value;
-    const last = filteredData[filteredData.length - 1]?.nav_value;
+    const vals = chartData.map(d => Number(d.nav_value) || 0);
+    const first = chartData[0]?.nav_value;
+    const last = chartData[chartData.length - 1]?.nav_value;
     return {
       values: vals,
       chartKey: `${range}-${filteredData.length}-${first}-${last}`,
     };
-  }, [filteredData, range]);
+  }, [chartData, filteredData.length, range]);
 
-  const showChart = filteredData.length >= 2;
+  const showChart = chartData.length >= 2;
+
+  const [webviewReady, setWebviewReady] = useState(false);
+  const [webviewError, setWebviewError] = useState(null);
+
+  const apex = useMemo(() => {
+    if (!chartData.length) {
+      return {labels: [], series: []};
+    }
+    const labels = chartData.map(d => {
+      const ms = d.__ms;
+      if (!Number.isFinite(ms)) return '';
+      const dt = new Date(ms);
+      return dt.toLocaleDateString('en-IN', {day: '2-digit', month: 'short'});
+    });
+    const data = chartData.map(d => Number(d.nav_value) || 0);
+    return {labels, series: [{name: 'NAV', data}]};
+  }, [chartData]);
+
+  const chartHtml = useMemo(() => {
+    if (!showChart) return '';
+    return buildApexLineChartHTML({labels: apex.labels, series: apex.series, lineColor});
+  }, [apex.labels, apex.series, lineColor, showChart]);
+
+  useEffect(() => {
+    setWebviewReady(false);
+    setWebviewError(null);
+  }, [chartHtml]);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.returnRow}>
-        <Text style={[Textstyles.bold, styles.abs, isGain ? styles.green : styles.red]}>
+        <Text style={[Textstyles.medium, styles.abs, isGain ? styles.green : styles.red]}>
           {absoluteReturn >= 0 ? '+' : '-'}₹{Math.abs(absoluteReturn).toFixed(2)}
         </Text>
         <Text style={[Textstyles.normal, styles.rangeLabel]}>{range} return</Text>
@@ -120,7 +279,34 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
             <Text style={styles.loadingTxt}>Not enough NAV data</Text>
           </View>
         ) : (
-          <NativeNavSparkline key={chartKey} values={values} lineColor={lineColor} width={chartWidth} />
+          <View style={styles.chartStack}>
+            {/* Native fallback (so UI never goes blank) */}
+            <NativeNavLineChart key={`native-${chartKey}`} values={values} lineColor={lineColor} width={chartWidth} />
+
+            {!webviewError ? (
+              <WebView
+                key={`apex-${chartKey}`}
+                style={styles.webviewOverlay}
+                originWhitelist={['*']}
+                source={{html: chartHtml}}
+                javaScriptEnabled
+                domStorageEnabled
+                scrollEnabled={false}
+                onLoad={() => setWebviewReady(true)}
+                onError={e => {
+                  const msg = e?.nativeEvent?.description || e?.nativeEvent?.message || 'WebView error';
+                  setWebviewError(msg);
+                }}
+                onHttpError={e => {
+                  const msg = e?.nativeEvent?.description || e?.nativeEvent?.message || 'WebView http error';
+                  setWebviewError(msg);
+                }}
+              />
+            ) : null}
+
+            {/* While WebView is loading, keep native visible */}
+            {!webviewReady && !webviewError ? <View style={styles.webviewLoadingDim} pointerEvents="none" /> : null}
+          </View>
         )}
         {graphLoading && filteredData.length > 0 ? (
           <View style={styles.chartOverlay}>
@@ -169,6 +355,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     marginVertical: 8,
+  },
+  chartStack: {
+    width: '100%',
+    height: CHART_H,
+    position: 'relative',
+  },
+  webviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+  },
+  webviewLoadingDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+  },
+  nativeLineRoot: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  nativeLineSegment: {
+    position: 'absolute',
+  },
+  nativeLineDot: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   nativeChart: {
     backgroundColor: Colors.white,

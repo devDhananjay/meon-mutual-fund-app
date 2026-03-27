@@ -55,6 +55,48 @@ export function navigateToCart(navigation) {
   navigation?.navigate?.('Cart');
 }
 
+/** Root stack — notifications / activity hub. */
+export function navigateToNotifications(navigation) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('Notifications');
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(CommonActions.navigate({name: 'Notifications', merge: true}));
+    return;
+  }
+  navigation?.navigate?.('Notifications');
+}
+
+/** Root stack — redemption flow from holdings. */
+export function navigateToRedeem(navigation, params) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('Redeem', params);
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(CommonActions.navigate({name: 'Redeem', params, merge: true}));
+    return;
+  }
+  navigation?.navigate?.('Redeem', params);
+}
+
+/** Root stack — dedicated investment flow from Fund Detail. */
+export function navigateToInvestment(navigation, params) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('FundInvestment', params);
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(CommonActions.navigate({name: 'FundInvestment', params, merge: true}));
+    return;
+  }
+  navigation?.navigate?.('FundInvestment', params);
+}
+
 /** Root stack — open My Orders (no longer a bottom tab). */
 export function navigateToMyOrders(navigation) {
   if (navigationRef.isReady()) {

@@ -191,14 +191,14 @@ export default function ProfileScreen() {
 
         <View style={styles.profileHeaderCard}>
           <TouchableOpacity style={styles.closeBtn} onPress={goDashboard} hitSlop={12}>
-            <Text style={[styles.closeTxt, Textstyles.bold]}>✕</Text>
+            <Text style={[styles.closeTxt, Textstyles.medium]}>✕</Text>
           </TouchableOpacity>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={[styles.avatarTxt, Textstyles.bold]}>{initials}</Text>
+              <Text style={[styles.avatarTxt, Textstyles.medium]}>{initials}</Text>
             </View>
             <View style={styles.profileTextCol}>
-              <Text style={[Textstyles.bold, styles.displayName]} numberOfLines={2}>
+              <Text style={[Textstyles.heading, styles.displayName]} numberOfLines={2}>
                 {displayName}
               </Text>
               <Text style={styles.verifyLine}>{verifyLine}</Text>
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 14,
   },
-  avatarTxt: {fontSize: 22, fontWeight: '800', color: Colors.white},
+  avatarTxt: {fontSize: 22, fontWeight: '500', color: Colors.white},
   profileTextCol: {flex: 1},
   displayName: {fontSize: 18, color: Colors.TEXT_PRIMARY, marginBottom: 4},
   verifyLine: {fontSize: 13, color: '#6B7280', marginBottom: 2},
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   logoutIcon: {fontSize: 18, marginRight: 8},
   logoutText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: Colors.themeRed,
   },
 });

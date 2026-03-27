@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  Modal,
+  Image,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -24,11 +26,28 @@ import {
   pickStatus,
 } from './mandateFieldUtils';
 import AddMandateModal from './AddMandateModal';
+import Icons from '../../utils/icons';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
 const PRIMARY = '#1A73E8';
 const EMPTY_ITEMS = [];
+
+const THEME_BLUE = '#1A73E8';
+
+const STATUS_OPTIONS = [
+  {key: 'all', label: 'All Status'},
+  {key: 'APPROVED', label: 'APPROVED'},
+  {key: 'PENDING', label: 'PENDING'},
+  {key: 'EXPIRED', label: 'EXPIRED'},
+];
+
+function mapStatusFilterToApi(statusKey) {
+  if (!statusKey || statusKey === 'all') {
+    return '';
+  }
+  return String(statusKey);
+}
 
 function StatusBadge({label}) {
   const raw = label || '—';
@@ -112,11 +131,63 @@ function MandateCard({item, onViewDetails}) {
   );
 }
 
+function MandateFilterSheet({visible, draftStatus, onChangeDraftStatus, onClose, onApply}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.filterModalRoot}>
+        <TouchableOpacity style={styles.filterDim} activeOpacity={1} onPress={onClose} />
+
+        <View style={styles.filterSheet}>
+          <View style={styles.filterGrabber} />
+
+          <View style={styles.filterHead}>
+            <Text style={styles.filterTitle}>Filter</Text>
+          </View>
+
+          <Text style={styles.filterSectionLabel}>Status</Text>
+          <View style={styles.chipRow}>
+            {STATUS_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.chip, draftStatus === opt.key && styles.chipOn]}
+                onPress={() => onChangeDraftStatus(opt.key)}
+                activeOpacity={0.85}>
+                <Text style={[styles.chipTxt, draftStatus === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.filterActions}>
+            <TouchableOpacity style={styles.filterBtnCancel} onPress={onClose} activeOpacity={0.85}>
+              <Text style={styles.filterBtnCancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterBtnApply} onPress={onApply} activeOpacity={0.9}>
+              <Text style={styles.filterBtnApplyTxt}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function MandateScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const showBack = navigation.canGoBack();
-  const {data, isPending, error, refreshing, refetch} = useMandateData();
+
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [draftStatus, setDraftStatus] = useState('all');
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const listParams = useMemo(
+    () => ({
+      status: mapStatusFilterToApi(statusFilter),
+    }),
+    [statusFilter],
+  );
+
+  const {data, isPending, error, refreshing, refetch} = useMandateData(listParams);
   const items = data?.results ?? EMPTY_ITEMS;
   const totalCount = data?.count ?? items.length;
 
@@ -201,7 +272,16 @@ export default function MandateScreen() {
         <View style={styles.backPlaceholder} />
       )}
       <Text style={styles.navTitle}>Mandate</Text>
-      <View style={styles.backPlaceholder} />
+      <TouchableOpacity
+        style={styles.headerSide}
+        onPress={() => {
+          setDraftStatus(statusFilter);
+          setFilterOpen(true);
+        }}
+        hitSlop={12}
+        accessibilityLabel="Filter mandates">
+        <Image source={Icons.FilterBlack} style={styles.headerFilterIcon} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -264,6 +344,17 @@ export default function MandateScreen() {
         onClose={() => setAddOpen(false)}
         onSuccess={() => refetch()}
         onOpenWeb={onOpenAddWeb}
+      />
+
+      <MandateFilterSheet
+        visible={filterOpen}
+        draftStatus={draftStatus}
+        onChangeDraftStatus={setDraftStatus}
+        onClose={() => setFilterOpen(false)}
+        onApply={() => {
+          setStatusFilter(draftStatus);
+          setFilterOpen(false);
+        }}
       />
     </SafeAreaView>
   );
@@ -328,14 +419,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardTop: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
-  mandateId: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, flex: 1, marginRight: 8},
+  mandateId: {fontSize: 16, fontWeight: '500', color: Colors.TEXT_PRIMARY, flex: 1, marginRight: 8},
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     maxWidth: '48%',
   },
-  statusPillTxt: {fontSize: 11, fontWeight: '700', textTransform: 'capitalize'},
+  statusPillTxt: {fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
   cardGrid: {flexDirection: 'row', marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6'},
   cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
   cardLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4},
@@ -349,7 +440,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
-  amountTxt: {fontSize: 20, fontWeight: '800', color: Colors.TEXT_PRIMARY},
+  amountTxt: {fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   viewDetails: {fontSize: 15, fontWeight: '600', color: PRIMARY},
   errorBanner: {
     marginHorizontal: 16,
@@ -393,4 +484,66 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabPlus: {fontSize: 32, color: Colors.white, fontWeight: '300', marginTop: -2},
+
+  headerSide: {width: 72, alignItems: 'flex-end', justifyContent: 'center'},
+  headerFilterIcon: {width: 18, height: 18, marginRight: 6},
+
+  filterModalRoot: {flex: 1, justifyContent: 'flex-end'},
+  filterDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
+  filterSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 28,
+    paddingHorizontal: 16,
+  },
+  filterGrabber: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  filterHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10},
+  filterTitle: {fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  filterSectionLabel: {fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10},
+  chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    backgroundColor: Colors.white,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipOn: {
+    backgroundColor: THEME_BLUE,
+    borderColor: THEME_BLUE,
+  },
+  chipTxt: {fontSize: 12, color: '#4B5563', fontWeight: '600'},
+  chipTxtOn: {color: Colors.white},
+  filterActions: {flexDirection: 'row', marginTop: 8},
+  filterBtnCancel: {
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: THEME_BLUE,
+    alignItems: 'center',
+  },
+  filterBtnCancelTxt: {fontSize: 16, fontWeight: '600', color: THEME_BLUE},
+  filterBtnApply: {
+    flex: 1,
+    marginLeft: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: THEME_BLUE,
+    alignItems: 'center',
+  },
+  filterBtnApplyTxt: {fontSize: 16, fontWeight: '700', color: Colors.white},
 });

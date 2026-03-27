@@ -4,6 +4,7 @@ const Icons = {
   hidePassword: require('../assets/Icons/ThemeLogo.png'),  // placeholder - add eye-off asset later
   backArrow: require('../assets/Icons/ThemeLogo.png'),     // placeholder - add back icon asset later
   emailSent: require('../assets/Icons/ThemeLogo.png'),     // placeholder - add envelope with checkmark asset later
+  FilterBlack: require('../assets/Icons/FilterBlack.png'),
 };
 
 export default Icons;

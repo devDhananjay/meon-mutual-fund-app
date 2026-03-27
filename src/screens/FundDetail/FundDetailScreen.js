@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -11,13 +12,13 @@ import {
   Dimensions,
   TextInput,
   Modal,
-  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import Slider from '@react-native-community/slider';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import ReturnAmountSlider from '../../components/FundDetail/ReturnAmountSlider';
+import DatePicker from 'react-native-date-picker';
+import {WebView} from 'react-native-webview';
 import {useFundData} from '../../hooks/useFundData';
 import {useGraphData} from '../../hooks/useGraphData';
 import {useMandateData} from '../../hooks/useMandateData';
@@ -33,7 +34,7 @@ import {
   isAuthenticatedOrderState,
 } from '../../services/ordersService';
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
-import {navigateToCart} from '../../navigation/navigationRef';
+import {navigateToCart, navigateToInvestment} from '../../navigation/navigationRef';
 import NavLineChart from '../../components/FundDetail/NavLineChart';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -60,6 +61,108 @@ function safeInr(v) {
   return `₹${Number(v).toLocaleString('en-IN')}`;
 }
 
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function normalizeNavHistoryRows(rawRows) {
+  const rows = Array.isArray(rawRows) ? rawRows : [];
+  return rows
+    .map(item => {
+      const nav = toFiniteNumber(item?.nav_value ?? item?.nav);
+      const rawDate = item?.nav_date ?? item?.date ?? item?.timestamp ?? item?.portfolio_date;
+      const ms = typeof rawDate === 'number' ? (rawDate < 1e12 ? rawDate * 1000 : rawDate) : new Date(rawDate).getTime();
+      return {nav, ms};
+    })
+    .filter(x => Number.isFinite(x.nav) && Number.isFinite(x.ms))
+    .sort((a, b) => a.ms - b.ms);
+}
+
+function buildDonutHTML({labels, values, colors}) {
+  const safeLabels = JSON.stringify(Array.isArray(labels) ? labels : []);
+  const safeValues = JSON.stringify(Array.isArray(values) ? values : []);
+  const safeColors = JSON.stringify(Array.isArray(colors) ? colors : []);
+  return `<!doctype html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>html,body,#c{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden}</style>
+</head><body><div id="c"></div>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+  (function(){
+    try{
+      var labels=${safeLabels};
+      var series=${safeValues};
+      var colors=${safeColors};
+      if(!series || !series.length){ document.body.innerHTML=''; return; }
+      var chart=new ApexCharts(document.querySelector('#c'),{
+        chart:{type:'donut',height:'100%',width:'100%',background:'transparent',toolbar:{show:false}},
+        series:series,
+        labels:labels,
+        stroke:{width:0},
+        dataLabels:{enabled:false},
+        legend:{show:false},
+        colors:colors && colors.length ? colors : undefined,
+        plotOptions:{pie:{donut:{size:'62%'}}}
+      });
+      chart.render();
+    }catch(e){}
+  })();
+</script></body></html>`;
+}
+
+const DONUT_COLORS = ['#8BEA45', '#2F7EDB', '#F5A300', '#19C37D', '#8B5CF6', '#EF4444', '#14B8A6', '#A3A3A3'];
+
+function HoldingAnalysisBlock({title, dataMap}) {
+  const entries = useMemo(() => {
+    if (!dataMap || typeof dataMap !== 'object') {
+      return [];
+    }
+    return Object.entries(dataMap)
+      .map(([k, v]) => ({label: String(k).replace(/_/g, ' '), value: toFiniteNumber(v)}))
+      .filter(x => Number.isFinite(x.value) && x.value > 0);
+  }, [dataMap]);
+
+  const labels = entries.map(e => e.label);
+  const values = entries.map(e => e.value);
+  const colors = entries.map((_, i) => DONUT_COLORS[i % DONUT_COLORS.length]);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.analysisBlock}>
+      <Text style={styles.analysisTitle}>{title}</Text>
+      <View style={styles.analysisRow}>
+        <View style={styles.analysisLegendWrap}>
+          {entries.map((item, idx) => (
+            <View key={`${item.label}-${idx}`} style={styles.analysisLegendItem}>
+              <View style={[styles.legendDot, {backgroundColor: colors[idx]}]} />
+              <Text style={styles.analysisLegendText}>
+                {item.label} <Text style={styles.analysisLegendValue}>{item.value.toFixed(2)}%</Text>
+              </Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.analysisChartWrap}>
+          <WebView
+            originWhitelist={['*']}
+            source={{html: buildDonutHTML({labels, values, colors})}}
+            style={styles.analysisWebView}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            javaScriptEnabled
+            domStorageEnabled
+            nestedScrollEnabled
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function formatDDMMYYYY(d) {
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) {
     return '—';
@@ -69,6 +172,10 @@ function formatDDMMYYYY(d) {
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
+
+// NOTE: We use `react-native-date-picker` for both iOS + Android to avoid
+// `@react-native-community/datetimepicker` TurboModule/validation crashes in
+// bridgeless/new-arch setups.
 
 function pickMandateLabel(item) {
   if (!item || typeof item !== 'object') {
@@ -98,12 +205,29 @@ async function fetchReturnRows(schemeId, investmentAmount) {
       fromDate.toISOString().split('T')[0],
       toDate.toISOString().split('T')[0],
     );
-    const navHistory = res?.success ? res.data?.results?.nav_history ?? [] : [];
-    if (navHistory.length < 2) {
-      continue;
+    const navHistory =
+      res?.success
+        ? res?.data?.results?.nav_history ??
+          res?.data?.results?.history ??
+          res?.data?.nav_history ??
+          []
+        : [];
+    const normalized = normalizeNavHistoryRows(navHistory);
+    let startNav = NaN;
+    let endNav = NaN;
+
+    if (normalized.length >= 2) {
+      startNav = normalized[0].nav;
+      endNav = normalized[normalized.length - 1].nav;
+    } else {
+      // Fallback to previous behavior when date fields are missing/unreliable.
+      const raw = Array.isArray(navHistory) ? navHistory : [];
+      if (raw.length < 2) {
+        continue;
+      }
+      startNav = toFiniteNumber(raw[raw.length - 1]?.nav_value ?? raw[raw.length - 1]?.nav);
+      endNav = toFiniteNumber(raw[0]?.nav_value ?? raw[0]?.nav);
     }
-    const startNav = Number(navHistory[navHistory.length - 1].nav_value);
-    const endNav = Number(navHistory[0].nav_value);
     if (!startNav) {
       continue;
     }
@@ -140,16 +264,17 @@ export default function FundDetailScreen() {
     route.params?.schemeCode ?? route.params?.scheme_code ?? route.params?.code;
   const paramName = route.params?.schemeName ?? route.params?.scheme_name;
 
-  const {data: folioData, isLoading: loading, error, refetch} = useFundData(schemeCode);
-  const {data: mandateData, isPending: mandateLoading} = useMandateData();
+  const {data: folioData, isLoading: loading, error, refetch: refetchFund} = useFundData(schemeCode);
+  const {data: mandateData, isPending: mandateLoading, refetch: refetchMandate} = useMandateData();
   const [timeFrame, setTimeFrame] = useState('1M');
   const schemeId = folioData?.schemeId ?? null;
 
-  const {data: graphData, isLoading: graphLoading} = useGraphData(schemeId, timeFrame);
+  const {data: graphData, isLoading: graphLoading, refetch: refetchGraph} = useGraphData(schemeId, timeFrame);
 
   const fundInfo = folioData?.schemeData || {};
   const logoUrl = folioData?.logo_url || fundInfo?.logo_url;
   const holdingsList = fundInfo?.holdings?.holdings ?? [];
+  const holdingAnalysis = folioData?.holdingAnalysis ?? null;
 
   const [isFav, setIsFav] = useState(false);
   useEffect(() => {
@@ -159,11 +284,33 @@ export default function FundDetailScreen() {
   }, [folioData?.wish_flag]);
 
   const [calcAmount, setCalcAmount] = useState(5000);
+  const [sliderAmount, setSliderAmount] = useState(5000);
   const [debouncedAmount, setDebouncedAmount] = useState(5000);
+  useEffect(() => {
+    setSliderAmount(calcAmount);
+  }, [calcAmount]);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedAmount(calcAmount), 400);
     return () => clearTimeout(t);
   }, [calcAmount]);
+
+  const onSliderValueChange = useCallback(v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) {
+      return;
+    }
+    setSliderAmount(Math.round(n));
+  }, []);
+
+  const onSliderComplete = useCallback(v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) {
+      return;
+    }
+    const rounded = Math.round(n / 500) * 500;
+    setSliderAmount(rounded);
+    setCalcAmount(rounded);
+  }, []);
 
   const [returnRows, setReturnRows] = useState([]);
   const [tableLoading, setTableLoading] = useState(false);
@@ -182,6 +329,19 @@ export default function FundDetailScreen() {
   const [authLoading, setAuthLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [readyForPayment, setReadyForPayment] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [returnRefreshTick, setReturnRefreshTick] = useState(0);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetchFund();
+      await Promise.all([refetchGraph(), refetchMandate()]);
+      setReturnRefreshTick(t => t + 1);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchFund, refetchGraph, refetchMandate]);
 
   useEffect(() => {
     if (!schemeId) {
@@ -209,15 +369,62 @@ export default function FundDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [schemeId, debouncedAmount]);
+  }, [schemeId, debouncedAmount, returnRefreshTick]);
 
   const displayName = fundInfo?.scheme_name || fundInfo?.base_scheme_name || paramName || 'Fund';
   const mandates = mandateData?.results ?? [];
   const selectedMandateLabel = selectedMandate ? pickMandateLabel(selectedMandate) : 'Select your preferred mandate option';
 
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[FundDetail] mandateModalVisible', mandateModalVisible, {
+        mandateLoading,
+        mandatesCount: mandates.length,
+      });
+    }
+  }, [mandateModalVisible, mandateLoading, mandates.length]);
+
   const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
   const minSip = Number(fundInfo?.holdings?.min_sip_investment) || 500;
   const minOrderAmount = orderType === 'SIP' ? minSip : minLumpsum;
+
+  const returnStats = fundInfo?.holdings?.return_stats?.[0] ?? null;
+  const statsList = fundInfo?.holdings?.stats ?? [];
+  const topHoldingsStats = useMemo(() => {
+    const items = Array.isArray(holdingsList) ? holdingsList : [];
+    const sorted = items
+      .slice()
+      .sort((a, b) => Number(b?.corpus_per ?? 0) - Number(a?.corpus_per ?? 0));
+    const top5 = sorted.slice(0, 5).reduce((sum, h) => sum + Number(h?.corpus_per ?? 0), 0);
+    const top10 = sorted.slice(0, 10).reduce((sum, h) => sum + Number(h?.corpus_per ?? 0), 0);
+    return {top5, top10};
+  }, [holdingsList]);
+
+  const minInvestmentValues = useMemo(
+    () => ({
+      min1: fundInfo?.min_purchase_amount ?? null,
+      minSip: fundInfo?.holdings?.min_sip_investment ?? null,
+      minAdditional: fundInfo?.additional_purchase_amount ?? null,
+    }),
+    [fundInfo?.additional_purchase_amount, fundInfo?.holdings?.min_sip_investment, fundInfo?.min_purchase_amount],
+  );
+  const holdingAnalysisSections = useMemo(() => {
+    if (!holdingAnalysis || typeof holdingAnalysis !== 'object') {
+      return [];
+    }
+    const titleMap = {
+      allocation: 'Equity / Debt / Cash Split',
+      equity_sectors: 'Equity Sector Allocation',
+      debt_sectors: 'Debt Sector Allocation',
+    };
+    return Object.entries(holdingAnalysis)
+      .map(([key, value]) => ({
+        key,
+        title: titleMap[key] || String(key).replace(/_/g, ' '),
+        dataMap: value,
+      }))
+      .filter(x => x.dataMap && typeof x.dataMap === 'object' && Object.keys(x.dataMap).length > 0);
+  }, [holdingAnalysis]);
   const fundDetailsRows = useMemo(
     () => [
       {label: 'Fund house', value: fundInfo?.amc_name || fundInfo?.fund_house},
@@ -482,17 +689,26 @@ export default function FundDetailScreen() {
     setOrderAmount(String(v));
   }, []);
 
-  const onChangeSipDate = useCallback((event, nextDate) => {
-    if (Platform.OS === 'android') {
-      setShowSipDatePicker(false);
-    }
-    if (event?.type === 'dismissed') {
-      return;
-    }
-    if (nextDate instanceof Date && !Number.isNaN(nextDate.getTime())) {
-      setSipDate(nextDate);
-    }
+  const onConfirmSipDate = useCallback(date => {
+    setSipDate(date);
+    setShowSipDatePicker(false);
   }, []);
+
+  const onCancelSipDate = useCallback(() => {
+    setShowSipDatePicker(false);
+  }, []);
+
+  const openSipDatePicker = useCallback(() => {
+    setShowSipDatePicker(true);
+  }, []);
+
+  const onPressInvestment = useCallback(() => {
+    navigateToInvestment(navigation, {
+      schemeCode: fundInfo?.scheme_code ?? schemeCode,
+      schemeName: displayName,
+      initialOrderType: orderType,
+    });
+  }, [displayName, fundInfo?.scheme_code, navigation, orderType, schemeCode]);
 
   const header = useMemo(
     () => (
@@ -545,7 +761,7 @@ export default function FundDetailScreen() {
         {header}
         <View style={styles.center}>
           <Text style={styles.err}>{error || 'Could not load fund'}</Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.retry}>
+          <TouchableOpacity onPress={() => refetchFund()} style={styles.retry}>
             <Text style={styles.retryTxt}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -556,7 +772,15 @@ export default function FundDetailScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {header}
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.themeBlue} />
+        }>
         <View style={styles.card}>
           <View style={styles.titleRow}>
             {logoUrl ? (
@@ -566,7 +790,7 @@ export default function FundDetailScreen() {
                 <Text style={styles.logoL}>{displayName[0]}</Text>
               </View>
             )}
-            <Text style={[Textstyles.bold, styles.title]} numberOfLines={3}>
+            <Text style={[Textstyles.heading, styles.title]} numberOfLines={3}>
               {displayName}
             </Text>
           </View>
@@ -602,19 +826,19 @@ export default function FundDetailScreen() {
           <View style={styles.grid2}>
             <View style={styles.cell}>
               <Text style={styles.cellLabel}>NAV ({formatDate(fundInfo.last_updated)})</Text>
-              <Text style={[Textstyles.bold, styles.cellVal]}>
+              <Text style={[Textstyles.medium, styles.cellVal]}>
                 {fundInfo.nav != null ? Number(fundInfo.nav).toFixed(2) : '—'}
               </Text>
             </View>
             <View style={styles.cell}>
               <Text style={styles.cellLabel}>Rating</Text>
-              <Text style={[Textstyles.bold, styles.cellVal]}>
+              <Text style={[Textstyles.medium, styles.cellVal]}>
                 {fundInfo?.holdings?.groww_rating ?? '—'}
               </Text>
             </View>
             <View style={styles.cell}>
               <Text style={styles.cellLabel}>Min SIP</Text>
-              <Text style={[Textstyles.bold, styles.cellVal]}>
+              <Text style={[Textstyles.medium, styles.cellVal]}>
                 {fundInfo?.holdings?.min_sip_investment != null
                   ? safeInr(fundInfo.holdings.min_sip_investment)
                   : '—'}
@@ -622,21 +846,22 @@ export default function FundDetailScreen() {
             </View>
             <View style={styles.cell}>
               <Text style={styles.cellLabel}>Min purchase</Text>
-              <Text style={[Textstyles.bold, styles.cellVal]}>{safeInr(fundInfo.min_purchase_amount)}</Text>
+              <Text style={[Textstyles.medium, styles.cellVal]}>{safeInr(fundInfo.min_purchase_amount)}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={[Textstyles.bold, styles.sectionTitle]}>Return calculator</Text>
-          <Text style={[Textstyles.medium, styles.calcAmt]}>₹{calcAmount.toLocaleString('en-IN')}</Text>
-          <Slider
-            style={styles.slider}
+          <Text style={[Textstyles.heading, styles.sectionTitle]}>Return calculator</Text>
+          <Text style={[Textstyles.medium, styles.calcAmt]}>₹{sliderAmount.toLocaleString('en-IN')}</Text>
+          <ReturnAmountSlider
+            style={styles.sliderWrap}
             minimumValue={1000}
             maximumValue={200000}
             step={500}
-            value={calcAmount}
-            onValueChange={setCalcAmount}
+            value={sliderAmount}
+            onValueChange={onSliderValueChange}
+            onSlidingComplete={onSliderComplete}
             minimumTrackTintColor={Colors.themeBlue}
             maximumTrackTintColor={Colors.LIGHT_GREY}
             thumbTintColor={Colors.themeBlue}
@@ -644,6 +869,8 @@ export default function FundDetailScreen() {
           <Text style={[Textstyles.medium, styles.tableHead]}>Over the past</Text>
           {tableLoading ? (
             <ActivityIndicator style={{marginVertical: 16}} color={Colors.themeBlue} />
+          ) : returnRows.length === 0 ? (
+            <Text style={styles.emptyStateText}>Not enough history to calculate returns right now.</Text>
           ) : (
             returnRows.map((row, i) => (
               <View key={row.label} style={[styles.tableRow, i > 0 && styles.tableRowBorder]}>
@@ -666,21 +893,162 @@ export default function FundDetailScreen() {
 
         {holdingsList.length > 0 ? (
           <View style={styles.card}>
-            <Text style={[Textstyles.bold, styles.sectionTitle]}>Holdings</Text>
-            {holdingsList.slice(0, 15).map((h, idx) => (
-              <View key={idx} style={styles.holdingRow}>
-                <Text style={[Textstyles.medium, styles.hName]} numberOfLines={2}>
-                  {h.instrument_name || h.sector_name || '—'}
-                </Text>
-                <Text style={styles.hPct}>{h.corpus_per != null ? `${Number(h.corpus_per).toFixed(1)}%` : '—'}</Text>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>Holdings</Text>
+
+            <View style={styles.innerTableCard}>
+              <View style={styles.hTableHeadRow}>
+                <Text style={[styles.hTableHeadCell, styles.hCellName, {flex: 2.2}]}>Name</Text>
+                <Text style={[styles.hTableHeadCell, {flex: 1}]}>Sector</Text>
+                <Text style={[styles.hTableHeadCell, {flex: 1}]}>Instrument</Text>
+                <Text style={[styles.hTableHeadCell, {flex: 0.9, textAlign: 'right'}]}>Assets</Text>
               </View>
+
+              <ScrollView style={styles.holdingsScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {holdingsList.map((h, idx) => (
+                  <View key={idx} style={styles.hTableRow}>
+                    <Text style={[styles.hCellName, {flex: 2.2}]} numberOfLines={1}>
+                      {h.company_name || '—'}
+                    </Text>
+                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={1}>
+                      {h.sector_name || '—'}
+                    </Text>
+                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={1}>
+                      {h.instrument_name || '—'}
+                    </Text>
+                    <Text style={[styles.hCellRight, {flex: 0.9}]} numberOfLines={1}>
+                      {h.corpus_per != null && !Number.isNaN(Number(h.corpus_per))
+                        ? `${Number(h.corpus_per).toFixed(2)}%`
+                        : '—'}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        ) : null}
+
+        {Array.isArray(statsList) && statsList.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>Returns and rankings</Text>
+
+            <View style={styles.innerTableCard}>
+              <View style={styles.returnsHeadRow}>
+                <Text style={[styles.hTableHeadCell, {flex: 2.2}]}>Name</Text>
+                <Text style={[styles.hTableHeadCell, styles.hCellCenter, {flex: 1}]}>1Y</Text>
+                <Text style={[styles.hTableHeadCell, styles.hCellCenter, {flex: 1}]}>3Y</Text>
+                <Text style={[styles.hTableHeadCell, styles.hCellCenter, {flex: 1}]}>5Y</Text>
+                <Text style={[styles.hTableHeadCell, styles.hCellCenter, {flex: 1}]}>All</Text>
+              </View>
+
+              <ScrollView style={styles.returnsScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {statsList.map((stat, idx) => (
+                  <View key={idx} style={styles.returnsRow}>
+                    <Text style={[styles.returnsNameCell, {flex: 2.2}]} numberOfLines={2}>
+                      {stat?.title || '—'}
+                    </Text>
+                    <Text style={[styles.returnsValCell, styles.hCellCenter, {flex: 1}]}>
+                      {stat?.stat_1y != null && !Number.isNaN(Number(stat?.stat_1y))
+                        ? Number(stat?.stat_1y).toFixed(2)
+                        : '—'}
+                    </Text>
+                    <Text style={[styles.returnsValCell, styles.hCellCenter, {flex: 1}]}>
+                      {stat?.stat_3y != null && !Number.isNaN(Number(stat?.stat_3y))
+                        ? Number(stat?.stat_3y).toFixed(2)
+                        : '—'}
+                    </Text>
+                    <Text style={[styles.returnsValCell, styles.hCellCenter, {flex: 1}]}>
+                      {stat?.stat_5y != null && !Number.isNaN(Number(stat?.stat_5y))
+                        ? Number(stat?.stat_5y).toFixed(2)
+                        : '—'}
+                    </Text>
+                    <Text style={[styles.returnsValCell, styles.hCellCenter, {flex: 1}]}>
+                      {stat?.stat_all != null && !Number.isNaN(Number(stat?.stat_all))
+                        ? Number(stat?.stat_all).toFixed(2)
+                        : '—'}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        ) : null}
+
+        {holdingAnalysisSections.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>Holding Analysis</Text>
+            {holdingAnalysisSections.map(section => (
+              <HoldingAnalysisBlock
+                key={section.key}
+                title={section.title}
+                dataMap={section.dataMap}
+              />
             ))}
+          </View>
+        ) : null}
+
+        {returnStats != null || (topHoldingsStats?.top5 ?? 0) > 0 || (topHoldingsStats?.top10 ?? 0) > 0 ? (
+          <View style={styles.card}>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>Advanced Ratios</Text>
+            <View style={styles.kvWrap}>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Top 5</Text>
+                <Text style={styles.kvValue}>{topHoldingsStats?.top5 ? `${topHoldingsStats.top5.toFixed(2)}%` : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Top 10</Text>
+                <Text style={styles.kvValue}>{topHoldingsStats?.top10 ? `${topHoldingsStats.top10.toFixed(2)}%` : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>P/E Ratio</Text>
+                <Text style={styles.kvValue}>—</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>P/B Ratio</Text>
+                <Text style={styles.kvValue}>—</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Alpha</Text>
+                <Text style={styles.kvValue}>{returnStats?.alpha != null ? `${Number(returnStats.alpha).toFixed(2)}%` : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Beta</Text>
+                <Text style={styles.kvValue}>{returnStats?.beta != null ? `${Number(returnStats.beta).toFixed(2)}` : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Sharpe</Text>
+                <Text style={styles.kvValue}>{returnStats?.sharpe_ratio != null ? `${Number(returnStats.sharpe_ratio).toFixed(2)}` : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Sortino</Text>
+                <Text style={styles.kvValue}>{returnStats?.sortino_ratio != null ? `${Number(returnStats.sortino_ratio).toFixed(2)}` : '—'}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {(minInvestmentValues?.min1 || minInvestmentValues?.minSip || minInvestmentValues?.minAdditional) ? (
+          <View style={styles.card}>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>Minimum Investment Amounts</Text>
+            <View style={styles.kvWrap}>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Min. for 1st Investment</Text>
+                <Text style={styles.kvValue}>{minInvestmentValues.min1 != null ? safeInr(minInvestmentValues.min1) : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Min. for SIP</Text>
+                <Text style={styles.kvValue}>{minInvestmentValues.minSip != null ? safeInr(minInvestmentValues.minSip) : '—'}</Text>
+              </View>
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Min. for 2nd Investment onwards</Text>
+                <Text style={styles.kvValue}>{minInvestmentValues.minAdditional != null ? safeInr(minInvestmentValues.minAdditional) : '—'}</Text>
+              </View>
+            </View>
           </View>
         ) : null}
 
         {fundDetailsRows.length > 0 ? (
           <View style={styles.card}>
-            <Text style={[Textstyles.bold, styles.sectionTitle]}>More fund details</Text>
+            <Text style={[Textstyles.heading, styles.sectionTitle]}>More fund details</Text>
             {fundDetailsRows.map((row, idx) => (
               <View key={row.label} style={[styles.detailRow, idx > 0 && styles.detailRowBorder]}>
                 <Text style={styles.detailLabel}>{row.label}</Text>
@@ -690,6 +1058,7 @@ export default function FundDetailScreen() {
           </View>
         ) : null}
 
+        {false ? (
         <View style={[styles.card, styles.orderCard]}>
           {pendingOrderId ? (
             <View style={styles.authSummaryWrap}>
@@ -768,7 +1137,7 @@ export default function FundDetailScreen() {
                   <TouchableOpacity
                     style={styles.sipPickerField}
                     activeOpacity={0.85}
-                    onPress={() => setShowSipDatePicker(true)}>
+                    onPress={openSipDatePicker}>
                     <Text style={styles.sipPickerValue}>{formatDDMMYYYY(sipDate)}</Text>
                     <Text style={styles.sipPickerArrow}>⌄</Text>
                   </TouchableOpacity>
@@ -793,7 +1162,15 @@ export default function FundDetailScreen() {
               <TouchableOpacity
                 style={styles.mandateSelectCard}
                 activeOpacity={0.85}
-                onPress={() => setMandateModalVisible(true)}>
+                onPress={() => {
+                  if (__DEV__) {
+                    console.log('[FundDetail] Choose Mandate Method pressed (no API here)', {
+                      mandateLoading,
+                      mandatesCount: mandates.length,
+                    });
+                  }
+                  setMandateModalVisible(true);
+                }}>
                 <View style={{flex: 1}}>
                   <Text style={styles.mandateTitle}>Choose Mandate Method</Text>
                   <Text style={styles.mandateSub} numberOfLines={2}>{selectedMandateLabel}</Text>
@@ -818,6 +1195,7 @@ export default function FundDetailScreen() {
             </>
           )}
         </View>
+        ) : null}
 
         <TouchableOpacity style={styles.viewCart} onPress={openCart} activeOpacity={0.85}>
           <Text style={[Textstyles.medium, styles.viewCartTxt]}>View cart →</Text>
@@ -853,17 +1231,24 @@ export default function FundDetailScreen() {
         </Modal>
 
         {showSipDatePicker ? (
-          <DateTimePicker
-            value={sipDate}
+          <DatePicker
+            modal
+            open={showSipDatePicker}
+            date={sipDate}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             minimumDate={new Date()}
-            onChange={onChangeSipDate}
+            onConfirm={onConfirmSipDate}
+            onCancel={onCancelSipDate}
           />
         ) : null}
 
-        <View style={{height: 32}} />
+        <View style={{height: 20}} />
       </ScrollView>
+      <View style={styles.stickyInvestWrap}>
+        <TouchableOpacity style={styles.stickyInvestBtn} onPress={onPressInvestment} activeOpacity={0.9}>
+          <Text style={styles.stickyInvestTxt}>Invest Now</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -899,8 +1284,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeTxt: {color: '#fff', fontSize: 10, fontWeight: '700'},
-  scroll: {paddingBottom: 40},
+  badgeTxt: {color: '#fff', fontSize: 10, fontWeight: '500'},
+  scroll: {paddingBottom: 110},
   card: {
     backgroundColor: Colors.white,
     marginHorizontal: 16,
@@ -919,7 +1304,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
   },
-  logoL: {fontSize: 20, fontWeight: '700', color: Colors.themeBlue},
+  logoL: {fontSize: 20, fontWeight: '500', color: Colors.themeBlue},
   title: {flex: 1, fontSize: 18, color: Colors.TEXT_PRIMARY, lineHeight: 24},
   tags: {flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, marginBottom: 8},
   tag: {
@@ -943,7 +1328,11 @@ const styles = StyleSheet.create({
   cellVal: {fontSize: 17, color: Colors.TEXT_PRIMARY},
   sectionTitle: {fontSize: 17, marginBottom: 10, color: Colors.TEXT_PRIMARY},
   calcAmt: {fontSize: 22, color: Colors.TEXT_PRIMARY, marginBottom: 8},
-  slider: {width: '100%', height: 44, marginBottom: 8},
+  sliderWrap: {
+    width: '100%',
+    marginBottom: 8,
+    zIndex: 2,
+  },
   tableHead: {fontSize: 15, color: Colors.GREY, marginBottom: 8, marginTop: 8},
   tableRow: {
     flexDirection: 'row',
@@ -956,12 +1345,140 @@ const styles = StyleSheet.create({
   tRight: {textAlign: 'right', flex: 1},
   pos: {color: '#16a34a'},
   neg: {color: '#dc2626'},
+  emptyStateText: {fontSize: 13, color: Colors.GREY, marginTop: 4, marginBottom: 8},
   holdingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: Colors.BORDER_GREY,
+  },
+  holdingsScroll: {
+    maxHeight: 300, // match web table height constraint
+  },
+  innerTableCard: {
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: Colors.white,
+  },
+  hTableHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  hTableHeadCell: {fontSize: 13, color: Colors.GREY, fontWeight: '600'},
+  hCellName: {fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '600'},
+  hCellCenter: {fontSize: 13, color: Colors.TEXT_PRIMARY, textAlign: 'center', fontWeight: '600'},
+  hCellRight: {fontSize: 13, color: Colors.TEXT_PRIMARY, textAlign: 'right', fontWeight: '600'},
+  hTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  returnsHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  returnsScroll: {
+    maxHeight: 300,
+  },
+  returnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  returnsNameCell: {fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  returnsValCell: {fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  kvWrap: {
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  kvRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER_GREY,
+  },
+  kvLabel: {
+    flex: 1,
+    color: '#6B7280',
+    fontSize: 16,
+    paddingRight: 10,
+  },
+  kvValue: {
+    color: Colors.TEXT_PRIMARY,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  analysisBlock: {
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  analysisTitle: {
+    fontSize: 18,
+    color: Colors.TEXT_PRIMARY,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  analysisRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  analysisLegendWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  analysisLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  analysisLegendText: {
+    flex: 1,
+    color: '#4B5563',
+    fontSize: 15,
+    textTransform: 'capitalize',
+  },
+  analysisLegendValue: {
+    color: Colors.TEXT_PRIMARY,
+    fontWeight: '700',
+  },
+  analysisChartWrap: {
+    width: 180,
+    height: 180,
+  },
+  analysisWebView: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
   },
   hName: {flex: 1, fontSize: 14, paddingRight: 8},
   hPct: {fontSize: 14, fontWeight: '600', color: Colors.TEXT_PRIMARY},
@@ -977,7 +1494,7 @@ const styles = StyleSheet.create({
   },
   orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 14},
   orderTabBtnActive: {borderBottomWidth: 3, borderBottomColor: Colors.themeBlue},
-  orderTabTxt: {fontSize: 18, color: '#6B7280', fontWeight: '700'},
+  orderTabTxt: {fontSize: 18, color: '#6B7280', fontWeight: '500'},
   orderTabTxtActive: {color: Colors.themeBlue},
   amountInputWrap: {
     marginHorizontal: 14,
@@ -1001,7 +1518,7 @@ const styles = StyleSheet.create({
     minWidth: 86,
     alignItems: 'center',
   },
-  quickAmountChipTxt: {fontSize: 18, color: Colors.themeBlue, fontWeight: '700'},
+  quickAmountChipTxt: {fontSize: 18, color: Colors.themeBlue, fontWeight: '500'},
   sipFieldsRow: {marginHorizontal: 14, marginTop: 14},
   sipFieldCol: {flex: 1},
   sipFieldLabel: {fontSize: 14, color: '#4B5563', marginBottom: 8},
@@ -1056,7 +1573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addedToCartTxt: {fontSize: 16, color: '#34D399', fontWeight: '700'},
+  addedToCartTxt: {fontSize: 16, color: '#34D399', fontWeight: '500'},
   buyNowBtn: {
     flex: 1,
     borderRadius: 12,
@@ -1065,7 +1582,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buyNowTxt: {fontSize: 16, color: Colors.white, fontWeight: '700'},
+  buyNowTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
   authContinueBtn: {
     flex: 1,
     borderRadius: 12,
@@ -1074,10 +1591,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  authContinueTxt: {fontSize: 16, color: Colors.white, fontWeight: '700'},
+  authContinueTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
   authSummaryWrap: {padding: 16},
   authSummaryLabel: {fontSize: 13, color: '#6B7280', marginBottom: 6},
-  authSummaryAmount: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '700', marginBottom: 16},
+  authSummaryAmount: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginBottom: 16},
   payNowPrimaryBtn: {
     marginTop: 12,
     borderRadius: 12,
@@ -1086,7 +1603,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payNowPrimaryTxt: {fontSize: 16, color: Colors.white, fontWeight: '700'},
+  payNowPrimaryTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
   viewCart: {marginHorizontal: 16, marginTop: 12, paddingVertical: 12, alignItems: 'center'},
   viewCartTxt: {color: Colors.themeBlue, fontSize: 16},
   modalRoot: {flex: 1, justifyContent: 'flex-end'},
@@ -1098,15 +1615,34 @@ const styles = StyleSheet.create({
     padding: 16,
     maxHeight: '70%',
   },
-  modalTitle: {fontSize: 16, fontWeight: '800', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  modalTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
   modalEmpty: {fontSize: 13, color: '#6B7280', marginVertical: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 6},
   modalRowActive: {backgroundColor: '#EAF4FF'},
   modalRowTxt: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  modalRowTxtActive: {color: Colors.themeBlue, fontWeight: '700'},
+  modalRowTxtActive: {color: Colors.themeBlue, fontWeight: '500'},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingTxt: {marginTop: 12, color: Colors.GREY},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
   retry: {marginTop: 12, padding: 12},
   retryTxt: {color: Colors.themeBlue, fontWeight: '600'},
+  stickyInvestWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+  stickyInvestBtn: {
+    minHeight: 54,
+    borderRadius: 12,
+    backgroundColor: Colors.themeBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 3},
+    elevation: 4,
+  },
+  stickyInvestTxt: {fontSize: 18, fontWeight: '700', color: Colors.white},
 });

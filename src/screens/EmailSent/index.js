@@ -1,30 +1,22 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, StatusBar, Image} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import Images from '../../utils/images';
-import {Colors} from '../../utils/AppConstant';
-import Textstyles from '../../utils/text';
+import {View, Text, TouchableOpacity, StyleSheet, StatusBar} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import {AuthColors, AuthSpacing} from '../../constants/authTheme';
+import AuthBrand from '../../components/auth/AuthBrand';
+import CustomButton from '../../components/auth/CustomButton';
 
 export default function EmailSent() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const identifier = route.params?.identifier || 'your account';
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.content}>
-        <View style={styles.logoRow}>
-          <Image source={Images.themeLogo} style={styles.logoIcon} resizeMode="contain" />
-          <View style={styles.brandText}>
-            <Text style={[Textstyles.bold, styles.meonText]}>
-              <Text style={styles.meBlue}>me</Text>
-              <Text style={styles.onRed}>on</Text>
-            </Text>
-            <Text style={[Textstyles.bold, styles.mutualFunds]}>MUTUAL FUNDS</Text>
-            <View style={styles.underline}>
-              <View style={[styles.underlineSegment, styles.underlineBlue]} />
-              <View style={[styles.underlineSegment, styles.underlineRed]} />
-            </View>
-          </View>
+        <View style={styles.brandWrap}>
+          <AuthBrand compact />
         </View>
 
         <View style={styles.iconWrapper}>
@@ -36,124 +28,84 @@ export default function EmailSent() {
           </View>
         </View>
 
-        <Text style={[Textstyles.bold, styles.title]}>Email Sent!</Text>
-        <Text style={[Textstyles.normal, styles.message]}>
-          If account exists with us, you will receive password reset email shortly.
+        <Text style={styles.title}>Email Sent!</Text>
+        <Text style={styles.message}>
+          If an account exists for {identifier}, password reset instructions have been sent.
         </Text>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Login')}
-          style={styles.backToSignIn}>
-          <Text style={[Textstyles.medium, styles.backToSignInText]}>Back to Sign In</Text>
+        <View style={styles.actionWrap}>
+          <CustomButton title="Back to Sign In" onPress={() => navigation.navigate('Login')} />
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')} activeOpacity={0.8}>
+          <Text style={styles.resetNowLink}>Reset password now</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: AuthColors.bg,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: AuthSpacing.screenHorizontal,
+    paddingTop: 24,
     alignItems: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-  logoIcon: {
-    width: 40,
-    height: 40,
-    marginRight: 6,
-  },
-  brandText: {
-    alignItems: 'flex-start',
-  },
-  meonText: {
-    fontSize: 20,
-    letterSpacing: 0.5,
-  },
-  meBlue: { color: Colors.themeBlue },
-  onRed: { color: Colors.themeRed },
-  mutualFunds: {
-    fontSize: 9,
-    letterSpacing: 1,
-    color: Colors.black,
-    marginTop: 2,
-  },
-  underline: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 2,
-    marginTop: 2,
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  underlineSegment: { flex: 1 },
-  underlineBlue: { backgroundColor: Colors.themeBlue },
-  underlineRed: { backgroundColor: Colors.themeRed },
+  brandWrap: {marginBottom: 24},
   iconWrapper: {
-    marginBottom: 28,
+    marginBottom: 20,
   },
   envelopeCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.themeBlue,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: AuthColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   envelopeIcon: {
-    fontSize: 40,
-    color: Colors.white,
+    fontSize: 42,
+    color: '#FFFFFF',
   },
   checkBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -2,
+    right: -2,
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.green,
+    backgroundColor: AuthColors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkBadgeText: {
-    color: Colors.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
   title: {
     fontSize: 24,
-    color: Colors.TEXT_PRIMARY,
+    color: AuthColors.text,
+    fontWeight: '700',
     marginBottom: 12,
   },
   message: {
-    fontSize: 15,
-    color: Colors.gray,
+    fontSize: 14,
+    color: AuthColors.subText,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-    paddingHorizontal: 16,
+    lineHeight: 21,
+    marginBottom: 26,
+    paddingHorizontal: 10,
   },
-  backToSignIn: {
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backToSignInText: {
-    fontSize: 16,
-    color: Colors.TEXT_PRIMARY,
+  actionWrap: {width: '100%', maxWidth: 320},
+  resetNowLink: {
+    marginTop: 14,
+    fontSize: 14,
+    color: AuthColors.primary,
+    fontWeight: '600',
   },
 });

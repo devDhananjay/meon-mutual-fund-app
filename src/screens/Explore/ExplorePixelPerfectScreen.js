@@ -8,9 +8,11 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
+import AppTabHeader from '../../components/AppTabHeader';
 
 import {navigateToFundDetail, navigateToAllFundsSIP} from '../../navigation/navigationRef';
 import {useAllFunds} from '../../hooks/useAllFunds';
@@ -331,7 +333,8 @@ export default function ExplorePixelPerfectScreen() {
     (!listData && listLoading)
   ) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color="#00B386" />
         </View>
@@ -340,11 +343,10 @@ export default function ExplorePixelPerfectScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[Textstyles.bold, styles.title]}>Explore</Text>
-        </View>
+        <AppTabHeader title="Explore" />
 
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -377,7 +379,7 @@ export default function ExplorePixelPerfectScreen() {
         </View>
 
         <View style={styles.sectionHead}>
-          <Text style={[Textstyles.bold, styles.sectionTitle]}>Popular Funds</Text>
+          <Text style={[Textstyles.heading, styles.sectionTitle]}>Popular Funds</Text>
           <Text style={styles.viewAll}>View All</Text>
         </View>
 
@@ -390,7 +392,7 @@ export default function ExplorePixelPerfectScreen() {
         </View>
 
         <View style={styles.sectionHead}>
-          <Text style={[Textstyles.bold, styles.sectionTitle]}>Recently Viewed</Text>
+          <Text style={[Textstyles.heading, styles.sectionTitle]}>Recently Viewed</Text>
           <View />
         </View>
 
@@ -403,7 +405,7 @@ export default function ExplorePixelPerfectScreen() {
         </ScrollView>
 
         <View style={styles.allFundsHeadRow}>
-          <Text style={[Textstyles.bold, styles.allFundsTitle]}>All Mutual Funds</Text>
+          <Text style={[Textstyles.heading, styles.allFundsTitle]}>All Mutual Funds</Text>
           <TouchableOpacity onPress={onStartSIP} hitSlop={10} activeOpacity={0.85}>
             <Text style={styles.viewAll}>View all</Text>
           </TouchableOpacity>
@@ -443,9 +445,6 @@ const styles = StyleSheet.create({
   scroll: {paddingBottom: 28},
 
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-
-  header: {paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8},
-  title: {fontSize: 22, color: Colors.TEXT_PRIMARY},
 
   searchWrap: {
     marginHorizontal: 16,
@@ -487,7 +486,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
   },
-  sipButtonTxt: {color: '#FFFFFF', fontSize: 15, fontWeight: '800'},
+  sipButtonTxt: {color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
 
   sectionHead: {
     flexDirection: 'row',
@@ -497,7 +496,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
-  viewAll: {color: '#00B386', fontWeight: '800'},
+  viewAll: {color: '#00B386', fontWeight: '500'},
 
   grid: {
     flexDirection: 'row',

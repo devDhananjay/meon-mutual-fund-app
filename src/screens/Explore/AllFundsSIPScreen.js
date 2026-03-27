@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   countText: {fontSize: 14, color: Colors.GREY},
   sortBtn: {paddingRight: 6},
   sortBtnInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  sortBtnTxt: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  sortBtnTxt: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   sortChevron: {fontSize: 12, color: Colors.GREY, marginTop: 2},
   dottedUnderline: {
     marginTop: 6,
@@ -403,15 +403,15 @@ const styles = StyleSheet.create({
   rowText: {flex: 1, paddingLeft: 12},
   logo: {width: 40, height: 40, borderRadius: 10},
   logoPlaceholder: {backgroundColor: Colors.offWhite, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.BORDER_GREY},
-  logoLetter: {fontSize: 15, fontWeight: '800', color: Colors.themeBlue},
-  fundName: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  logoLetter: {fontSize: 15, fontWeight: '500', color: Colors.themeBlue},
+  fundName: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   category: {fontSize: 12, color: Colors.GREY, marginTop: 4},
   ratingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4},
   star: {color: '#9CA3AF', fontSize: 12},
   ratingVal: {fontSize: 12, color: '#9CA3AF'},
 
   returnsCol: {alignItems: 'flex-end', minWidth: 90},
-  returnVal: {fontSize: 14, fontWeight: '800'},
+  returnVal: {fontSize: 14, fontWeight: '500'},
   periodLabel: {fontSize: 12, color: Colors.GREY, marginTop: 4},
 
   empty: {padding: 40, alignItems: 'center'},

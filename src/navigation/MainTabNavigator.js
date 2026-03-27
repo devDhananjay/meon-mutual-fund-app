@@ -13,7 +13,9 @@ function tabIcon(emoji) {
   return function TabBarIcon({focused}) {
     return (
       <View style={styles.tabIconWrap}>
-        <Text style={[styles.tabIconTxt, focused && styles.tabIconTxtOn]}>{emoji}</Text>
+        <Text style={[styles.tabIconTxt, focused && styles.tabIconTxtOn]} allowFontScaling={false}>
+          {emoji}
+        </Text>
         {focused ? <View style={styles.tabIndicator} /> : <View style={styles.tabIndicatorOff} />}
       </View>
     );
@@ -41,7 +43,7 @@ export default function MainTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: tabIcon('◫'),
+          tabBarIcon: tabIcon('\u{1F3E0}'),
         }}
       />
       <Tab.Screen
@@ -49,7 +51,7 @@ export default function MainTabNavigator() {
         component={ExplorePixelPerfectScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: tabIcon('◎'),
+          tabBarIcon: tabIcon('\u{1F50D}'),
         }}
       />
       <Tab.Screen
@@ -57,7 +59,7 @@ export default function MainTabNavigator() {
         component={MyFoliosScreen}
         options={{
           tabBarLabel: 'My Folios',
-          tabBarIcon: tabIcon('◈'),
+          tabBarIcon: tabIcon('\u{1F4BC}'),
         }}
       />
       <Tab.Screen
@@ -65,7 +67,7 @@ export default function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: tabIcon('◉'),
+          tabBarIcon: tabIcon('\u{1F464}'),
         }}
       />
     </Tab.Navigator>

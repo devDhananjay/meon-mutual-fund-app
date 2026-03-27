@@ -193,9 +193,9 @@ const styles = StyleSheet.create({
   },
 
   headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end'},
-  countTxt: {fontSize: 14, fontWeight: '700', color: '#111827'},
+  countTxt: {fontSize: 14, fontWeight: '500', color: '#111827'},
   sortValueBtn: {alignItems: 'flex-end'},
-  sortValueTxt: {fontSize: 13, fontWeight: '900', color: '#111827', marginBottom: 6},
+  sortValueTxt: {fontSize: 13, fontWeight: '500', color: '#111827', marginBottom: 6},
   sortChevron: {fontSize: 12, color: '#6B7280', marginTop: -2, marginBottom: 6},
   dottedUnderline: {width: 64, borderBottomWidth: 2, borderBottomColor: '#D1D5DB', borderStyle: 'dotted', marginTop: 2},
   filterDottedUnderline: {alignSelf: 'stretch', borderBottomWidth: 2, borderBottomColor: '#D1D5DB', borderStyle: 'dotted', marginTop: 8},
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   filterRowLeft: {flex: 1, minWidth: 0},
-  filterRowTitle: {fontSize: 14, fontWeight: '900', color: '#111827'},
+  filterRowTitle: {fontSize: 14, fontWeight: '500', color: '#111827'},
   filterRowSub: {fontSize: 12, color: '#6B7280', marginTop: 4},
   filterRowChevron: {fontSize: 22, color: '#9CA3AF', fontWeight: '300'},
 
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chipSelected: {borderColor: PRIMARY_GREEN, backgroundColor: '#E6FFF6'},
-  chipTxt: {fontSize: 12, color: '#374151', fontWeight: '700'},
+  chipTxt: {fontSize: 12, color: '#374151', fontWeight: '500'},
   chipTxtSelected: {color: PRIMARY_GREEN},
 
   modalRoot: {flex: 1, justifyContent: 'flex-end'},
@@ -239,10 +239,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EBECED',
   },
-  modalTitle: {fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 10},
+  modalTitle: {fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 8, borderRadius: 10},
   modalRowActive: {backgroundColor: '#E6FFF6'},
-  modalRowTxt: {fontSize: 14, fontWeight: '700', color: '#111827'},
+  modalRowTxt: {fontSize: 14, fontWeight: '500', color: '#111827'},
   modalRowTxtActive: {color: PRIMARY_GREEN},
 
   filterSheet: {
@@ -264,14 +264,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filterSheetHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  filterSheetTitle: {fontSize: 18, fontWeight: '900', color: '#111827'},
-  clearTxt: {fontSize: 14, fontWeight: '800', color: PRIMARY_GREEN},
-  sheetSectionLabel: {fontSize: 13, fontWeight: '800', color: '#6B7280', marginTop: 12},
+  filterSheetTitle: {fontSize: 18, fontWeight: '700', color: '#111827'},
+  clearTxt: {fontSize: 14, fontWeight: '500', color: PRIMARY_GREEN},
+  sheetSectionLabel: {fontSize: 13, fontWeight: '500', color: '#6B7280', marginTop: 12},
   chipWrap: {flexDirection: 'row', flexWrap: 'wrap', marginTop: 8},
   sheetActions: {flexDirection: 'row', marginTop: 16, gap: 10},
   sheetBtnCancel: {flex: 1, borderRadius: 10, borderWidth: 1.5, borderColor: PRIMARY_GREEN, paddingVertical: 14, alignItems: 'center'},
-  sheetBtnCancelTxt: {fontSize: 15, fontWeight: '900', color: PRIMARY_GREEN},
+  sheetBtnCancelTxt: {fontSize: 15, fontWeight: '500', color: PRIMARY_GREEN},
   sheetBtnApply: {flex: 1, borderRadius: 10, backgroundColor: PRIMARY_GREEN, paddingVertical: 14, alignItems: 'center'},
-  sheetBtnApplyTxt: {fontSize: 15, fontWeight: '900', color: '#FFFFFF'},
+  sheetBtnApplyTxt: {fontSize: 15, fontWeight: '500', color: '#FFFFFF'},
 });
 

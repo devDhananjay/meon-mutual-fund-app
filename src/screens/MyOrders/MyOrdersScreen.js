@@ -10,6 +10,7 @@ import {
   TextInput,
   Image,
   Modal,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -31,6 +32,7 @@ import {
   formatOrderTypeLabel,
   normalizeStatusKey,
 } from './orderHelpers';
+import Icons from '../../utils/icons';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
@@ -41,7 +43,8 @@ const STATUS_OPTIONS = [
   {key: 'all', label: 'All'},
   {key: 'IN_PROGRESS', label: 'InProgress'},
   {key: 'FAILED', label: 'Failed'},
-  {key: 'SUCCESS', label: 'Success'},
+  {key: 'COMPLETED', label: 'Completed'},
+  {key: 'CANCELLED', label: 'Cancelled'},
 ];
 
 const TYPE_OPTIONS = [
@@ -50,6 +53,15 @@ const TYPE_OPTIONS = [
   {key: 'lumpsum', label: 'One-time'},
   {key: 'sip', label: 'SIP'},
 ];
+
+/** Maps UI order-type keys to API `type` query (website list endpoint). */
+function mapTypeFilterToApi(typeFilter) {
+  if (!typeFilter || typeFilter === 'all') {
+    return '';
+  }
+  const map = {sip: 'SIP', redeem: 'REDEEM', lumpsum: 'LUMPSUM'};
+  return map[typeFilter] ?? String(typeFilter).toUpperCase();
+}
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -118,9 +130,10 @@ function FundLogo({name, uri}) {
 function FilterSlidersIcon() {
   return (
     <View style={styles.filterIcon}>
-      <View style={[styles.filterBar, styles.filterBarWide]} />
+      {/* <View style={[styles.filterBar, styles.filterBarWide]} />
       <View style={[styles.filterBar, styles.filterBarNarrow]} />
-      <View style={[styles.filterBar, styles.filterBarWide]} />
+      <View style={[styles.filterBar, styles.filterBarWide]} /> */}
+      <Image source={Icons.FilterBlack} style={styles.filterIcon} />
     </View>
   );
 }
@@ -128,10 +141,10 @@ function FilterSlidersIcon() {
 function pickOrderNumber(item) {
   return (
     item?.bse_order_id ??
-    item?.transaction_number ??
+    item?.order_id ??
     item?.order_number ??
     item?.order_no ??
-    item?.order_id ??
+    item?.transaction_number ??
     item?.id
   );
 }
@@ -142,6 +155,9 @@ function canShowPayNow(item) {
     .filter(Boolean)
     .join(' ');
   const completeKey = normalizeStatusKey(completionSignals);
+  const paymentKey = normalizeStatusKey(
+    [status, item?.payment_status, item?.payment_state, item?.payment_required].filter(Boolean).join(' '),
+  );
   const isAlreadyComplete =
     completeKey.includes('SUCCESS') ||
     completeKey.includes('COMPLETE') ||
@@ -170,6 +186,8 @@ function canShowPayNow(item) {
   return (
     pickOrderNumber(item) != null &&
     !isAlreadyComplete &&
+    !paymentKey.includes('PAYMENT_CONFIRMED') &&
+    !paymentKey.includes('PAID') &&
     (isAuthenticatedOrderState(statusSignals) || hasAuthMarker)
   );
 }
@@ -221,42 +239,6 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId}) {
       ) : null}
     </TouchableOpacity>
   );
-}
-
-function matchesStatusFilter(item, filterKey) {
-  if (filterKey === 'all') {
-    return true;
-  }
-  const s = normalizeStatusKey(pickOrderStatus(item));
-  if (filterKey === 'IN_PROGRESS') {
-    return s.includes('PROGRESS') || s.includes('PENDING') || s.includes('PROCESS');
-  }
-  if (filterKey === 'SUCCESS') {
-    return s.includes('SUCCESS') || s.includes('COMPLETE') || s.includes('EXECUTED');
-  }
-  if (filterKey === 'FAILED') {
-    return s.includes('FAIL') || s.includes('REJECT');
-  }
-  return true;
-}
-
-function matchesTypeFilter(item, filterKey) {
-  if (filterKey === 'all') {
-    return true;
-  }
-  const t = pickOrderType(item).toLowerCase();
-  if (filterKey === 'sip') {
-    return t.includes('sip');
-  }
-  if (filterKey === 'redeem') {
-    return t.includes('redeem') || t.includes('redemption') || t === 'sell';
-  }
-  if (filterKey === 'lumpsum') {
-    return (
-      (t.includes('one') || t.includes('lump') || t.includes('purchase') || t === 'buy') && !t.includes('sip')
-    );
-  }
-  return true;
 }
 
 function FilterSheet({
@@ -326,11 +308,9 @@ export default function MyOrdersScreen() {
   const navigation = useNavigation();
   const showBack = navigation.canGoBack();
   const user = useSelector(s => s.auth.user);
-  const {data, isPending, error, refreshing, refetch} = useOrdersData();
-  const orders = data?.results ?? EMPTY_ORDERS;
-  const totalCount = data?.count ?? orders.length;
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -338,6 +318,26 @@ export default function MyOrdersScreen() {
   const [draftStatus, setDraftStatus] = useState('all');
   const [draftType, setDraftType] = useState('all');
   const [payingOrderId, setPayingOrderId] = useState(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const listParams = useMemo(
+    () => ({
+      page: 1,
+      page_size: 50,
+      search: debouncedSearch,
+      status: statusFilter === 'all' ? '' : statusFilter,
+      type: mapTypeFilterToApi(typeFilter),
+    }),
+    [debouncedSearch, statusFilter, typeFilter],
+  );
+
+  const {data, isPending, error, refreshing, refetch} = useOrdersData(listParams);
+  const orders = data?.results ?? EMPTY_ORDERS;
+  const totalCount = data?.count ?? orders.length;
 
   const openFilter = useCallback(() => {
     setDraftStatus(statusFilter);
@@ -354,24 +354,15 @@ export default function MyOrdersScreen() {
     setStatusFilter(draftStatus);
     setTypeFilter(draftType);
     setFilterOpen(false);
-  }, [draftStatus, draftType]);
-
-  const filteredOrders = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return orders.filter(o => {
-      if (!matchesStatusFilter(o, statusFilter)) {
-        return false;
-      }
-      if (!matchesTypeFilter(o, typeFilter)) {
-        return false;
-      }
-      if (!q) {
-        return true;
-      }
-      const title = pickOrderTitle(o).toLowerCase();
-      return title.includes(q);
-    });
-  }, [orders, search, statusFilter, typeFilter]);
+    if (__DEV__) {
+      console.log('[MyOrders] filter apply → list refetch', {
+        status: draftStatus === 'all' ? '' : draftStatus,
+        type: mapTypeFilterToApi(draftType),
+        search: debouncedSearch,
+        listEndpoint: '/api/journey/mf/order/list/',
+      });
+    }
+  }, [draftStatus, draftType, debouncedSearch]);
 
   useEffect(() => {
     if (!__DEV__) {
@@ -386,7 +377,7 @@ export default function MyOrdersScreen() {
       authenticated_at: o?.authenticated_at,
       canPayNow: canShowPayNow(o),
     }));
-    console.log('[MyOrders] pay-now snapshot', sample);
+    // console.log('[MyOrders] pay-now snapshot', sample);
   }, [orders]);
 
   const onPressOrder = useCallback(
@@ -463,13 +454,13 @@ export default function MyOrdersScreen() {
           />
         </View>
         <Text style={styles.countLine}>
-          {filteredOrders.length === 0
+          {orders.length === 0
             ? '0 orders'
-            : `Showing ${filteredOrders.length}${totalCount > filteredOrders.length ? ` of ${totalCount}` : ''}`}
+            : `Showing ${orders.length}${totalCount > orders.length ? ` of ${totalCount}` : ''}`}
         </Text>
       </View>
     ),
-    [search, filteredOrders.length, totalCount],
+    [search, orders.length, totalCount],
   );
 
   const goExplore = useCallback(() => {
@@ -518,7 +509,7 @@ export default function MyOrdersScreen() {
       ) : null}
 
       <FlatList
-        data={filteredOrders}
+        data={orders}
         keyExtractor={(item, index) => String(item.id ?? item.order_id ?? item.uuid ?? index)}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
@@ -578,7 +569,7 @@ const styles = StyleSheet.create({
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, width: 72},
   backChevron: {fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2, fontWeight: '400'},
   backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  filterIcon: {alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 4},
+  filterIcon: {width: 20, height: 20, alignSelf: 'flex-end', justifyContent: 'center', paddingVertical: 4},
   filterBar: {height: 3, backgroundColor: THEME_BLUE, borderRadius: 1, marginBottom: 4},
   filterBarWide: {width: 18, alignSelf: 'flex-end'},
   filterBarNarrow: {width: 14, alignSelf: 'flex-end'},
@@ -627,7 +618,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  fundLogoLetter: {fontSize: 16, fontWeight: '800', color: THEME_BLUE},
+  fundLogoLetter: {fontSize: 16, fontWeight: '500', color: THEME_BLUE},
   fundName: {flex: 1, fontSize: 15, fontWeight: '600', color: '#111827', lineHeight: 20},
   cardChev: {fontSize: 22, color: '#9CA3AF', fontWeight: '300', marginLeft: 2},
   cardGrid: {
@@ -640,7 +631,7 @@ const styles = StyleSheet.create({
   cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
   cellLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6},
   cellType: {fontSize: 13, fontWeight: '600', color: '#111827'},
-  cellAmt: {fontSize: 14, fontWeight: '700', color: '#111827', marginTop: 2},
+  cellAmt: {fontSize: 14, fontWeight: '500', color: '#111827', marginTop: 2},
   cellVal: {fontSize: 13, fontWeight: '600', color: '#111827'},
   statusPill: {
     paddingHorizontal: 8,
@@ -649,7 +640,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     maxWidth: '100%',
   },
-  statusPillTxt: {fontSize: 11, fontWeight: '700'},
+  statusPillTxt: {fontSize: 11, fontWeight: '500'},
   payNowBtn: {
     marginTop: 12,
     backgroundColor: '#22C55E',
@@ -657,7 +648,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  payNowTxt: {color: Colors.white, fontSize: 14, fontWeight: '700'},
+  payNowTxt: {color: Colors.white, fontSize: 14, fontWeight: '500'},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -745,7 +736,7 @@ const styles = StyleSheet.create({
     borderColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnCancelTxt: {fontSize: 16, fontWeight: '700', color: THEME_BLUE},
+  filterBtnCancelTxt: {fontSize: 16, fontWeight: '500', color: THEME_BLUE},
   filterBtnApply: {
     flex: 1,
     marginLeft: 8,
@@ -754,5 +745,5 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnApplyTxt: {fontSize: 16, fontWeight: '700', color: Colors.white},
+  filterBtnApplyTxt: {fontSize: 16, fontWeight: '500', color: Colors.white},
 });
