@@ -3,12 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   TextInput,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
   Image,
@@ -18,6 +15,7 @@ import {useSelector} from 'react-redux';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import {postMandateRegister} from '../../services/mandateService';
+import AppModal from '../../components/AppModal';
 
 const PRIMARY = '#1A73E8';
 const CARD_BORDER = '#E8E8E8';
@@ -209,182 +207,143 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   }, []);
 
   return (
-    <Modal
+    <AppModal
       visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TouchableOpacity style={styles.dim} activeOpacity={1} onPress={handleClose} />
-        <View style={styles.sheet}>
-          <View style={styles.grabber} />
-          <Text style={styles.sheetTitle}>Add New Mandate</Text>
-
-          <ScrollView
-            style={styles.sheetScroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionTitle}>Investor details</Text>
-            <View style={styles.invCard}>
-              <Row label="Investor name" value={investorName} />
-              <Row label="UCC" value={ucc} />
-              <Row label="PAN" value={pan} />
-              <Row label="Tax status" value={tax} />
-            </View>
-
-            <Text style={styles.sectionTitle}>Mandate details</Text>
-            <View style={styles.invCard}>
-              <Text style={styles.fieldLabel}>Mandate type</Text>
-              <TouchableOpacity
-                style={styles.dropdown}
-                onPress={() => setTypePickerOpen(o => !o)}
-                activeOpacity={0.85}>
-                <Text style={[Textstyles.medium, styles.dropdownTxt]}>{mandateType}</Text>
-                <Text style={styles.chev}>▼</Text>
-              </TouchableOpacity>
-              {typePickerOpen ? (
-                <View style={styles.typeList}>
-                  {MANDATE_TYPES.map(t => (
-                    <TouchableOpacity
-                      key={t}
-                      style={styles.typeOpt}
-                      onPress={() => {
-                        setMandateType(t);
-                        setTypePickerOpen(false);
-                      }}>
-                      <Text style={styles.typeOptTxt}>{t}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : null}
-
-              <Text style={styles.fieldLabel}>Amount</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter amount"
-                placeholderTextColor={Colors.GREY}
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-              />
-
-              <View style={styles.dateRow}>
-                <View style={styles.dateFieldHalf}>
-                  <Text style={styles.fieldLabel}>Start date</Text>
-                  <TouchableOpacity
-                    style={styles.dateTouch}
-                    onPress={() => {
-                      setDatePickerFor(p => {
-                        if (p === 'start') {
-                          return null;
-                        }
-                        return 'start';
-                      });
-                    }}
-                    activeOpacity={0.85}>
-                    <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(startDate)}</Text>
-                    <Image
-                      source={require('../../assets/Icons/calendarOthers.png')}
-                      style={styles.calIcon}
-                      resizeMode="contain"
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.dateFieldHalf}>
-                  <Text style={styles.fieldLabel}>End date</Text>
-                  <TouchableOpacity
-                    style={styles.dateTouch}
-                    onPress={() => {
-                      setDatePickerFor(p => {
-                        if (p === 'end') {
-                          return null;
-                        }
-                        return 'end';
-                      });
-                    }}
-                    activeOpacity={0.85}>
-                    <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(endDate)}</Text>
-                    <Image
-                      source={require('../../assets/Icons/calendarOthers.png')}
-                      style={styles.calIcon}
-                      resizeMode="contain"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {datePickerFor !== null ? (
-                <DatePicker
-                  modal
-                  open={true}
-                  date={datePickerFor === 'start' ? startDate : endDate}
-                  mode="date"
-                  minimumDate={datePickerFor === 'start' ? MIN_PICK_DATE : startDate}
-                  maximumDate={datePickerFor === 'start' ? endDate : MAX_PICK_DATE}
-                  onConfirm={onConfirmDatePicker}
-                  onCancel={onCancelDatePicker}
-                  title={null}
-                />
-              ) : null}
-            </View>
-          </ScrollView>
-
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.btnCancel}
-              onPress={handleClose}
-              activeOpacity={0.85}
-              disabled={submitting}>
-              <Text style={styles.btnCancelTxt}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnSubmit, submitting && styles.btnSubmitDisabled]}
-              onPress={handleSubmit}
-              activeOpacity={0.9}
-              disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <Text style={styles.btnSubmitTxt}>Submit</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+      onClose={handleClose}
+      title="Add New Mandate"
+      isBottomSheet
+      maxHeight={'92%'}>
+      <ScrollView
+        style={styles.sheetScroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>Investor details</Text>
+        <View style={styles.invCard}>
+          <Row label="Investor name" value={investorName} />
+          <Row label="UCC" value={ucc} />
+          <Row label="PAN" value={pan} />
+          <Row label="Tax status" value={tax} />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <Text style={styles.sectionTitle}>Mandate details</Text>
+        <View style={styles.invCard}>
+          <Text style={styles.fieldLabel}>Mandate type</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setTypePickerOpen(o => !o)}
+            activeOpacity={0.85}>
+            <Text style={[Textstyles.medium, styles.dropdownTxt]}>{mandateType}</Text>
+            <Text style={styles.chev}>▼</Text>
+          </TouchableOpacity>
+          {typePickerOpen ? (
+            <View style={styles.typeList}>
+              {MANDATE_TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={styles.typeOpt}
+                  onPress={() => {
+                    setMandateType(t);
+                    setTypePickerOpen(false);
+                  }}>
+                  <Text style={styles.typeOptTxt}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          <Text style={styles.fieldLabel}>Amount</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter amount"
+            placeholderTextColor={Colors.GREY}
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={setAmount}
+          />
+
+          <View style={styles.dateRow}>
+            <View style={styles.dateFieldHalf}>
+              <Text style={styles.fieldLabel}>Start date</Text>
+              <TouchableOpacity
+                style={styles.dateTouch}
+                onPress={() => {
+                  setDatePickerFor(p => {
+                    if (p === 'start') {
+                      return null;
+                    }
+                    return 'start';
+                  });
+                }}
+                activeOpacity={0.85}>
+                <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(startDate)}</Text>
+                <Image
+                  source={require('../../assets/Icons/calendarOthers.png')}
+                  style={styles.calIcon}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.dateFieldHalf}>
+              <Text style={styles.fieldLabel}>End date</Text>
+              <TouchableOpacity
+                style={styles.dateTouch}
+                onPress={() => {
+                  setDatePickerFor(p => {
+                    if (p === 'end') {
+                      return null;
+                    }
+                    return 'end';
+                  });
+                }}
+                activeOpacity={0.85}>
+                <Text style={[Textstyles.medium, styles.dateTouchTxt]}>{formatDDMMYYYY(endDate)}</Text>
+                <Image
+                  source={require('../../assets/Icons/calendarOthers.png')}
+                  style={styles.calIcon}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {datePickerFor !== null ? (
+            <DatePicker
+              modal
+              open={true}
+              date={datePickerFor === 'start' ? startDate : endDate}
+              mode="date"
+              minimumDate={datePickerFor === 'start' ? MIN_PICK_DATE : startDate}
+              maximumDate={datePickerFor === 'start' ? endDate : MAX_PICK_DATE}
+              onConfirm={onConfirmDatePicker}
+              onCancel={onCancelDatePicker}
+              title={null}
+            />
+          ) : null}
+        </View>
+      </ScrollView>
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.btnCancel}
+          onPress={handleClose}
+          activeOpacity={0.85}
+          disabled={submitting}>
+          <Text style={styles.btnCancelTxt}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.btnSubmit, submitting && styles.btnSubmitDisabled]}
+          onPress={handleSubmit}
+          activeOpacity={0.9}
+          disabled={submitting}>
+          {submitting ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.btnSubmitTxt}>Submit</Text>}
+        </TouchableOpacity>
+      </View>
+    </AppModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {flex: 1, justifyContent: 'flex-end'},
-  dim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 24,
-    maxHeight: '92%',
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.TEXT_PRIMARY,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  sheetScroll: {maxHeight: 520, paddingHorizontal: 16},
+  sheetScroll: {maxHeight: 520},
   sectionTitle: {
     fontSize: 13,
     fontWeight: '500',
@@ -487,7 +446,6 @@ const styles = StyleSheet.create({
   iosSpinnerInline: {alignSelf: 'center', height: 216, width: '100%'},
   actions: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -495,23 +453,23 @@ const styles = StyleSheet.create({
   },
   btnCancel: {
     flex: 1,
-    marginRight: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: PRIMARY,
-    alignItems: 'center',
-  },
-  btnCancelTxt: {fontSize: 16, fontWeight: '500', color: PRIMARY},
-  btnSubmit: {
-    flex: 1,
-    marginLeft: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: PRIMARY,
+    marginRight: 6,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnCancelTxt: {fontSize: 15, fontWeight: '500', color: '#6B7280'},
+  btnSubmit: {
+    flex: 1,
+    marginLeft: 6,
     minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: '#2F80ED',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSubmitDisabled: {opacity: 0.7},
   btnSubmitTxt: {fontSize: 16, fontWeight: '500', color: Colors.white},

@@ -1,7 +1,9 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import AppColors from '../../../theme/colors';
+import {radius} from '../../../theme/radius';
+import {shadows} from '../../../theme/shadows';
 
-const PRIMARY_GREEN = '#00B386';
 const RISK_RED = '#DC2626';
 
 function formatPct(raw) {
@@ -16,9 +18,9 @@ function formatPct(raw) {
 function returnColor(raw) {
   const n = Number(raw);
   if (Number.isNaN(n)) {
-    return '#6B7280';
+    return AppColors.textSecondary;
   }
-  return n >= 0 ? PRIMARY_GREEN : '#DC2626';
+  return n >= 0 ? AppColors.success : AppColors.danger;
 }
 
 function FundLogo({logoUrl, name, size}) {
@@ -81,10 +83,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: AppColors.border,
     padding: 12,
+    ...shadows.card,
   },
   cardRecent: {
     width: 220,
@@ -96,11 +99,11 @@ const styles = StyleSheet.create({
   },
   logo: {borderRadius: 10, backgroundColor: '#F3F4F6'},
   logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 13, fontWeight: '500', color: PRIMARY_GREEN},
+  logoLetter: {fontSize: 13, fontWeight: '500', color: AppColors.primary},
   nameCol: {flex: 1, minWidth: 0},
-  fundName: {fontSize: 12, fontWeight: '500', color: '#111827', lineHeight: 16},
+  fundName: {fontSize: 12, fontWeight: '500', color: AppColors.textPrimary, lineHeight: 16},
   returnCol: {alignItems: 'flex-end'},
-  period: {fontSize: 10, color: '#6B7280', fontWeight: '500'},
+  period: {fontSize: 10, color: AppColors.textSecondary, fontWeight: '500'},
   returnVal: {fontSize: 13, fontWeight: '500', marginTop: 2},
   bottomRow: {
     flexDirection: 'row',

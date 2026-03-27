@@ -336,7 +336,7 @@ export default function ExplorePixelPerfectScreen() {
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color="#00B386" />
+          <ActivityIndicator size="large" color={Colors.themeBlue} />
         </View>
       </SafeAreaView>
     );
@@ -346,7 +346,10 @@ export default function ExplorePixelPerfectScreen() {
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={{marginVertical: 15}}>
         <AppTabHeader title="Explore" />
+        </View>
+       
 
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -380,7 +383,9 @@ export default function ExplorePixelPerfectScreen() {
 
         <View style={styles.sectionHead}>
           <Text style={[Textstyles.heading, styles.sectionTitle]}>Popular Funds</Text>
-          <Text style={styles.viewAll}>View All</Text>
+          <TouchableOpacity onPress={onStartSIP} hitSlop={10} activeOpacity={0.85} style={styles.viewAllHit}>
+            <Text style={styles.viewAll}>View All</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.grid}>
@@ -454,12 +459,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY},
-  searchInput: {flex: 1, fontSize: 14, color: Colors.TEXT_PRIMARY, paddingVertical: 2},
+  searchInput: {flex: 1, fontSize: 14, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   clearBtn: {padding: 4},
   clearTxt: {color: Colors.GREY, fontSize: 16},
 
@@ -481,7 +487,7 @@ const styles = StyleSheet.create({
   sipTitle: {color: Colors.TEXT_PRIMARY, lineHeight: 20, marginBottom: 12},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#00B386',
+    backgroundColor: Colors.themeBlue,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 18,
@@ -496,7 +502,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
-  viewAll: {color: '#00B386', fontWeight: '500'},
+  viewAll: {color: Colors.themeBlue, fontWeight: '500'},
+  viewAllHit: {paddingVertical: 8, paddingHorizontal: 8},
 
   grid: {
     flexDirection: 'row',

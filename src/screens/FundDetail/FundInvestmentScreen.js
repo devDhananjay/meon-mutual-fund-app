@@ -7,7 +7,6 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Modal,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +29,7 @@ import {
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
 import {Colors} from '../../utils/AppConstant';
 import {navigateToCart} from '../../navigation/navigationRef';
+import AppModal from '../../components/AppModal';
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -571,55 +571,53 @@ export default function FundInvestmentScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
-      <Modal visible={mandateModalVisible} transparent animationType="fade" onRequestClose={() => setMandateModalVisible(false)}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity style={styles.modalDim} activeOpacity={1} onPress={() => setMandateModalVisible(false)} />
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Select mandate</Text>
-            {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={styles.modalLoader} /> : null}
-            {!mandateLoading && mandates.length === 0 ? (
-              <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
-            ) : null}
-            {!mandateLoading &&
-              mandates.map((m, idx) => {
-                const active = (selectedMandate?.id ?? selectedMandate?.mandate_id) === (m?.id ?? m?.mandate_id);
-                return (
-                  <TouchableOpacity
-                    key={String(m?.id ?? m?.mandate_id ?? idx)}
-                    style={[styles.modalRow, active && styles.modalRowActive]}
-                    onPress={() => {
-                      setSelectedMandate(m);
-                      setMandateModalVisible(false);
-                    }}
-                    activeOpacity={0.9}>
-                    <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{pickMandateLabel(m)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={freqModalVisible} transparent animationType="fade" onRequestClose={() => setFreqModalVisible(false)}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity style={styles.modalDim} activeOpacity={1} onPress={() => setFreqModalVisible(false)} />
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>SIP frequency</Text>
-            {['Monthly', 'Quarterly'].map(freq => (
+      <AppModal
+        visible={mandateModalVisible}
+        onClose={() => setMandateModalVisible(false)}
+        title="Select mandate"
+        isBottomSheet
+        maxHeight={'72%'}>
+        {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={styles.modalLoader} /> : null}
+        {!mandateLoading && mandates.length === 0 ? (
+          <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
+        ) : null}
+        {!mandateLoading &&
+          mandates.map((m, idx) => {
+            const active = (selectedMandate?.id ?? selectedMandate?.mandate_id) === (m?.id ?? m?.mandate_id);
+            return (
               <TouchableOpacity
-                key={freq}
-                style={[styles.modalRow, sipFrequency === freq && styles.modalRowActive]}
+                key={String(m?.id ?? m?.mandate_id ?? idx)}
+                style={[styles.modalRow, active && styles.modalRowActive]}
                 onPress={() => {
-                  setSipFrequency(freq);
-                  setFreqModalVisible(false);
+                  setSelectedMandate(m);
+                  setMandateModalVisible(false);
                 }}
                 activeOpacity={0.9}>
-                <Text style={[styles.modalRowTxt, sipFrequency === freq && styles.modalRowTxtActive]}>{freq}</Text>
+                <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{pickMandateLabel(m)}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
+            );
+          })}
+      </AppModal>
+
+      <AppModal
+        visible={freqModalVisible}
+        onClose={() => setFreqModalVisible(false)}
+        title="SIP frequency"
+        isBottomSheet={false}
+        maxHeight={'55%'}>
+        {['Monthly', 'Quarterly'].map(freq => (
+          <TouchableOpacity
+            key={freq}
+            style={[styles.modalRow, sipFrequency === freq && styles.modalRowActive]}
+            onPress={() => {
+              setSipFrequency(freq);
+              setFreqModalVisible(false);
+            }}
+            activeOpacity={0.9}>
+            <Text style={[styles.modalRowTxt, sipFrequency === freq && styles.modalRowTxtActive]}>{freq}</Text>
+          </TouchableOpacity>
+        ))}
+      </AppModal>
 
       {showSipDatePicker ? (
         <DatePicker
@@ -680,7 +678,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: {width: 0, height: 4},
-    elevation: 3,
+    // elevation: 3,
   },
   orderTabs: {
     flexDirection: 'row',

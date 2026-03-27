@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Image,
-  Modal,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
-import {navigateToFundDetail} from '../../navigation/navigationRef';
+import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -39,10 +39,13 @@ import {
   normalizeStatusKey,
   statusCategory,
 } from './orderHelpers';
+import StatusTimeline from '../../components/StatusTimeline';
+import AppModal from '../../components/AppModal';
+import {radius} from '../../theme/radius';
 
-const PAGE_BG = '#F0F2F5';
-const CARD_BORDER = '#E8E8E8';
-const THEME_BLUE = '#1A73E8';
+const PAGE_BG = '#F8FAFC';
+const CARD_BORDER = '#E5E7EB';
+const THEME_BLUE = '#2F80ED';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -85,31 +88,6 @@ function formatDateOnly(raw) {
   } catch {
     return String(raw);
   }
-}
-
-const CONNECTOR_DOTS = 6;
-const DOT_SIZE = 3;
-const DOT_GAP = 5;
-const LINE_GREEN = '#22C55E';
-const LINE_GREY = '#D1D5DB';
-
-/** Vertical dotted segment between steps; green when the step above is completed. */
-function DottedConnector({completed}) {
-  const color = completed ? LINE_GREEN : LINE_GREY;
-  return (
-    <View style={styles.dottedConnector}>
-      {Array.from({length: CONNECTOR_DOTS}).map((_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.dottedSeg,
-            {backgroundColor: color},
-            i === CONNECTOR_DOTS - 1 && styles.dottedSegLast,
-          ]}
-        />
-      ))}
-    </View>
-  );
 }
 
 function buildTimelineSteps(order) {
@@ -231,6 +209,7 @@ export default function OrderDetailScreen() {
   const [upiVpa, setUpiVpa] = useState('');
   const [neftUtr, setNeftUtr] = useState('');
   const [paymentModeBusy, setPaymentModeBusy] = useState(false);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const order = resolvedOrder || routeOrder;
 
   useEffect(() => {
@@ -314,12 +293,6 @@ export default function OrderDetailScreen() {
     order?.order_no ??
     order?.transaction_number ??
     order?.id;
-  const hasAuthMarker =
-    !!order?.authenticated_at ||
-    !!order?.auth_date ||
-    !!order?.verified_at ||
-    order?.is_authenticated === true ||
-    String(order?.auth_status ?? '').toUpperCase() === 'Y';
   const timelineStatus = normalizeStatusKey(status);
 
   const buyFlag = String(order?.buy_sell ?? order?.buySell ?? '').toUpperCase() === 'P';
@@ -355,7 +328,7 @@ export default function OrderDetailScreen() {
       return 'COMPLETED';
     }
     return 'NEW';
-  }, [cat, timelineStatus]);
+  }, [buyFlag, cat, isSipFlag, selectedMandate, timelineStatus]);
 
   useEffect(() => {
     if (!orderContinue) {
@@ -429,7 +402,7 @@ export default function OrderDetailScreen() {
       setPaymentLoading(false);
       setPaymentModeBusy(false);
     }
-  }, [navigation, order, orderNumber, processOrderPayment, user, upiVpa]);
+  }, [navigation, order, orderNumber, user, upiVpa]);
 
   const onAuthenticateFromPaymentBox = useCallback(async () => {
     if (!authOrderId) {
@@ -461,7 +434,7 @@ export default function OrderDetailScreen() {
     } finally {
       setPaymentLoading(false);
     }
-  }, [authenticateOrder, authOrderId, buyFlag, isSipFlag, navigation, selectedMandate]);
+  }, [authOrderId, buyFlag, isSipFlag, navigation, selectedMandate]);
 
   const refreshResolvedOrder = useCallback(async () => {
     if (!statusLookupId) {
@@ -528,7 +501,7 @@ export default function OrderDetailScreen() {
     } finally {
       setTimelineActionLoading(false);
     }
-  }, [createCancelOrder, navigation, order]);
+  }, [navigation, order]);
 
   const onTimelineContinue = useCallback(async () => {
     if (!orderNumber) {
@@ -538,11 +511,7 @@ export default function OrderDetailScreen() {
       setTimelineActionLoading(true);
 
       if (timelineStatus === 'FAILED') {
-        if (String(order?.buy_sell ?? '').toUpperCase() === 'R') {
-          navigation.navigate('Dashboard');
-        } else {
-          onOpenFund();
-        }
+        navigateToAllFundsSIP(navigation);
         return;
       }
 
@@ -553,7 +522,16 @@ export default function OrderDetailScreen() {
     } finally {
       setTimelineActionLoading(false);
     }
-  }, [navigation, onOpenFund, order?.buy_sell, orderNumber, refreshResolvedOrder, timelineStatus]);
+  }, [navigation, orderNumber, refreshResolvedOrder, timelineStatus]);
+
+  const onPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      await refreshResolvedOrder();
+    } finally {
+      setPullRefreshing(false);
+    }
+  }, [refreshResolvedOrder]);
 
   if (!order) {
     return (
@@ -588,10 +566,21 @@ export default function OrderDetailScreen() {
           <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>Order Details</Text>
-        <View style={styles.topRightSpacer} />
+        <TouchableOpacity style={styles.refreshBtn} onPress={onPullRefresh} activeOpacity={0.8}>
+          <Text style={styles.refreshBtnTxt}>{pullRefreshing ? '...' : 'Refresh'}</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={pullRefreshing}
+            onRefresh={onPullRefresh}
+            tintColor={THEME_BLUE}
+          />
+        }>
         <View style={styles.summaryCard}>
           <View style={styles.summaryTop}>
             <View style={styles.summaryLeft}>
@@ -688,13 +677,13 @@ export default function OrderDetailScreen() {
               </TouchableOpacity>
             ) : null}
 
-            <Modal
+            <AppModal
               visible={paymentModeModalVisible}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setPaymentModeModalVisible(false)}>
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalSheet}>
+              onClose={() => setPaymentModeModalVisible(false)}
+              title="Select payment mode"
+              isBottomSheet
+              maxHeight={'88%'}>
+              <View style={styles.modalSheetInner}>
                   <TouchableOpacity
                     style={styles.modalCloseBtn}
                     onPress={() => {
@@ -897,9 +886,8 @@ export default function OrderDetailScreen() {
                       </TouchableOpacity>
                     </>
                   ) : null}
-                </View>
               </View>
-            </Modal>
+            </AppModal>
 
             {paymentBoxStatus === 'PAYMENT_CONFIRMATION_REQUIRED' ? (
               <TouchableOpacity style={styles.payBoxBtnDisabled} disabled>
@@ -939,79 +927,15 @@ export default function OrderDetailScreen() {
             ) : null}
           </View>
         ) : (
-          <View style={styles.timelineCard}>
-            {timeline.map((step, index) => (
-              <View key={step.key} style={styles.tlRow}>
-                <View style={styles.tlLeft}>
-                  <View
-                    style={[
-                      styles.tlDot,
-                      step.done
-                        ? styles.tlDotDone
-                        : step.cancelled || step.failed
-                          ? styles.tlDotFail
-                          : step.continueButton
-                            ? styles.tlDotContinue
-                            : styles.tlDotPending,
-                    ]}>
-                    {step.done ? (
-                      <Text style={styles.tlCheck}>✓</Text>
-                    ) : step.cancelled || step.failed ? (
-                      <Text style={styles.tlCheck}>✕</Text>
-                    ) : step.continueButton ? (
-                      <Text style={styles.tlClock}>⏱</Text>
-                    ) : null}
-                  </View>
-                  {index < timeline.length - 1 ? (
-                    <DottedConnector completed={!!step.done} />
-                  ) : null}
-                </View>
-                <View style={styles.tlBody}>
-                  <Text style={[Textstyles.medium, styles.tlTitle]}>{step.title}</Text>
-                  <Text style={styles.tlTime}>{formatDateTime(step.at)}</Text>
-                </View>
-
-                {step?.id === 0 && timelineStatus === 'SUBMITTED' ? (
-                  <View style={styles.tlActionWrap}>
-                    <View style={styles.authActionRow}>
-                      <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={onTimelineCancel}
-                        activeOpacity={0.9}
-                        disabled={timelineActionLoading}>
-                        <Text style={styles.cancelTxt}>
-                          {timelineActionLoading ? 'Canceling...' : 'Cancel'}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.continueBtn}
-                        onPress={onTimelineContinue}
-                        activeOpacity={0.9}
-                        disabled={paymentLoading || timelineActionLoading}>
-                        <Text style={styles.continueTxt}>
-                          {timelineActionLoading ? 'Please wait...' : 'Continue'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : null}
-
-                {step?.continueButton && timelineStatus !== 'SUBMITTED' ? (
-                  <View style={styles.tlActionWrap}>
-                    <TouchableOpacity
-                      style={styles.continueBtn}
-                      onPress={onTimelineContinue}
-                      activeOpacity={0.9}
-                      disabled={paymentLoading || timelineActionLoading}>
-                      <Text style={styles.continueTxt}>
-                        {timelineActionLoading ? 'Please wait...' : 'Continue'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-              </View>
-            ))}
-          </View>
+          <StatusTimeline
+            steps={timeline}
+            timelineStatus={timelineStatus}
+            loading={timelineActionLoading}
+            paymentLoading={paymentLoading}
+            onContinue={onTimelineContinue}
+            onCancel={onTimelineCancel}
+            formatDateTime={formatDateTime}
+          />
         )}
 
         <Text style={styles.sectionTitle}>Order details</Text>
@@ -1064,10 +988,21 @@ const styles = StyleSheet.create({
   backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
   navTitle: {flex: 1, fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY, textAlign: 'center'},
   topRightSpacer: {width: 72},
+  refreshBtn: {
+    minWidth: 72,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  refreshBtnTxt: {
+    color: THEME_BLUE,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   scroll: {padding: 16, paddingBottom: 40},
   summaryCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: radius.cardLarge,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     padding: 16,
@@ -1103,7 +1038,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     padding: 12,
@@ -1128,7 +1063,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFBEB',
-    borderRadius: 10,
+    borderRadius: radius.input,
     borderWidth: 1,
     borderColor: '#FDE68A',
     padding: 12,
@@ -1329,6 +1264,9 @@ const styles = StyleSheet.create({
     paddingTop: 42, // room for top-right close button
     width: '100%',
   },
+  modalSheetInner: {
+    paddingTop: 8,
+  },
   modalTitle: {fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 12},
   modalSection: {marginTop: 12, marginBottom: 6},
   modalHintTxt: {fontSize: 12, color: '#6B7280', marginBottom: 8, fontWeight: '600'},
@@ -1374,37 +1312,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalPrimaryTxt: {fontSize: 14, fontWeight: '500', color: Colors.white},
-  // RN doesn't support `gap` in older versions; kept as margin-free row only.
-  tlRow: {flexDirection: 'row', alignItems: 'flex-start'},
-  tlLeft: {width: 28, alignItems: 'center'},
-  dottedConnector: {
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  dottedSeg: {
-    width: DOT_SIZE,
-    height: DOT_SIZE,
-    borderRadius: DOT_SIZE / 2,
-    marginBottom: DOT_GAP,
-  },
-  dottedSegLast: {marginBottom: 0},
-  tlDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  tlDotDone: {backgroundColor: '#22C55E', borderColor: '#22C55E'},
-  tlDotFail: {backgroundColor: '#F54242', borderColor: '#F54242'},
-  tlDotContinue: {backgroundColor: '#F7A045', borderColor: '#F7A045'},
-  tlDotPending: {backgroundColor: Colors.white, borderColor: '#D1D5DB'},
-  tlCheck: {color: Colors.white, fontSize: 11, fontWeight: '500'},
-  tlClock: {color: Colors.white, fontSize: 10, fontWeight: '500'},
-  tlBody: {flex: 1, paddingLeft: 8, paddingBottom: 12},
-  tlTitle: {fontSize: 15, color: '#111827'},
-  tlTime: {fontSize: 12, color: '#9CA3AF', marginTop: 4},
   kvCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,

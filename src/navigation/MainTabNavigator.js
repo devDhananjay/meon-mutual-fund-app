@@ -23,19 +23,25 @@ function tabIcon(emoji) {
 }
 
 export default function MainTabNavigator() {
-  const ACTIVE_GREEN = '#00B386';
+  const ACTIVE_BLUE = Colors.themeBlue;
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ACTIVE_GREEN,
+        tabBarActiveTintColor: ACTIVE_BLUE,
         tabBarInactiveTintColor: Colors.GREY,
         tabBarLabelStyle: {fontSize: 11, fontWeight: '600'},
         tabBarStyle: {
           borderTopColor: Colors.BORDER_GREY,
-          paddingBottom: 4,
-          paddingTop: 4,
-          height: 58,
+          backgroundColor: Colors.offWhite,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 66,
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: -2},
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          // elevation: 8,
         },
       }}>
       <Tab.Screen
@@ -83,7 +89,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 3,
     borderRadius: 99,
-    backgroundColor: '#00B386',
+    backgroundColor: Colors.themeBlue,
   },
   tabIndicatorOff: {marginTop: 6, width: 22, height: 3, borderRadius: 99, backgroundColor: 'transparent'},
 });

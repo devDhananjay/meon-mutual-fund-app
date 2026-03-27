@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 3,
-    elevation: 2,
+    // elevation: 2,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 2,
+    // elevation: 2,
   },
   rowInCardLast: {
     borderBottomLeftRadius: 12,

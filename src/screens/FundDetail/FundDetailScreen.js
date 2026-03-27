@@ -11,7 +11,6 @@ import {
   Alert,
   Dimensions,
   TextInput,
-  Modal,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -38,6 +37,7 @@ import {navigateToCart, navigateToInvestment} from '../../navigation/navigationR
 import NavLineChart from '../../components/FundDetail/NavLineChart';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import AppModal from '../../components/AppModal';
 
 function formatDate(iso) {
   if (!iso) {
@@ -1201,34 +1201,33 @@ export default function FundDetailScreen() {
           <Text style={[Textstyles.medium, styles.viewCartTxt]}>View cart →</Text>
         </TouchableOpacity>
 
-        <Modal visible={mandateModalVisible} transparent animationType="fade" onRequestClose={() => setMandateModalVisible(false)}>
-          <View style={styles.modalRoot}>
-            <TouchableOpacity style={styles.modalDim} activeOpacity={1} onPress={() => setMandateModalVisible(false)} />
-            <View style={styles.modalSheet}>
-              <Text style={styles.modalTitle}>Select mandate</Text>
-              {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={{marginVertical: 12}} /> : null}
-              {!mandateLoading && mandates.length === 0 ? (
-                <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
-              ) : null}
-              {!mandateLoading &&
-                mandates.map((m, idx) => {
-                  const active = (selectedMandate?.id ?? selectedMandate?.mandate_id) === (m?.id ?? m?.mandate_id);
-                  return (
-                    <TouchableOpacity
-                      key={String(m?.id ?? m?.mandate_id ?? idx)}
-                      style={[styles.modalRow, active && styles.modalRowActive]}
-                      onPress={() => {
-                        setSelectedMandate(m);
-                        setMandateModalVisible(false);
-                      }}
-                      activeOpacity={0.9}>
-                      <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{pickMandateLabel(m)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-            </View>
-          </View>
-        </Modal>
+        <AppModal
+          visible={mandateModalVisible}
+          onClose={() => setMandateModalVisible(false)}
+          title="Select mandate"
+          isBottomSheet
+          maxHeight={'72%'}>
+          {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={styles.modalLoader} /> : null}
+          {!mandateLoading && mandates.length === 0 ? (
+            <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
+          ) : null}
+          {!mandateLoading &&
+            mandates.map((m, idx) => {
+              const active = (selectedMandate?.id ?? selectedMandate?.mandate_id) === (m?.id ?? m?.mandate_id);
+              return (
+                <TouchableOpacity
+                  key={String(m?.id ?? m?.mandate_id ?? idx)}
+                  style={[styles.modalRow, active && styles.modalRowActive]}
+                  onPress={() => {
+                    setSelectedMandate(m);
+                    setMandateModalVisible(false);
+                  }}
+                  activeOpacity={0.9}>
+                  <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{pickMandateLabel(m)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+        </AppModal>
 
         {showSipDatePicker ? (
           <DatePicker
@@ -1616,6 +1615,7 @@ const styles = StyleSheet.create({
     maxHeight: '70%',
   },
   modalTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  modalLoader: {marginVertical: 12},
   modalEmpty: {fontSize: 13, color: '#6B7280', marginVertical: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 6},
   modalRowActive: {backgroundColor: '#EAF4FF'},
@@ -1642,7 +1642,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 3},
-    elevation: 4,
+    // elevation: 4,
   },
   stickyInvestTxt: {fontSize: 18, fontWeight: '700', color: Colors.white},
 });

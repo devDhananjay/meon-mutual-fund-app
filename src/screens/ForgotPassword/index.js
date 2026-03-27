@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowOffset: {width: 0, height: 3},
     shadowRadius: 8,
-    elevation: 3,
+    // elevation: 3,
   },
   secondaryWrap: {marginTop: 12},
 });

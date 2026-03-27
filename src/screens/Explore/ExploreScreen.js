@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingText: {marginTop: 12, color: Colors.GREY, fontSize: 15},
 
-  header: {paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6},
+  header: {paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8},
   pageTitle: {fontSize: 22, fontWeight: '700', color: Colors.TEXT_PRIMARY},
 
   searchBar: {
@@ -513,14 +513,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 16,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 50,
     marginBottom: 14,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 6},
+  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
 

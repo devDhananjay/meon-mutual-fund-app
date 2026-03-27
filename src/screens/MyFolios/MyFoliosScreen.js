@@ -21,8 +21,8 @@ import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 
-const PAGE_BG = '#F0F2F5';
-const CARD_BORDER = '#E8E8E8';
+const PAGE_BG = '#F8FAFC';
+const CARD_BORDER = '#E5E7EB';
 const GREEN_CTA = '#22C55E';
 const LOSS_RED = '#DC2626';
 const GAIN_GREEN = '#16A34A';
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: PAGE_BG},
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingTxt: {marginTop: 12, color: Colors.GREY},
-  searchOuter: {paddingHorizontal: 16, marginTop: 4, marginBottom: 8},
+  searchOuter: {paddingHorizontal: 16, marginTop: 16, marginBottom: 8},
   searchCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -330,16 +330,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 50,
     marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 3,
-    elevation: 2,
+    // elevation: 2,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
+  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
   sectionHead: {
     paddingTop: 12,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 2,
+    // elevation: 2,
   },
   cardTap: {padding: 14},
   cardTopRow: {flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14},

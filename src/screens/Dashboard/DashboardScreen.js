@@ -8,8 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
-  Modal,
-  Pressable,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -27,6 +25,7 @@ import {pickHoldingCurrentValue, pickHoldingFolio, pickHoldingUnits} from '../..
 import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import AppModal from '../../components/AppModal';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -206,7 +205,7 @@ export default function DashboardScreen() {
 
   const sortHeaderLabel = SORT_MODE_LABEL[sortMode] ?? 'Current Invested';
 
-  const headerPadTop = insets.top + 18;
+  const headerPadTop = insets.top + 16;
 
   const listHeader = useMemo(
     () => (
@@ -244,7 +243,7 @@ export default function DashboardScreen() {
                 {refreshing ? (
                   <ActivityIndicator size="small" color={Colors.themeBlue} />
                 ) : (
-                  <Text style={styles.iconCircleTxt}>↻</Text>
+                  <Text style={styles.iconCircleTxt}>⟳</Text>
                 )}
               </TouchableOpacity>
 
@@ -318,19 +317,6 @@ export default function DashboardScreen() {
   const listFooter = useMemo(
     () => (
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.importBtn}
-          onPress={() => navigation.navigate('Explore')}
-          activeOpacity={0.85}>
-          <View style={styles.importLeft}>
-            <View style={styles.importIconCircle}>
-              <Text style={styles.importIconTxt}>⤴</Text>
-            </View>
-            <Text style={[Textstyles.medium, styles.importText]}>Import External Funds</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-
         <View style={styles.sipCard}>
           <Image
             source={require('../../assets/Icons/calendarSip.png')}
@@ -357,7 +343,7 @@ export default function DashboardScreen() {
   if (isPending && !refreshing) {
     return (
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F0F2F5" />
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
           <Text style={[Textstyles.normal, styles.loadingText]}>Loading portfolio…</Text>
@@ -373,7 +359,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F0F2F5" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
@@ -417,66 +403,76 @@ export default function DashboardScreen() {
               onHoldingPress={onHoldingPress}
             />
           ))}
+
+          <View style={styles.importWrap}>
+            <TouchableOpacity
+              style={styles.importBtn}
+              onPress={() => navigation.navigate('Explore')}
+              activeOpacity={0.85}>
+              <View style={styles.importLeft}>
+                <View style={styles.importIconCircle}>
+                  <Text style={styles.importIconTxt}>⤴</Text>
+                </View>
+                <Text style={[Textstyles.medium, styles.importText]}>Import External Funds</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {listFooter}
       </ScrollView>
 
-      <Modal
+      <AppModal
         visible={!!holdingActionFund}
-        animationType="slide"
-        transparent
-        onRequestClose={closeHoldingModal}>
-        <Pressable style={styles.holdingModalBackdrop} onPress={closeHoldingModal}>
-          <View style={styles.holdingModalSheet}>
-            <View style={styles.holdingModalHandle} />
-            <TouchableOpacity
-              style={styles.holdingModalHeader}
-              onPress={onModalInvestmentDetails}
-              activeOpacity={0.85}>
-              <FundLogo uri={modalLogo} name={modalName} />
-              <Text style={[Textstyles.medium, styles.holdingModalTitle]} numberOfLines={2}>
-                {modalName}
-              </Text>
-              <Text style={styles.holdingModalChevron}>›</Text>
-            </TouchableOpacity>
+        onClose={closeHoldingModal}
+        title="Holding actions"
+        isBottomSheet
+        maxHeight={'66%'}>
+        <TouchableOpacity
+          style={styles.holdingModalHeader}
+          onPress={onModalInvestmentDetails}
+          activeOpacity={0.85}>
+          <FundLogo uri={modalLogo} name={modalName} />
+          <Text style={[Textstyles.medium, styles.holdingModalTitle]} numberOfLines={2}>
+            {modalName}
+          </Text>
+          <Text style={styles.holdingModalChevron}>›</Text>
+        </TouchableOpacity>
 
-            <View style={styles.holdingModalDivider} />
+        <View style={styles.holdingModalDivider} />
 
-            <View style={styles.holdingModalRow}>
-              <Text style={styles.holdingModalLabel}>Invested Value</Text>
-              <Text style={[Textstyles.medium, styles.holdingModalValue]}>{formatInr(modalInvested)}</Text>
-            </View>
+        <View style={styles.holdingModalRow}>
+          <Text style={styles.holdingModalLabel}>Invested Value</Text>
+          <Text style={[Textstyles.medium, styles.holdingModalValue]}>{formatInr(modalInvested)}</Text>
+        </View>
 
-            <View style={styles.holdingModalDivider} />
+        <View style={styles.holdingModalDivider} />
 
-            <TouchableOpacity style={styles.holdingModalAction} onPress={onModalRedeem} activeOpacity={0.8}>
-              <View style={styles.holdingModalActionIconWrap}>
-                <Text style={styles.holdingModalActionIconTxt}>₹</Text>
-              </View>
-              <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Redeem</Text>
-              <Text style={styles.holdingModalChevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.holdingModalAction}
-              onPress={onModalInvestmentDetails}
-              activeOpacity={0.8}>
-              <View style={styles.holdingModalActionIconWrap}>
-                <Text style={styles.holdingModalActionIconTxt}>☰</Text>
-              </View>
-              <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Investment Details</Text>
-              <Text style={styles.holdingModalChevron}>›</Text>
-            </TouchableOpacity>
+        <TouchableOpacity style={styles.holdingModalAction} onPress={onModalRedeem} activeOpacity={0.8}>
+          <View style={styles.holdingModalActionIconWrap}>
+            <Text style={styles.holdingModalActionIconTxt}>₹</Text>
           </View>
-        </Pressable>
-      </Modal>
+          <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Redeem</Text>
+          <Text style={styles.holdingModalChevron}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.holdingModalAction}
+          onPress={onModalInvestmentDetails}
+          activeOpacity={0.8}>
+          <View style={styles.holdingModalActionIconWrap}>
+            <Text style={styles.holdingModalActionIconTxt}>☰</Text>
+          </View>
+          <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Investment Details</Text>
+          <Text style={styles.holdingModalChevron}>›</Text>
+        </TouchableOpacity>
+      </AppModal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#EEF1F6'},
+  safe: {flex: 1, backgroundColor: Colors.WHITE},
   loadingBox: {
     flex: 1,
     justifyContent: 'center',
@@ -515,17 +511,17 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
     gap: 12,
   },
   welcome: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 22,
     color: Colors.TEXT_PRIMARY,
-    fontWeight: '700',
-    lineHeight: 30,
+    fontWeight: '600',
+    lineHeight: 28,
     paddingRight: 4,
   },
   searchBar: {
@@ -534,6 +530,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.BORDER_GREY,
     borderRadius: 12,
     paddingVertical: 12,
+    minHeight: 50,
     paddingHorizontal: 14,
     marginBottom: 14,
     flexDirection: 'row',
@@ -543,7 +540,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 2,
+    // elevation: 2,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, opacity: 0.9},
   searchPlaceholder: {
@@ -561,7 +558,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 2,
+    // elevation: 2,
   },
   holdingsHeaderRow: {
     flexDirection: 'row',
@@ -579,15 +576,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.white,
   },
-  iconCircleTxt: {fontSize: 18},
+  iconCircleTxt: {fontSize: 18, color: Colors.TEXT_PRIMARY, lineHeight: 22},
   holdingsLabel: {fontSize: 14, color: Colors.GREY},
-  holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 4},
-  statsCol: {marginTop: 12},
+  holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 2},
+  statsCol: {marginTop: 10},
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   statLabel: {fontSize: 14, color: Colors.GREY},
   statValue: {fontSize: 16, color: Colors.TEXT_PRIMARY},
@@ -606,8 +603,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8EBEF',
   },
   sortLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
   sortIcon: {fontSize: 18, color: Colors.GREY},
@@ -628,22 +625,27 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 0,
     borderWidth: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8EBEF',
     marginBottom: 0,
   },
   stocksCard: {
     marginHorizontal: 16,
     backgroundColor: Colors.white,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderWidth: 0.8,
+    borderColor: '#E8EBEF',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 2,
+    // elevation: 2,
+  },
+  importWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
   holdingModalBackdrop: {
     flex: 1,
@@ -724,18 +726,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {color: Colors.GREY},
-  footer: {paddingHorizontal: 16, marginTop: 8},
+  footer: {paddingHorizontal: 16, marginTop: 12},
   importBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderWidth: 0.8,
+    borderColor: '#E1E5EA',
   },
   importLeft: {flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0},
   importIconCircle: {

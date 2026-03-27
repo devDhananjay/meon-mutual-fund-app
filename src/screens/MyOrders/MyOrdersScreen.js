@@ -9,7 +9,6 @@ import {
   RefreshControl,
   TextInput,
   Image,
-  Modal,
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -33,6 +32,7 @@ import {
   normalizeStatusKey,
 } from './orderHelpers';
 import Icons from '../../utils/icons';
+import AppModal from '../../components/AppModal';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
@@ -252,55 +252,47 @@ function FilterSheet({
   onClear,
 }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.filterModalRoot}>
-        <TouchableOpacity style={styles.filterDim} activeOpacity={1} onPress={onClose} />
-        <View style={styles.filterSheet}>
-          <View style={styles.filterGrabber} />
-          <View style={styles.filterHead}>
-            <Text style={styles.filterTitle}>Filter</Text>
-            <TouchableOpacity onPress={onClear} hitSlop={10}>
-              <Text style={styles.clearFilterTxt}>Clear Filter</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.filterSectionLabel}>Status</Text>
-          <View style={styles.chipRow}>
-            {STATUS_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.chip, draftStatus === opt.key && styles.chipOn]}
-                onPress={() => onChangeDraftStatus(opt.key)}
-                activeOpacity={0.85}>
-                <Text style={[styles.chipTxt, draftStatus === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.filterSectionLabel}>Order Type</Text>
-          <View style={styles.chipRow}>
-            {TYPE_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.chip, draftType === opt.key && styles.chipOn]}
-                onPress={() => onChangeDraftType(opt.key)}
-                activeOpacity={0.85}>
-                <Text style={[styles.chipTxt, draftType === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.filterActions}>
-            <TouchableOpacity style={styles.filterBtnCancel} onPress={onClose} activeOpacity={0.85}>
-              <Text style={styles.filterBtnCancelTxt}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.filterBtnApply} onPress={onApply} activeOpacity={0.9}>
-              <Text style={styles.filterBtnApplyTxt}>Apply</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+    <AppModal
+      visible={visible}
+      onClose={onClose}
+      title="Filter"
+      isBottomSheet
+      showActions
+      onCancel={onClose}
+      onApply={onApply}>
+      <View style={styles.filterHead}>
+        <View />
+        <TouchableOpacity onPress={onClear} hitSlop={10}>
+          <Text style={styles.clearFilterTxt}>Clear Filter</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      <Text style={styles.filterSectionLabel}>Status</Text>
+      <View style={styles.chipRow}>
+        {STATUS_OPTIONS.map(opt => (
+          <TouchableOpacity
+            key={opt.key}
+            style={[styles.chip, draftStatus === opt.key && styles.chipOn]}
+            onPress={() => onChangeDraftStatus(opt.key)}
+            activeOpacity={0.85}>
+            <Text style={[styles.chipTxt, draftStatus === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.filterSectionLabel}>Order Type</Text>
+      <View style={styles.chipRow}>
+        {TYPE_OPTIONS.map(opt => (
+          <TouchableOpacity
+            key={opt.key}
+            style={[styles.chip, draftType === opt.key && styles.chipOn]}
+            onPress={() => onChangeDraftType(opt.key)}
+            activeOpacity={0.85}>
+            <Text style={[styles.chipTxt, draftType === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </AppModal>
   );
 }
 
@@ -590,7 +582,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 3,
-    elevation: 2,
+    // elevation: 2,
   },
   searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
@@ -607,7 +599,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 2,
+    // elevation: 2,
   },
   cardTop: {flexDirection: 'row', alignItems: 'center'},
   fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 12},

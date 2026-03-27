@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 3},
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    // elevation: 3,
   },
   optionsRow: {
     flexDirection: 'row',

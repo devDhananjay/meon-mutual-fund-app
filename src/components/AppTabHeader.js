@@ -5,8 +5,9 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
 import {selectCartItemCount} from '../store/slices/cartSlice';
 import {navigateToCart, navigateToNotifications} from '../navigation/navigationRef';
-import {Colors} from '../utils/AppConstant';
 import Textstyles from '../utils/text';
+import AppColors from '../theme/colors';
+import {radius} from '../theme/radius';
 
 /**
  * Bell + cart cluster — same behaviour on Dashboard, Explore, My Folios.
@@ -48,7 +49,7 @@ export function HeaderActionCluster() {
  */
 export default function AppTabHeader({title, subtitle}) {
   const insets = useSafeAreaInsets();
-  const padTop = insets.top + 18;
+  const padTop = insets.top + 12;
 
   return (
     <View style={[styles.block, {paddingTop: padTop}]}>
@@ -72,30 +73,30 @@ export default function AppTabHeader({title, subtitle}) {
 const styles = StyleSheet.create({
   block: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
   titleCol: {flex: 1, minWidth: 0},
   title: {
-    fontSize: 24,
-    color: Colors.TEXT_PRIMARY,
-    fontWeight: '700',
-    lineHeight: 30,
+    fontSize: 22,
+    color: AppColors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 28,
   },
-  subtitle: {fontSize: 14, color: Colors.GREY, marginTop: 4},
+  subtitle: {fontSize: 14, color: AppColors.textSecondary, marginTop: 4},
   headerActions: {flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2},
   headerIconBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    backgroundColor: Colors.white,
+    borderColor: AppColors.border,
+    backgroundColor: AppColors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
     borderWidth: 1.5,
-    borderColor: Colors.white,
+    borderColor: AppColors.white,
   },
   cartBadge: {
     position: 'absolute',
@@ -118,10 +119,10 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#111',
+    backgroundColor: AppColors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  cartBadgeTxt: {color: Colors.white, fontSize: 10, fontWeight: '700'},
+  cartBadgeTxt: {color: AppColors.white, fontSize: 10, fontWeight: '700'},
 });

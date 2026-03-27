@@ -11,7 +11,7 @@ import {Colors} from '../../utils/AppConstant';
 import FilterBar from './components/FilterBar';
 import FundListItem from './components/FundListItem';
 
-const PRIMARY_GREEN = '#00B386';
+const PRIMARY_GREEN = Colors.themeBlue;
 const LOAD_MORE_STEP = 10;
 
 function mapApiResultsToFundsForList(data) {
@@ -173,42 +173,45 @@ export default function AllMutualFundsScreen() {
         <View style={styles.topRightSpacer} />
       </View>
 
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>⌕</Text>
-        <TextInput
-          style={styles.searchInput}
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholder="Search funds..."
-          placeholderTextColor={Colors.GREY}
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {searchTerm.length > 0 ? (
-          <TouchableOpacity onPress={() => setSearchTerm('')} hitSlop={12} style={styles.clearSearch}>
-            <Text style={styles.clearText}>✕</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.controlsContainer}>
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <TextInput
+            style={styles.searchInput}
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            placeholder="Search funds..."
+            placeholderTextColor={Colors.GREY}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchTerm.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchTerm('')} hitSlop={12} style={styles.clearSearch}>
+              <Text style={styles.clearText}>✕</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
-      ) : null}
 
-      <FilterBar
-        count={totalCount}
-        sortLabel={sortLabel}
-        onPressSort={onPressSort}
-        categoryOptions={categoryOptions}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        riskOptions={riskOptions}
-        selectedRisk={selectedRisk}
-        onSelectRisk={setSelectedRisk}
-      />
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <FilterBar
+          count={totalCount}
+          sortLabel={sortLabel}
+          onPressSort={onPressSort}
+          categoryOptions={categoryOptions}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          riskOptions={riskOptions}
+          selectedRisk={selectedRisk}
+          onSelectRisk={setSelectedRisk}
+          containerStyle={styles.filterWrap}
+        />
+      </View>
 
       {isLoading && sortedFunds.length === 0 ? (
         <View style={styles.loadingBox}>
@@ -241,7 +244,7 @@ export default function AllMutualFundsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#FFFFFF'},
+  safe: {flex: 1, backgroundColor: Colors.offWhite},
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,28 +258,30 @@ const styles = StyleSheet.create({
   title: {flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
   topRightSpacer: {width: 44},
 
+  controlsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
   searchWrap: {
-    marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EBECED',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 14,
+    marginBottom: 18,
   },
+  filterWrap: {marginHorizontal: 0, marginBottom: 12},
   searchIcon: {fontSize: 16, color: Colors.GREY},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 2},
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
 
   errorBanner: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 8,
+    marginBottom: 12,
     backgroundColor: '#FEF2F2',
     borderRadius: 10,
     borderWidth: 1,

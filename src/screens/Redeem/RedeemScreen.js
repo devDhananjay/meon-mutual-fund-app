@@ -16,10 +16,12 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import {buildRedeemPlacePayload, createSingleOrder, extractOrderId} from '../../services/ordersService';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import AppColors from '../../theme/colors';
+import {radius} from '../../theme/radius';
 
 const BANNER_BG = '#DCFCE7';
 const BANNER_FG = '#166534';
-const CTA_GREEN = '#22C55E';
+const CTA_GREEN = AppColors.primary;
 const CHIP_BLUE = Colors.themeBlue;
 
 const QUICK_AMOUNTS = [500, 1000, 2000];
@@ -249,14 +251,14 @@ export default function RedeemScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: Colors.white},
+  safe: {flex: 1, backgroundColor: Colors.offWhite},
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: AppColors.border,
   },
   backBtn: {width: 44, height: 44, justifyContent: 'center', alignItems: 'center'},
   backTxt: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: BANNER_BG,
-    borderRadius: 10,
+    borderRadius: radius.input,
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginBottom: 18,
@@ -280,7 +282,7 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
-    borderRadius: 10,
+    borderRadius: radius.input,
     padding: 4,
     marginBottom: 16,
   },
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.08,
     shadowRadius: 2,
-    elevation: 2,
+    // elevation: 2,
   },
   segTxt: {fontSize: 15, color: Colors.GREY, fontWeight: '600'},
   segTxtOn: {color: CHIP_BLUE},
@@ -304,8 +306,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
+    borderColor: AppColors.border,
+    borderRadius: radius.input,
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginBottom: 12,
@@ -319,7 +321,7 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
     borderColor: CHIP_BLUE,
-    borderRadius: 8,
+    borderRadius: radius.input,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
@@ -329,7 +331,7 @@ const styles = StyleSheet.create({
   hint: {fontSize: 12, color: Colors.GREY, marginBottom: 20, lineHeight: 18},
   cta: {
     backgroundColor: CTA_GREEN,
-    borderRadius: 12,
+    borderRadius: radius.buttonLarge,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',

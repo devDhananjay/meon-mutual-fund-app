@@ -1,7 +1,10 @@
 import React, {useMemo, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import AppColors from '../../../theme/colors';
+import {radius} from '../../../theme/radius';
+import AppModal from '../../../components/AppModal';
 
-const PRIMARY_GREEN = '#00B386';
+const PRIMARY_BLUE = AppColors.primary;
 
 function Chip({label, selected, onPress}) {
   return (
@@ -26,6 +29,7 @@ export default function FilterBar({
   riskOptions,
   selectedRisk,
   onSelectRisk,
+  containerStyle,
 }) {
   const [returnsOpen, setReturnsOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -60,160 +64,145 @@ export default function FilterBar({
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, containerStyle]}>
       <View style={styles.headerRow}>
         <Text style={styles.countTxt}>{count} Funds</Text>
-        <TouchableOpacity
-          style={styles.sortValueBtn}
-          activeOpacity={0.9}
-          onPress={() => setReturnsOpen(true)}>
-          <Text style={styles.sortValueTxt}>{sortLabel}</Text>
-          <Text style={styles.sortChevron}>⌄</Text>
-          <View style={styles.dottedUnderline} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.sortValueBtn}
+            activeOpacity={0.9}
+            onPress={() => setReturnsOpen(true)}>
+            <Text style={styles.sortValueTxt} numberOfLines={1}>
+              {sortLabel}
+            </Text>
+            <Text style={styles.sortChevron}>⌄</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.filterPillBtn} activeOpacity={0.85} onPress={onOpenFilterSheet}>
+            <Text style={styles.filterPillTxt} numberOfLines={1}>
+              {`Filter: ${getOptionLabel(selectedCategory, categoryOptions)}, ${getOptionLabel(selectedRisk, riskOptions)}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
+      <Text style={styles.filterMetaTxt} numberOfLines={1}>
+        {`Category: ${getOptionLabel(selectedCategory, categoryOptions)}  •  Risk: ${getOptionLabel(selectedRisk, riskOptions)}`}
+      </Text>
 
-      <TouchableOpacity
-        style={styles.filterRow}
-        activeOpacity={0.85}
-        onPress={onOpenFilterSheet}>
-        <View style={styles.filterRowLeft}>
-          <Text style={styles.filterRowTitle}>Filter</Text>
-          <Text style={styles.filterRowSub} numberOfLines={1}>
-            {`Category: ${getOptionLabel(selectedCategory, categoryOptions)}  •  Risk: ${getOptionLabel(selectedRisk, riskOptions)}`}
-          </Text>
-        </View>
-        <Text style={styles.filterRowChevron}>›</Text>
-      </TouchableOpacity>
-      <View style={styles.filterDottedUnderline} />
-
-      <Modal
+      <AppModal
         visible={returnsOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setReturnsOpen(false)}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity style={styles.modalDim} activeOpacity={1} onPress={() => setReturnsOpen(false)} />
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Returns</Text>
-            {returnOptions.map(opt => {
-              const active = opt.label === sortLabel;
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.modalRow, active && styles.modalRowActive]}
-                  onPress={() => {
-                    onPressSort?.(opt.key);
-                    setReturnsOpen(false);
-                  }}
-                  activeOpacity={0.9}>
-                  <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{opt.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        onClose={() => setReturnsOpen(false)}
+        title="Returns"
+        isBottomSheet
+        maxHeight={'60%'}>
+        {returnOptions.map(opt => {
+          const active = opt.label === sortLabel;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.modalRow, active && styles.modalRowActive]}
+              onPress={() => {
+                onPressSort?.(opt.key);
+                setReturnsOpen(false);
+              }}
+              activeOpacity={0.9}>
+              <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{opt.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </AppModal>
+
+      <AppModal
+        visible={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        title="Filter"
+        isBottomSheet
+        showActions
+        onCancel={() => setFilterSheetOpen(false)}
+        onApply={() => {
+          onSelectCategory?.(draftCategory);
+          onSelectRisk?.(draftRisk);
+          setFilterSheetOpen(false);
+        }}>
+        <View style={styles.filterSheetHead}>
+          <View />
+          <TouchableOpacity
+            onPress={() => {
+              clearDraftFilters();
+            }}
+            hitSlop={8}>
+            <Text style={styles.clearTxt}>Clear Filter</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
 
-      <Modal visible={filterSheetOpen} transparent animationType="slide" onRequestClose={() => setFilterSheetOpen(false)}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity style={styles.modalDim} activeOpacity={1} onPress={() => setFilterSheetOpen(false)} />
-          <View style={styles.filterSheet}>
-            <View style={styles.filterGrabber} />
-            <View style={styles.filterSheetHead}>
-              <Text style={styles.filterSheetTitle}>Filter</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  clearDraftFilters();
-                }}
-                hitSlop={8}>
-                <Text style={styles.clearTxt}>Clear Filter</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.sheetSectionLabel}>Category</Text>
-            <View style={styles.chipWrap}>
-              {categoryOptions.map(opt => (
-                <Chip
-                  key={opt.value ?? opt.label}
-                  label={opt.label}
-                  selected={draftCategory === opt.value}
-                  onPress={() => setDraftCategory(opt.value)}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.sheetSectionLabel}>Risk</Text>
-            <View style={styles.chipWrap}>
-              {riskOptions.map(opt => (
-                <Chip
-                  key={opt.value ?? opt.label}
-                  label={opt.label}
-                  selected={draftRisk === opt.value}
-                  onPress={() => setDraftRisk(opt.value)}
-                />
-              ))}
-            </View>
-
-            <View style={styles.sheetActions}>
-              <TouchableOpacity
-                style={styles.sheetBtnCancel}
-                activeOpacity={0.85}
-                onPress={() => setFilterSheetOpen(false)}>
-                <Text style={styles.sheetBtnCancelTxt}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.sheetBtnApply}
-                activeOpacity={0.9}
-                onPress={() => {
-                  onSelectCategory?.(draftCategory);
-                  onSelectRisk?.(draftRisk);
-                  setFilterSheetOpen(false);
-                }}>
-                <Text style={styles.sheetBtnApplyTxt}>Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        <Text style={styles.sheetSectionLabel}>Category</Text>
+        <View style={styles.chipWrap}>
+          {categoryOptions.map(opt => (
+            <Chip
+              key={opt.value ?? opt.label}
+              label={opt.label}
+              selected={draftCategory === opt.value}
+              onPress={() => setDraftCategory(opt.value)}
+            />
+          ))}
         </View>
-      </Modal>
+
+        <Text style={styles.sheetSectionLabel}>Risk</Text>
+        <View style={styles.chipWrap}>
+          {riskOptions.map(opt => (
+            <Chip
+              key={opt.value ?? opt.label}
+              label={opt.label}
+              selected={draftRisk === opt.value}
+              onPress={() => setDraftRisk(opt.value)}
+            />
+          ))}
+        </View>
+      </AppModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: AppColors.card,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: '#EBECED',
+    borderColor: AppColors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginHorizontal: 16,
     marginBottom: 12,
   },
 
-  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end'},
-  countTxt: {fontSize: 14, fontWeight: '500', color: '#111827'},
-  sortValueBtn: {alignItems: 'flex-end'},
-  sortValueTxt: {fontSize: 13, fontWeight: '500', color: '#111827', marginBottom: 6},
-  sortChevron: {fontSize: 12, color: '#6B7280', marginTop: -2, marginBottom: 6},
-  dottedUnderline: {width: 64, borderBottomWidth: 2, borderBottomColor: '#D1D5DB', borderStyle: 'dotted', marginTop: 2},
-  filterDottedUnderline: {alignSelf: 'stretch', borderBottomWidth: 2, borderBottomColor: '#D1D5DB', borderStyle: 'dotted', marginTop: 8},
-
-  filterRow: {
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
+  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
+  headerActions: {flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end'},
+  countTxt: {fontSize: 14, fontWeight: '500', color: AppColors.textPrimary},
+  sortValueBtn: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginLeft: 8,
+    maxWidth: 116,
   },
-  filterRowLeft: {flex: 1, minWidth: 0},
-  filterRowTitle: {fontSize: 14, fontWeight: '500', color: '#111827'},
-  filterRowSub: {fontSize: 12, color: '#6B7280', marginTop: 4},
-  filterRowChevron: {fontSize: 22, color: '#9CA3AF', fontWeight: '300'},
-
-  chipScroll: {maxHeight: 40, marginTop: 6},
+  sortValueTxt: {fontSize: 12, fontWeight: '500', color: AppColors.textPrimary, flexShrink: 1},
+  sortChevron: {fontSize: 11, color: AppColors.textSecondary, marginLeft: 6},
+  filterPillBtn: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    marginLeft: 8,
+    maxWidth: 144,
+  },
+  filterPillTxt: {fontSize: 12, color: AppColors.textPrimary},
+  filterMetaTxt: {fontSize: 12, color: AppColors.textSecondary, marginTop: 10},
 
   chip: {
     paddingHorizontal: 12,
@@ -225,53 +214,17 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
   },
-  chipSelected: {borderColor: PRIMARY_GREEN, backgroundColor: '#E6FFF6'},
+  chipSelected: {borderColor: PRIMARY_BLUE, backgroundColor: '#EAF2FF'},
   chipTxt: {fontSize: 12, color: '#374151', fontWeight: '500'},
-  chipTxtSelected: {color: PRIMARY_GREEN},
+  chipTxtSelected: {color: PRIMARY_BLUE},
 
-  modalRoot: {flex: 1, justifyContent: 'flex-end'},
-  modalDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
-  modalSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EBECED',
-  },
-  modalTitle: {fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 8, borderRadius: 10},
-  modalRowActive: {backgroundColor: '#E6FFF6'},
-  modalRowTxt: {fontSize: 14, fontWeight: '500', color: '#111827'},
-  modalRowTxtActive: {color: PRIMARY_GREEN},
-
-  filterSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EBECED',
-    maxHeight: '85%',
-  },
-  filterGrabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-    marginTop: 2,
-    marginBottom: 12,
-  },
+  modalRowActive: {backgroundColor: '#EAF2FF'},
+  modalRowTxt: {fontSize: 14, fontWeight: '500', color: AppColors.textPrimary},
+  modalRowTxtActive: {color: PRIMARY_BLUE},
   filterSheetHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  filterSheetTitle: {fontSize: 18, fontWeight: '700', color: '#111827'},
-  clearTxt: {fontSize: 14, fontWeight: '500', color: PRIMARY_GREEN},
+  clearTxt: {fontSize: 14, fontWeight: '500', color: PRIMARY_BLUE},
   sheetSectionLabel: {fontSize: 13, fontWeight: '500', color: '#6B7280', marginTop: 12},
   chipWrap: {flexDirection: 'row', flexWrap: 'wrap', marginTop: 8},
-  sheetActions: {flexDirection: 'row', marginTop: 16, gap: 10},
-  sheetBtnCancel: {flex: 1, borderRadius: 10, borderWidth: 1.5, borderColor: PRIMARY_GREEN, paddingVertical: 14, alignItems: 'center'},
-  sheetBtnCancelTxt: {fontSize: 15, fontWeight: '500', color: PRIMARY_GREEN},
-  sheetBtnApply: {flex: 1, borderRadius: 10, backgroundColor: PRIMARY_GREEN, paddingVertical: 14, alignItems: 'center'},
-  sheetBtnApplyTxt: {fontSize: 15, fontWeight: '500', color: '#FFFFFF'},
 });
 

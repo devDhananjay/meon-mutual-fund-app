@@ -1,7 +1,8 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import AppColors from '../../../theme/colors';
+import {radius} from '../../../theme/radius';
 
-const PRIMARY_GREEN = '#00B386';
 const RISK_RED = '#DC2626';
 
 function safeParsePct(raw) {
@@ -22,9 +23,9 @@ function safeParsePct(raw) {
 function returnColor(raw) {
   const n = safeParsePct(raw);
   if (n === null) {
-    return '#6B7280';
+    return AppColors.textSecondary;
   }
-  return n >= 0 ? PRIMARY_GREEN : RISK_RED;
+  return n >= 0 ? AppColors.success : RISK_RED;
 }
 
 function formatPctSigned(raw) {
@@ -99,14 +100,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   left: {flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1},
-  logo: {width: 38, height: 38, borderRadius: 10, backgroundColor: '#F3F4F6'},
+  logo: {width: 38, height: 38, borderRadius: radius.input, backgroundColor: '#F3F4F6'},
   logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 14, fontWeight: '500', color: PRIMARY_GREEN},
+  logoLetter: {fontSize: 14, fontWeight: '500', color: AppColors.primary},
   middle: {flex: 1, minWidth: 0},
-  name: {fontSize: 13, fontWeight: '500', color: '#111827'},
-  meta: {fontSize: 12, color: '#6B7280', marginTop: 4},
+  name: {fontSize: 13, fontWeight: '500', color: AppColors.textPrimary},
+  meta: {fontSize: 12, color: AppColors.textSecondary, marginTop: 4},
   right: {alignItems: 'flex-end', minWidth: 92},
   returnVal: {fontSize: 13, fontWeight: '500'},
-  period: {fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: '500'},
+  period: {fontSize: 11, color: AppColors.textSecondary, marginTop: 4, fontWeight: '500'},
 });
 

@@ -23,9 +23,9 @@ import {clearAuthStorage} from '../../services/authStorage';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 
-const PAGE_BG = '#F5F5F5';
-const CARD_BORDER = '#E8E8E8';
-const ICON_BG = '#E8F4FC';
+const PAGE_BG = '#F8FAFC';
+const CARD_BORDER = '#E5E7EB';
+const ICON_BG = '#EEF5FF';
 const WEB_ORIGIN = 'https://mutualfunds.meon.co.in';
 
 function getInitials(user) {
@@ -129,10 +129,6 @@ export default function ProfileScreen() {
   const memberLine = useMemo(() => getMemberSinceLine(user), [user]);
   const verifyLine = useMemo(() => verificationLine(user), [user]);
 
-  const goDashboard = useCallback(() => {
-    navigation.navigate('MainTabs', {screen: 'Dashboard'});
-  }, [navigation]);
-
   const onOrders = useCallback(() => {
     navigateToMyOrders(navigation);
   }, [navigation]);
@@ -190,9 +186,6 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.profileHeaderCard}>
-          <TouchableOpacity style={styles.closeBtn} onPress={goDashboard} hitSlop={12}>
-            <Text style={[styles.closeTxt, Textstyles.medium]}>✕</Text>
-          </TouchableOpacity>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={[styles.avatarTxt, Textstyles.medium]}>{initials}</Text>
@@ -271,32 +264,18 @@ const styles = StyleSheet.create({
   },
   profileHeaderCard: {
     backgroundColor: Colors.white,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     padding: 16,
-    marginBottom: 14,
-    position: 'relative',
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    // elevation: 3,
   },
-  closeBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  closeTxt: {fontSize: 14, color: '#6B7280', fontWeight: '600'},
-  profileRow: {flexDirection: 'row', alignItems: 'center', paddingRight: 36},
+  profileRow: {flexDirection: 'row', alignItems: 'center'},
   avatar: {
     width: 64,
     height: 64,
@@ -308,25 +287,25 @@ const styles = StyleSheet.create({
   },
   avatarTxt: {fontSize: 22, fontWeight: '500', color: Colors.white},
   profileTextCol: {flex: 1},
-  displayName: {fontSize: 18, color: Colors.TEXT_PRIMARY, marginBottom: 4},
+  displayName: {fontSize: 20, color: Colors.TEXT_PRIMARY, marginBottom: 4, fontWeight: '600'},
   verifyLine: {fontSize: 13, color: '#6B7280', marginBottom: 2},
   memberLine: {fontSize: 12, color: '#9CA3AF'},
   sectionCard: {
     backgroundColor: Colors.white,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    marginBottom: 14,
+    marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    // elevation: 3,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#6B7280',
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -349,22 +328,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   rowEmoji: {fontSize: 20},
-  rowLabel: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY},
+  rowLabel: {flex: 1, fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   chevron: {fontSize: 18, color: '#9CA3AF', fontWeight: '300'},
   logoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     paddingVertical: 16,
   },
   logoutIcon: {fontSize: 18, marginRight: 8},
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.themeRed,
-  },
+  logoutText: {fontSize: 16, fontWeight: '500', color: '#EF4444'},
 });
