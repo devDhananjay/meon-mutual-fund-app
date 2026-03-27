@@ -1,14 +1,19 @@
-import React, {useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, StatusBar, KeyboardAvoidingView, Platform, ScrollView} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {CommonActions, useNavigation} from '@react-navigation/native';
+import {useDispatch} from 'react-redux';
 import {AuthColors, AuthSpacing} from '../../constants/authTheme';
 import CustomInput from '../../components/auth/CustomInput';
 import CustomButton from '../../components/auth/CustomButton';
 import AuthBrand from '../../components/auth/AuthBrand';
+import {navigationRef} from '../../navigation/navigationRef';
+import {clearAuthStorage} from '../../services/authStorage';
+import {logout} from '../../store/slices/authSlice';
 
 export default function ForgotPassword() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldError, setFieldError] = useState('');
@@ -26,6 +31,21 @@ export default function ForgotPassword() {
     setLoading(false);
     navigation.navigate('EmailSent', {identifier: usernameOrEmail.trim()});
   };
+
+  const onBackToSignIn = useCallback(async () => {
+    await clearAuthStorage();
+    dispatch(logout());
+    if (navigationRef.isReady()) {
+      navigationRef.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{name: 'Login'}],
+        }),
+      );
+    } else {
+      navigation.navigate('Login');
+    }
+  }, [dispatch, navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -61,11 +81,7 @@ export default function ForgotPassword() {
             />
             <CustomButton title="Send" onPress={onSend} loading={loading} disabled={!canSend} />
             <View style={styles.secondaryWrap}>
-              <CustomButton
-                title="Back to Sign In"
-                variant="secondary"
-                onPress={() => navigation.navigate('Login')}
-              />
+              <CustomButton title="Back to Sign In" variant="secondary" onPress={onBackToSignIn} />
             </View>
           </View>
         </ScrollView>

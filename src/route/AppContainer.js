@@ -20,6 +20,8 @@ import MandateAuthWebViewScreen from '../screens/Mandate/MandateAuthWebViewScree
 import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import RedeemScreen from '../screens/Redeem/RedeemScreen';
 import FundInvestmentScreen from '../screens/FundDetail/FundInvestmentScreen';
+import SupportArticleScreen from '../screens/Profile/SupportArticleScreen';
+import DeleteAccountScreen from '../screens/Profile/DeleteAccountScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +55,8 @@ export default function AppContainer() {
         <Stack.Screen name="Mandate" component={MandateScreen} />
         <Stack.Screen name="MandateDetail" component={MandateDetailScreen} />
         <Stack.Screen name="MandateAuthWebview" component={MandateAuthWebViewScreen} />
+        <Stack.Screen name="SupportArticle" component={SupportArticleScreen} />
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

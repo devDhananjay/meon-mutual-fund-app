@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {CommonActions, useNavigation} from '@react-navigation/native';
@@ -26,8 +25,6 @@ import Textstyles from '../../utils/text';
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
 const ICON_BG = '#EEF5FF';
-const WEB_ORIGIN = 'https://mutualfunds.meon.co.in';
-
 function getInitials(user) {
   const fn = (user?.full_name || user?.first_name || '').trim();
   const ln = (user?.full_name || user?.last_name || '').trim();
@@ -84,16 +81,6 @@ function verificationLine(user) {
   return 'Profile Verified';
 }
 
-async function openWebPath(path) {
-  const url = `${WEB_ORIGIN}${path}`;
-  const supported = await Linking.canOpenURL(url);
-  if (supported) {
-    await Linking.openURL(url);
-  } else {
-    Alert.alert('Unable to open link', url);
-  }
-}
-
 function SectionCard({title, children}) {
   return (
     <View style={styles.sectionCard}>
@@ -103,7 +90,7 @@ function SectionCard({title, children}) {
   );
 }
 
-function ProfileRow({emoji, label, onPress, isLast}) {
+function ProfileRow({emoji, label, onPress, isLast, destructive}) {
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -112,7 +99,7 @@ function ProfileRow({emoji, label, onPress, isLast}) {
       <View style={styles.rowIconWrap}>
         <Text style={styles.rowEmoji}>{emoji}</Text>
       </View>
-      <Text style={[Textstyles.medium, styles.rowLabel]}>{label}</Text>
+      <Text style={[Textstyles.medium, styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
       <Text style={styles.chevron}>›</Text>
     </TouchableOpacity>
   );
@@ -149,6 +136,17 @@ export default function ProfileScreen() {
 
   const onMandate = useCallback(() => {
     navigateToMandate(navigation);
+  }, [navigation]);
+
+  const onSupportArticle = useCallback(
+    id => {
+      navigation.navigate('SupportArticle', {id});
+    },
+    [navigation],
+  );
+
+  const onDeleteAccount = useCallback(() => {
+    navigation.navigate('DeleteAccount');
   }, [navigation]);
 
   const onLogout = useCallback(async () => {
@@ -209,25 +207,15 @@ export default function ProfileScreen() {
         </SectionCard>
 
         <SectionCard title="Support & Legal">
+          <ProfileRow emoji="❔" label={"FAQ's"} onPress={() => onSupportArticle('faq')} />
+          <ProfileRow emoji="💬" label="Help & Support" onPress={() => onSupportArticle('help')} />
+          <ProfileRow emoji="🛡️" label="Privacy Policy" onPress={() => onSupportArticle('privacy')} />
+          <ProfileRow emoji="📄" label="Terms and Conditions" onPress={() => onSupportArticle('terms')} />
           <ProfileRow
-            emoji="❔"
-            label={"FAQ's"}
-            onPress={() => openWebPath('/faq').catch(() => {})}
-          />
-          <ProfileRow
-            emoji="💬"
-            label="Help & Support"
-            onPress={() => openWebPath('/contact').catch(() => {})}
-          />
-          <ProfileRow
-            emoji="🛡️"
-            label="Privacy Policy"
-            onPress={() => openWebPath('/privacy-policy').catch(() => {})}
-          />
-          <ProfileRow
-            emoji="📄"
-            label="Terms and Conditions"
-            onPress={() => openWebPath('/terms-and-conditions').catch(() => {})}
+            emoji="🗑️"
+            label="Delete account"
+            onPress={onDeleteAccount}
+            destructive
             isLast
           />
         </SectionCard>
@@ -329,6 +317,7 @@ const styles = StyleSheet.create({
   },
   rowEmoji: {fontSize: 20},
   rowLabel: {flex: 1, fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
+  rowLabelDestructive: {color: '#DC2626'},
   chevron: {fontSize: 18, color: '#9CA3AF', fontWeight: '300'},
   logoutCard: {
     flexDirection: 'row',
