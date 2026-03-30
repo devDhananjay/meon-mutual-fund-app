@@ -214,6 +214,8 @@ export default function RedeemScreen() {
               />
             </View>
             <View style={styles.redeemAllRow}>
+            <Text style={styles.redeemAllTxt}>Redeem All</Text>
+
               <Switch
                 value={redeemAll}
                 onValueChange={v => {
@@ -224,8 +226,8 @@ export default function RedeemScreen() {
                 }}
                 trackColor={{false: '#D1D5DB', true: '#86EFAC'}}
                 thumbColor={redeemAll ? '#fff' : '#f4f3f4'}
+                style={{left: 20}}
               />
-              <Text style={styles.redeemAllTxt}>Redeem All</Text>
             </View>
           </>
         )}
@@ -242,7 +244,7 @@ export default function RedeemScreen() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.ctaTxt}>Proceed to Redeem</Text>
+            <Text style={[styles.ctaTxt, Textstyles.medium]}>Proceed to Redeem</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -281,26 +283,23 @@ const styles = StyleSheet.create({
   bannerValue: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: BANNER_FG},
   segment: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: radius.input,
+    backgroundColor: '#E8EAED',
+    borderRadius: 40,
     padding: 4,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   segBtn: {
     flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 40,
   },
   segBtnOn: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    // elevation: 2,
+    backgroundColor: '#E3F0FF',
   },
-  segTxt: {...Textstyles.medium, fontSize: 15, color: Colors.GREY, fontWeight: '600'},
+  segTxt: {...Textstyles.medium, fontSize: 16, lineHeight: 20, color: '#6B7280', fontWeight: '600'},
   segTxtOn: {color: CHIP_BLUE},
   inputWrap: {
     flexDirection: 'row',
@@ -337,5 +336,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaDisabled: {opacity: 0.7},
-  ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: 17, fontWeight: '700'},
+  ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: 17},
 });
