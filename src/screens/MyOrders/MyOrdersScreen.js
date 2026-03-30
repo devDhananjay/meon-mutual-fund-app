@@ -17,6 +17,7 @@ import {useSelector} from 'react-redux';
 import {useOrdersData} from '../../hooks/useOrdersData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 import {
   extractOrderAuthUrl,
   isAuthenticatedOrderState,
@@ -31,7 +32,6 @@ import {
   formatOrderTypeLabel,
   normalizeStatusKey,
 } from './orderHelpers';
-import Icons from '../../utils/icons';
 import AppModal from '../../components/AppModal';
 
 const PAGE_BG = '#F0F2F5';
@@ -430,7 +430,7 @@ export default function MyOrdersScreen() {
     () => (
       <View style={styles.pageHead}>
         <View style={styles.searchCard}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search orders..."
@@ -551,13 +551,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
+    ...Textstyles.heading,
     color: Colors.TEXT_PRIMARY,
     textAlign: 'center',
   },
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, width: 72},
-  backChevron: {fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2, fontWeight: '400'},
-  backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2},
+  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
   filterIcon: {width: 24, height: 24, alignSelf: 'flex-end', justifyContent: 'center', paddingVertical: 4},
   filterBar: {height: 3, backgroundColor: THEME_BLUE, borderRadius: 1, marginBottom: 4},
   filterBarWide: {width: 18, alignSelf: 'flex-end'},
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchIconImg: {width: 16, height: 16, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
   countLine: {fontSize: 12, color: '#6B7280', marginBottom: 8, paddingHorizontal: 4},
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
@@ -607,9 +607,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  fundLogoLetter: {fontSize: 16, fontWeight: '500', color: THEME_BLUE},
-  fundName: {flex: 1, fontSize: 15, fontWeight: '600', color: '#111827', lineHeight: 20},
-  cardChev: {fontSize: 22, color: '#9CA3AF', fontWeight: '300', marginLeft: 2},
+  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
+  fundName: {flex: 1, fontSize: 15, ...Textstyles.medium, fontWeight: '600', color: '#111827', lineHeight: 20},
+  cardChev: {...Textstyles.normal, fontSize: 22, color: '#9CA3AF', fontWeight: '300', marginLeft: 2},
   cardGrid: {
     flexDirection: 'row',
     marginTop: 14,
@@ -619,9 +619,9 @@ const styles = StyleSheet.create({
   },
   cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
   cellLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6},
-  cellType: {fontSize: 13, fontWeight: '600', color: '#111827'},
-  cellAmt: {fontSize: 14, fontWeight: '500', color: '#111827', marginTop: 2},
-  cellVal: {fontSize: 13, fontWeight: '600', color: '#111827'},
+  cellType: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#111827'},
+  cellAmt: {fontSize: 14, ...Textstyles.medium, fontWeight: '500', color: '#111827', marginTop: 2},
+  cellVal: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#111827'},
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     maxWidth: '100%',
   },
-  statusPillTxt: {fontSize: 11, fontWeight: '500'},
+  statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500'},
   payNowBtn: {
     marginTop: 12,
     backgroundColor: '#22C55E',
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  payNowTxt: {color: Colors.white, fontSize: 14, fontWeight: '500'},
+  payNowTxt: {...Textstyles.medium, color: Colors.white, fontSize: 14, fontWeight: '500'},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {color: THEME_BLUE, fontWeight: '600'},
+  retry: {...Textstyles.medium, color: THEME_BLUE, fontWeight: '600'},
   emptyCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 10,
   },
-  ctaTxt: {color: Colors.white, fontSize: 15},
+  ctaTxt: {...Textstyles.medium, color: Colors.white, fontSize: 15},
   filterModalRoot: {flex: 1, justifyContent: 'flex-end'},
   filterDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
   filterSheet: {
@@ -695,9 +695,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  filterTitle: {fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  clearFilterTxt: {fontSize: 15, fontWeight: '600', color: THEME_BLUE},
-  filterSectionLabel: {fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10},
+  filterTitle: {...Textstyles.heading, fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  clearFilterTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: THEME_BLUE},
+  filterSectionLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
   chip: {
     paddingHorizontal: 14,
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_BLUE,
     borderColor: THEME_BLUE,
   },
-  chipTxt: {fontSize: 12, color: '#4B5563', fontWeight: '600'},
+  chipTxt: {...Textstyles.medium, fontSize: 12, color: '#4B5563', fontWeight: '600'},
   chipTxtOn: {color: Colors.white},
   filterActions: {flexDirection: 'row', marginTop: 8},
   filterBtnCancel: {
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     borderColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnCancelTxt: {fontSize: 16, fontWeight: '500', color: THEME_BLUE},
+  filterBtnCancelTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
   filterBtnApply: {
     flex: 1,
     marginLeft: 8,
@@ -734,5 +734,5 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnApplyTxt: {fontSize: 16, fontWeight: '500', color: Colors.white},
+  filterBtnApplyTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.white},
 });

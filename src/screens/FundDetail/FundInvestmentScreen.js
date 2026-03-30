@@ -32,6 +32,7 @@ import {Colors} from '../../utils/AppConstant';
 import {navigateToCart} from '../../navigation/navigationRef';
 import AppModal from '../../components/AppModal';
 import Icons from '../../utils/icons';
+import Textstyles from '../../utils/text';
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -567,7 +568,7 @@ export default function FundInvestmentScreen() {
               onPress={onPlaceOrder}
               activeOpacity={0.92}
               disabled={placingOrder}>
-              <Text style={styles.primaryCtaTxt}>{primaryCtaLabel}</Text>
+              <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>{primaryCtaLabel}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -651,7 +652,7 @@ const styles = StyleSheet.create({
   back: {fontSize: 32, color: Colors.TEXT_PRIMARY, fontWeight: '300', lineHeight: 36},
   iconBtn: {fontSize: 22},
   cartWrap: {position: 'relative'},
-  cartIconImg: {width: 22, height: 22},
+  cartIconImg: {width: 24, height: 24},
   badge: {
     position: 'absolute',
     top: -6,
@@ -664,7 +665,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeTxt: {color: '#fff', fontSize: 10, fontWeight: '500'},
+  badgeTxt: {...Textstyles.medium, color: '#fff', fontSize: 10},
   screenTitle: {
     fontSize: 22,
     lineHeight: 28,
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
   },
   orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 40},
   orderTabBtnActive: {backgroundColor: '#E3F0FF'},
-  orderTabTxt: {fontSize: 17, color: '#6B7280', fontWeight: '600'},
+  orderTabTxt: {...Textstyles.medium, fontSize: 17, color: '#6B7280', fontWeight: '600'},
   orderTabTxtActive: {color: Colors.themeBlue},
   amountInputWrap: {
     marginTop: 16,
@@ -710,7 +711,7 @@ const styles = StyleSheet.create({
     borderColor: '#DC2626',
     backgroundColor: '#FFFBFB',
   },
-  amountCurrency: {fontSize: 22, color: '#6B7280', marginRight: 8, fontWeight: '600'},
+  amountCurrency: {...Textstyles.medium, fontSize: 22, color: '#6B7280', marginRight: 8, fontWeight: '600'},
   amountInput: {flex: 1, fontSize: 22, color: Colors.TEXT_PRIMARY, paddingVertical: 10},
   amountErrTxt: {
     color: '#DC2626',
@@ -735,8 +736,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.white,
   },
-  quickAmountChipTxt: {fontSize: 16, color: Colors.themeBlue, fontWeight: '600'},
-  fieldLabel: {fontSize: 14, color: '#4B5563', fontWeight: '600', marginBottom: 8},
+  quickAmountChipTxt: {...Textstyles.medium, fontSize: 16, color: Colors.themeBlue, fontWeight: '600'},
+  fieldLabel: {...Textstyles.medium, fontSize: 14, color: '#4B5563', fontWeight: '600', top:6, marginBottom: 8},
   fieldLabelSpaced: {marginTop: 16},
   dropdownField: {
     borderWidth: 1,
@@ -749,8 +750,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FAFAFA',
   },
-  dropdownValue: {fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
-  dropdownChevron: {fontSize: 18, color: '#6B7280'},
+  dropdownValue: {...Textstyles.medium, fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
+  dropdownChevron: {fontSize: 18, top:-6, color: '#6B7280'},
   calendarIcon: {fontSize: 18},
   sipOptionRow: {flexDirection: 'row', gap: 8, flexWrap: 'wrap'},
   inlineChip: {
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inlineChipOn: {backgroundColor: '#EAF4FF', borderColor: Colors.themeBlue},
-  inlineChipTxt: {fontSize: 14, color: '#374151', fontWeight: '600'},
+  inlineChipTxt: {...Textstyles.medium, fontSize: 14, color: '#374151', fontWeight: '600'},
   inlineChipTxtOn: {color: Colors.themeBlue},
   mandateSelectCard: {
     marginTop: 16,
@@ -778,13 +779,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FAFAFA',
   },
-  mandateTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  mandateTitle: {...Textstyles.heading, fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
   mandateTextWrap: {flex: 1},
   mandateSub: {fontSize: 13, color: '#6B7280', marginTop: 4},
   mandateArrow: {fontSize: 26, color: '#9CA3AF', marginLeft: 8},
   minAmtHint: {marginTop: 14, color: '#6B7280', fontSize: 13},
   viewCart: {marginTop: 18, alignItems: 'center', paddingVertical: 8},
-  viewCartTxt: {color: Colors.themeBlue, fontSize: 16, fontWeight: '600'},
+  viewCartTxt: {...Textstyles.medium, color: Colors.themeBlue, fontSize: 16, fontWeight: '600'},
   scrollBottomPad: {height: 24},
   footer: {
     paddingHorizontal: 16,
@@ -793,21 +794,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F3',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  addCartLink: {alignItems: 'center', paddingVertical: 6, marginBottom: 8},
-  addCartLinkTxt: {fontSize: 15, color: Colors.themeBlue, fontWeight: '600'},
+  addCartLink: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCartLinkTxt: {...Textstyles.medium, fontSize: 16, color: Colors.themeBlue, fontWeight: '600'},
   primaryCta: {
     minHeight: 54,
     borderRadius: 12,
     backgroundColor: '#22C55E',
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
   primaryCtaDisabled: {opacity: 0.65},
-  primaryCtaTxt: {fontSize: 17, color: Colors.white, fontWeight: '700'},
+  primaryCtaTxt: {...Textstyles.heading, fontSize: 17, color: Colors.white},
   authSummaryWrap: {paddingVertical: 4},
   authSummaryLabel: {fontSize: 13, color: '#6B7280', marginBottom: 6},
-  authSummaryAmount: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '600', marginBottom: 16},
+  authSummaryAmount: {...Textstyles.medium, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '600', marginBottom: 16},
   authContinueBtn: {
     borderRadius: 12,
     backgroundColor: Colors.themeBlue,
@@ -815,7 +829,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  authContinueTxt: {fontSize: 16, color: Colors.white, fontWeight: '600'},
+  authContinueTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '600'},
   payNowPrimaryBtn: {
     marginTop: 12,
     borderRadius: 12,
@@ -824,7 +838,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payNowPrimaryTxt: {fontSize: 16, color: Colors.white, fontWeight: '600'},
+  payNowPrimaryTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '600'},
   modalRoot: {flex: 1, justifyContent: 'flex-end'},
   modalDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
   modalSheet: {
@@ -834,12 +848,12 @@ const styles = StyleSheet.create({
     padding: 16,
     maxHeight: '70%',
   },
-  modalTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  modalTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
   modalEmpty: {fontSize: 13, color: '#6B7280', marginVertical: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 6},
   modalRowActive: {backgroundColor: '#EAF4FF'},
   modalRowTxt: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  modalRowTxtActive: {color: Colors.themeBlue, fontWeight: '600'},
+  modalRowTxtActive: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '600'},
   modalLoader: {marginVertical: 12},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},

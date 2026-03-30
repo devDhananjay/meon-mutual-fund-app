@@ -15,6 +15,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useMandateData} from '../../hooks/useMandateData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 import {
   pickAmount,
   pickBank,
@@ -25,7 +26,6 @@ import {
   pickStatus,
 } from './mandateFieldUtils';
 import AddMandateModal from './AddMandateModal';
-import Icons from '../../utils/icons';
 import AppModal from '../../components/AppModal';
 
 const PAGE_BG = '#F0F2F5';
@@ -223,7 +223,7 @@ export default function MandateScreen() {
     () => (
       <View style={styles.pageHead}>
         <View style={styles.searchCard}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search mandates…"
@@ -358,13 +358,13 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4},
-  backChevron: {fontSize: 28, color: PRIMARY, marginRight: 2, marginTop: -2, fontWeight: '400'},
-  backLabel: {fontSize: 16, color: PRIMARY, fontWeight: '600'},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: PRIMARY, marginRight: 2, marginTop: -2},
+  backLabel: {...Textstyles.medium, fontSize: 16, color: PRIMARY, fontWeight: '600'},
   backPlaceholder: {width: 72},
   navTitle: {
     flex: 1,
     fontSize: 20,
-    fontWeight: '700',
+    ...Textstyles.heading,
     color: Colors.TEXT_PRIMARY,
     textAlign: 'center',
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchIconImg: {width: 16, height: 16, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
   countLine: {fontSize: 12, color: '#6B7280', marginBottom: 8, paddingHorizontal: 4},
   listContent: {paddingHorizontal: 16, paddingTop: 4},
@@ -405,18 +405,18 @@ const styles = StyleSheet.create({
     // elevation: 2,
   },
   cardTop: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
-  mandateId: {fontSize: 16, fontWeight: '500', color: Colors.TEXT_PRIMARY, flex: 1, marginRight: 8},
+  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.TEXT_PRIMARY, flex: 1, marginRight: 8},
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     maxWidth: '48%',
   },
-  statusPillTxt: {fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
+  statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
   cardGrid: {flexDirection: 'row', marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6'},
   cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
   cardLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4},
-  cardVal: {fontSize: 13, fontWeight: '600', color: '#111827'},
+  cardVal: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: '#111827'},
   cardBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,8 +426,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
-  amountTxt: {fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  viewDetails: {fontSize: 15, fontWeight: '600', color: PRIMARY},
+  amountTxt: {...Textstyles.medium, fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  viewDetails: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: PRIMARY},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {color: PRIMARY, fontWeight: '600'},
+  retry: {...Textstyles.medium, color: PRIMARY, fontWeight: '600'},
   emptyCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     // elevation: 6,
   },
-  fabPlus: {fontSize: 32, color: Colors.white, fontWeight: '300', marginTop: -2},
+  fabPlus: {...Textstyles.normal, fontSize: 32, color: Colors.white, fontWeight: '300', marginTop: -2},
 
   headerSide: {width: 72, alignItems: 'flex-end', justifyContent: 'center'},
   headerFilterIcon: {width: 18, height: 18, marginRight: 6},
@@ -493,8 +493,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filterHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10},
-  filterTitle: {fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  filterSectionLabel: {fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10},
+  filterTitle: {fontSize: 18, ...Textstyles.heading, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  filterSectionLabel: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#6B7280', marginBottom: 10},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
   chip: {
     paddingHorizontal: 12,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_BLUE,
     borderColor: THEME_BLUE,
   },
-  chipTxt: {fontSize: 12, color: '#4B5563', fontWeight: '600'},
+  chipTxt: {fontSize: 12, ...Textstyles.medium, color: '#4B5563', fontWeight: '600'},
   chipTxtOn: {color: Colors.white},
   filterActions: {flexDirection: 'row', marginTop: 8},
   filterBtnCancel: {
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     borderColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnCancelTxt: {fontSize: 16, fontWeight: '600', color: THEME_BLUE},
+  filterBtnCancelTxt: {fontSize: 16, ...Textstyles.medium, fontWeight: '600', color: THEME_BLUE},
   filterBtnApply: {
     flex: 1,
     marginLeft: 8,
@@ -531,5 +531,5 @@ const styles = StyleSheet.create({
     backgroundColor: THEME_BLUE,
     alignItems: 'center',
   },
-  filterBtnApplyTxt: {fontSize: 16, fontWeight: '700', color: Colors.white},
+  filterBtnApplyTxt: {fontSize: 16, ...Textstyles.heading, fontWeight: '700', color: Colors.white},
 });

@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8},
-  backChevron: {fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2, fontWeight: '400'},
-  backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  title: {flex: 1, fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginRight: 8},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2},
+  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
+  title: {flex: 1, ...Textstyles.heading, fontSize: 16, color: Colors.TEXT_PRIMARY, marginRight: 8},
   webview: {flex: 1, backgroundColor: Colors.white},
   loadingWrap: {
     ...StyleSheet.absoluteFillObject,

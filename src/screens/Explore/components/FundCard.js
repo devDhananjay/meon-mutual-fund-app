@@ -3,8 +3,9 @@ import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import AppColors from '../../../theme/colors';
 import {radius} from '../../../theme/radius';
 import {shadows} from '../../../theme/shadows';
+import { Colors, Textstyles } from '../../../utils';
 
-const RISK_RED = '#DC2626';
+const RISK_RED = '#EF4444';
 
 function formatPct(raw) {
   const n = Number(raw);
@@ -120,6 +121,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     maxWidth: 120,
   },
-  riskTxt: {color: '#FFFFFF', fontSize: 10, fontWeight: '500'},
+  riskTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 10, fontWeight: '500'},
 });
 

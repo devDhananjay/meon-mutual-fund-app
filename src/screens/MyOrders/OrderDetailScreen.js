@@ -985,9 +985,9 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4},
-  backChevron: {fontSize: 28, color: THEME_BLUE, marginRight: 2, fontWeight: '400'},
-  backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  navTitle: {flex: 1, fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY, textAlign: 'center'},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2},
+  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
+  navTitle: {flex: 1, ...Textstyles.heading, fontSize: 18, color: Colors.TEXT_PRIMARY, textAlign: 'center'},
   topRightSpacer: {width: 72},
   refreshBtn: {
     minWidth: 72,
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
   refreshBtnTxt: {
     color: THEME_BLUE,
     fontSize: 14,
-    fontWeight: '600',
+    ...Textstyles.medium,
   },
   scroll: {padding: 16, paddingBottom: 40},
   summaryCard: {
@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
   summaryTop: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
   summaryLeft: {flex: 1, marginRight: 12},
   summaryHead: {fontSize: 14, color: '#6B7280', marginBottom: 6},
-  summaryAmt: {fontSize: 28, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  summaryAmt: {...Textstyles.medium, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   typePill: {
     alignSelf: 'flex-start',
     marginTop: 10,
@@ -1021,7 +1021,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#E8F0FE',
   },
-  typePillTxt: {fontSize: 13, fontWeight: '500', color: THEME_BLUE},
+  typePillTxt: {...Textstyles.medium, fontSize: 13, color: THEME_BLUE, fontWeight: '500'},
   summaryIconWrap: {justifyContent: 'center'},
   statusCircle: {
     width: 48,
@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
   statusCircleOk: {backgroundColor: '#DCFCE7'},
   statusCircleFail: {backgroundColor: '#FEE2E2'},
   statusCirclePending: {backgroundColor: '#FEF3C7'},
-  statusIconTxt: {fontSize: 22, fontWeight: '500', color: '#15803D'},
+  statusIconTxt: {...Textstyles.medium, fontSize: 22, color: '#15803D', fontWeight: '500'},
   statusIconImg: {width: 22, height: 22},
   clockTxt: {fontSize: 22},
   fundCard: {
@@ -1054,13 +1054,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  fundLogoLetter: {fontSize: 16, fontWeight: '500', color: THEME_BLUE},
-  fundName: {flex: 1, fontSize: 15, fontWeight: '600', color: '#111827'},
-  chev: {fontSize: 22, color: '#9CA3AF', fontWeight: '300'},
+  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
+  fundName: {flex: 1, ...Textstyles.medium, fontSize: 15, fontWeight: '600', color: '#111827'},
+  chev: {...Textstyles.normal, fontSize: 22, color: '#9CA3AF', fontWeight: '300'},
   dateRow: {flexDirection: 'row', marginBottom: 12},
   dateHalf: {flex: 1, paddingRight: 8},
   dateLabel: {fontSize: 12, color: '#9CA3AF', marginBottom: 4},
-  dateVal: {fontSize: 14, fontWeight: '600', color: '#111827'},
+  dateVal: {...Textstyles.medium, fontSize: 14, fontWeight: '600', color: '#111827'},
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1080,7 +1080,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  continueTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  continueTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   tlActionWrap: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     marginRight: 10,
   },
-  cancelTxt: {fontSize: 14, color: '#374151', fontWeight: '500'},
+  cancelTxt: {...Textstyles.medium, fontSize: 14, color: '#374151', fontWeight: '500'},
   payNowBtn: {
     backgroundColor: '#22C55E',
     borderRadius: 10,
@@ -1109,14 +1109,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  payNowTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payNowTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   statusLoadingRow: {
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginBottom: 10,
   },
   statusLoadingTxt: {fontSize: 12, color: '#6B7280'},
-  sectionTitle: {fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  sectionTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
   timelineCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -1140,7 +1140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  authBoxTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  authBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   payBoxBtn: {
     backgroundColor: '#1E81F2',
     borderRadius: 10,
@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  payBoxTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   payBoxBtnDisabled: {
     backgroundColor: '#93C5FD',
     borderRadius: 10,
@@ -1157,7 +1157,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     opacity: 0.7,
   },
-  payBoxBtnDisabledTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payBoxBtnDisabledTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   mailSentBox: {
     backgroundColor: '#ECFFF5',
     borderRadius: 10,
@@ -1166,7 +1166,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
-  mailSentTxt: {fontSize: 14, color: '#15803D', fontWeight: '500', textAlign: 'center'},
+  mailSentTxt: {...Textstyles.medium, fontSize: 14, color: '#15803D', fontWeight: '500', textAlign: 'center'},
   twoStepBox: {
     backgroundColor: '#FFFBEB',
     borderRadius: 10,
@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
     padding: 12,
   },
-  twoStepTxt: {fontSize: 13, color: '#92400E', fontWeight: '600', lineHeight: 18},
+  twoStepTxt: {...Textstyles.medium, fontSize: 13, color: '#92400E', fontWeight: '600', lineHeight: 18},
   completeBoxBtn: {
     backgroundColor: '#22C55E',
     borderRadius: 10,
@@ -1182,12 +1182,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  completeBoxTxt: {fontSize: 15, color: Colors.white, fontWeight: '500'},
+  completeBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
   paymentHintTxt: {fontSize: 13, color: '#6B7280', lineHeight: 18},
   // Payment mode modal (website parity)
   modalHeaderRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2},
-  modalHeaderArrow: {fontSize: 22, color: '#111827', fontWeight: '500'},
-  modalSubTitle: {fontSize: 13, color: '#6B7280', marginBottom: 14, fontWeight: '600'},
+  modalHeaderArrow: {...Textstyles.medium, fontSize: 22, color: '#111827', fontWeight: '500'},
+  modalSubTitle: {...Textstyles.medium, fontSize: 13, color: '#6B7280', marginBottom: 14, fontWeight: '600'},
   modalOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1204,9 +1204,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F7FF',
   },
   modalOptionIcon: {fontSize: 22, width: 34, textAlign: 'center'},
-  modalOptionMain: {fontSize: 15, fontWeight: '500', color: '#111827', marginBottom: 2},
-  modalOptionSub: {fontSize: 13, color: '#6B7280', fontWeight: '600'},
-  modalOptionChevron: {fontSize: 20, color: '#111827', fontWeight: '500', marginLeft: 8},
+  modalOptionMain: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#111827', marginBottom: 2},
+  modalOptionSub: {...Textstyles.medium, fontSize: 13, color: '#6B7280', fontWeight: '600'},
+  modalOptionChevron: {...Textstyles.medium, fontSize: 20, color: '#111827', fontWeight: '500', marginLeft: 8},
   modalContinuePrimaryBtn: {
     backgroundColor: '#1E81F2',
     borderRadius: 14,
@@ -1214,9 +1214,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  modalContinuePrimaryTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
+  modalContinuePrimaryTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '500'},
   modalBackRow: {marginBottom: 10},
-  modalBackTxt: {fontSize: 15, color: '#1E81F2', fontWeight: '500'},
+  modalBackTxt: {...Textstyles.medium, fontSize: 15, color: '#1E81F2', fontWeight: '500'},
   modalCloseBtn: {
     position: 'absolute',
     top: 10,
@@ -1229,7 +1229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCloseTxt: {fontSize: 16, fontWeight: '500', color: '#111827'},
+  modalCloseTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: '#111827'},
   paymentModeCard: {
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
@@ -1238,8 +1238,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     marginBottom: 12,
   },
-  paymentModeTitle: {fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6},
-  paymentModeHint: {fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 8},
+  paymentModeTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6},
+  paymentModeHint: {...Textstyles.medium, fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 8},
   utrInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -1269,9 +1269,9 @@ const styles = StyleSheet.create({
   modalSheetInner: {
     paddingTop: 8,
   },
-  modalTitle: {fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 12},
+  modalTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 12},
   modalSection: {marginTop: 12, marginBottom: 6},
-  modalHintTxt: {fontSize: 12, color: '#6B7280', marginBottom: 8, fontWeight: '600'},
+  modalHintTxt: {...Textstyles.medium, fontSize: 12, color: '#6B7280', marginBottom: 8, fontWeight: '600'},
   upiInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
     borderColor: '#1E81F2',
     backgroundColor: '#EAF3FF',
   },
-  modalOptionTxt: {fontSize: 15, fontWeight: '500', color: '#111827'},
+  modalOptionTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#111827'},
   modalActions: {flexDirection: 'row', marginTop: 10},
   modalSecondaryBtn: {
     flex: 1,

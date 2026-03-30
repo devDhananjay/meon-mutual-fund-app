@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   sheetScroll: {maxHeight: 520},
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '500',
+    ...Textstyles.medium,
     color: '#6B7280',
     marginBottom: 8,
     marginTop: 4,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   invLabel: {fontSize: 14, color: '#6B7280', flex: 1, marginRight: 8},
   invVal: {fontSize: 14, color: Colors.TEXT_PRIMARY, flex: 1, textAlign: 'right'},
-  fieldLabel: {fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 6, marginTop: 10},
+  fieldLabel: {...Textstyles.medium, fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 6, marginTop: 10},
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,8 +441,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E7EB',
   },
-  inlineIosTitle: {fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  inlineIosDone: {fontSize: 16, fontWeight: '500', color: PRIMARY},
+  inlineIosTitle: {...Textstyles.heading, fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  inlineIosDone: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: PRIMARY},
   iosSpinnerInline: {alignSelf: 'center', height: 216, width: '100%'},
   actions: {
     flexDirection: 'row',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnCancelTxt: {fontSize: 15, fontWeight: '500', color: '#6B7280'},
+  btnCancelTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#6B7280'},
   btnSubmit: {
     flex: 1,
     marginLeft: 6,
@@ -472,5 +472,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnSubmitDisabled: {opacity: 0.7},
-  btnSubmitTxt: {fontSize: 16, fontWeight: '500', color: Colors.white},
+  btnSubmitTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.white},
 });

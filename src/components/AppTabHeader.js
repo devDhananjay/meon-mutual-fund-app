@@ -85,6 +85,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     color: AppColors.textPrimary,
+    ...Textstyles.medium,
     fontWeight: '600',
     lineHeight: 28,
   },
@@ -124,5 +125,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  cartBadgeTxt: {color: AppColors.white, fontSize: 10, fontWeight: '700'},
+  cartBadgeTxt: {...Textstyles.heading, color: AppColors.white, fontSize: 10, fontWeight: '700'},
 });

@@ -222,7 +222,7 @@ export default function DashboardScreen() {
           style={styles.searchBar}
           onPress={() => navigation.navigate('Explore')}
           activeOpacity={0.8}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <Text style={[Textstyles.normal, styles.searchPlaceholder]}>Search mutual funds...</Text>
         </TouchableOpacity>
       </View>
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     // elevation: 2,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, opacity: 0.9},
+  searchIconImg: {width: 16, height: 16, opacity: 0.9},
   searchPlaceholder: {
     color: Colors.GREY,
     fontSize: 15,

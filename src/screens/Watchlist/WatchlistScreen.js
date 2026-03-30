@@ -19,6 +19,7 @@ import {removeFromWishlist} from '../../services/wishlistService';
 import {useWishlistData} from '../../hooks/useWishlistData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 
 const PAGE_BG = '#F5F5F5';
 const CARD_BORDER = '#E8E8E8';
@@ -257,7 +258,7 @@ export default function WatchlistScreen() {
     () => (
       <View style={styles.pageHead}>
         <View style={styles.searchCard}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={[Textstyles.medium, styles.searchInput]}
             placeholder="Search orders..."
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   },
   headerBack: {width: 40, justifyContent: 'center'},
   headerBackPlaceholder: {width: 40},
-  headerChevron: {fontSize: 32, color: Colors.TEXT_PRIMARY, fontWeight: '300', marginTop: -2},
+  headerChevron: {...Textstyles.normal, fontSize: 32, color: Colors.TEXT_PRIMARY, marginTop: -2},
   headerTitle: {
     flex: 1,
     fontSize: 18,
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchIconImg: {width: 16, height: 16, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
   rowInCard: {
@@ -447,12 +448,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  fundLogoLetter: {fontSize: 15, fontWeight: '500', color: THEME_BLUE},
+  fundLogoLetter: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: THEME_BLUE},
   nameCol: {flex: 1, minWidth: 0, paddingRight: 8},
   fundName: {fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 20},
   subLine: {fontSize: 12, color: '#6B7280', marginTop: 4, lineHeight: 16},
   returnCol: {alignItems: 'flex-end', minWidth: 64, marginRight: 4},
-  returnPct: {fontSize: 15, fontWeight: '500'},
+  returnPct: {...Textstyles.medium, fontSize: 15, fontWeight: '500'},
   returnPos: {color: '#16A34A'},
   returnNeg: {color: '#DC2626'},
   returnNeutral: {color: '#6B7280'},
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {color: THEME_BLUE, fontWeight: '600'},
+  retry: {...Textstyles.medium, color: THEME_BLUE, fontWeight: '600'},
   emptyCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,

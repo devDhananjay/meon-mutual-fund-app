@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderBottomColor: AppColors.border,
   },
   backBtn: {width: 44, height: 44, justifyContent: 'center', alignItems: 'center'},
-  backTxt: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
+  backTxt: {...Textstyles.normal, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
   toolbarTitle: {flex: 1, fontSize: 17, textAlign: 'center'},
   toolbarRight: {width: 44},
   scroll: {padding: 16, paddingBottom: 40},
@@ -277,8 +277,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 18,
   },
-  bannerLabel: {fontSize: 15, fontWeight: '600', color: BANNER_FG},
-  bannerValue: {fontSize: 15, fontWeight: '600', color: BANNER_FG},
+  bannerLabel: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: BANNER_FG},
+  bannerValue: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: BANNER_FG},
   segment: {
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     // elevation: 2,
   },
-  segTxt: {fontSize: 15, color: Colors.GREY, fontWeight: '600'},
+  segTxt: {...Textstyles.medium, fontSize: 15, color: Colors.GREY, fontWeight: '600'},
   segTxtOn: {color: CHIP_BLUE},
   inputWrap: {
     flexDirection: 'row',
@@ -325,9 +325,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  chipTxt: {color: CHIP_BLUE, fontWeight: '600', fontSize: 14},
+  chipTxt: {...Textstyles.medium, color: CHIP_BLUE, fontWeight: '600', fontSize: 14},
   redeemAllRow: {flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16},
-  redeemAllTxt: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
+  redeemAllTxt: {...Textstyles.medium, fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   hint: {fontSize: 12, color: Colors.GREY, marginBottom: 20, lineHeight: 18},
   cta: {
     backgroundColor: CTA_GREEN,
@@ -337,5 +337,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaDisabled: {opacity: 0.7},
-  ctaTxt: {color: Colors.white, fontSize: 17, fontWeight: '700'},
+  ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: 17, fontWeight: '700'},
 });

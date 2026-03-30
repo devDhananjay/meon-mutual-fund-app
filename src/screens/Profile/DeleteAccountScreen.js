@@ -22,6 +22,7 @@ import {requestAccountDeactivation} from '../../services/userService';
 import {clearAuthStorage} from '../../services/authStorage';
 import {logout} from '../../store/slices/authSlice';
 import {navigationRef} from '../../navigation/navigationRef';
+import Textstyles from '../../utils/text';
 
 function pickMobile(user) {
   const m =
@@ -167,12 +168,14 @@ const styles = StyleSheet.create({
   flex1: {flex: 1},
   content: {paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8},
   lead: {
+    ...Textstyles.normal,
     fontSize: 15,
     lineHeight: 22,
     color: AppColors.textSecondary,
     marginBottom: 20,
   },
   label: {
+    ...Textstyles.medium,
     fontSize: 13,
     fontWeight: '600',
     color: AppColors.textPrimary,
@@ -191,6 +194,7 @@ const styles = StyleSheet.create({
   },
   inputMultiline: {minHeight: 100, textAlignVertical: 'top'},
   disclaimer: {
+    ...Textstyles.normal,
     fontSize: 12,
     lineHeight: 18,
     color: AppColors.textSecondary,
@@ -204,5 +208,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
   },
-  ctaTxt: {color: Colors.white, fontSize: 16, fontWeight: '600'},
+  ctaTxt: {...Textstyles.medium, color: Colors.white, fontSize: 16, fontWeight: '600'},
 });

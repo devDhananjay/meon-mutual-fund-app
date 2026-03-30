@@ -447,6 +447,7 @@ const styles = StyleSheet.create({
   },
   chipTxtOn: {
     color: Colors.themeBlue,
+    ...Textstyles.medium,
     fontWeight: '600',
   },
 });

@@ -46,7 +46,7 @@ export default function AppModal({
             {maxHeight},
           ]}>
           {isBottomSheet ? <View style={styles.grabber} /> : null}
-          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {title ? <Text style={[styles.title, Textstyles.heading, {marginVertical: 10}]}>{title}</Text> : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           <View style={styles.content}>{children}</View>
           {showActions ? (

@@ -20,6 +20,7 @@ import {groupHoldingsByFolio} from '../../utils/groupHoldingsByFolio';
 import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
@@ -245,7 +246,7 @@ export default function MyFoliosScreen() {
     () => (
       <View style={styles.searchOuter}>
         <View style={styles.searchCard}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search orders..."
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchIconImg: {width: 16, height: 16, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
   sectionList: {flex: 1},
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  fundLogoLetter: {fontSize: 16, fontWeight: '500', color: '#374151'},
+  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: '#374151'},
   fundName: {
     flex: 1,
     fontSize: 15,
@@ -385,13 +386,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingRight: 8,
   },
-  durationBadge: {fontSize: 12, fontWeight: '600', color: LABEL_GRAY, marginTop: 2},
+  durationBadge: {...Textstyles.medium, fontSize: 12, fontWeight: '600', color: LABEL_GRAY, marginTop: 2},
   durationPlaceholder: {width: 28},
   metrics3Col: {flexDirection: 'row', justifyContent: 'space-between', gap: 8},
   metricCol: {flex: 1, minWidth: 0},
   metricLabel: {fontSize: 12, color: LABEL_GRAY, marginBottom: 6},
-  metricValueDark: {fontSize: 15, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  metricValueGl: {fontSize: 13, fontWeight: '500', lineHeight: 18},
+  metricValueDark: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  metricValueGl: {...Textstyles.medium, fontSize: 13, fontWeight: '500', lineHeight: 18},
   xirrLabelRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 6},
   xirrChev: {fontSize: 8, color: LABEL_GRAY, marginLeft: 3, marginTop: 1},
   cardDivider: {height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB', marginHorizontal: 14},
@@ -403,14 +404,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   currentBlock: {flex: 1},
-  currentValue: {fontSize: 16, fontWeight: '500', marginTop: 2},
+  currentValue: {...Textstyles.medium, fontSize: 16, fontWeight: '500', marginTop: 2},
   investMoreBtn: {
     backgroundColor: GREEN_CTA,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
-  investMoreTxt: {color: Colors.white, fontSize: 14, fontWeight: '500'},
+  investMoreTxt: {...Textstyles.medium, color: Colors.white, fontSize: 14, fontWeight: '500'},
   errorBanner: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -424,7 +425,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {color: Colors.themeBlue, fontWeight: '600'},
+  retry: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '600'},
   emptyWrap: {paddingHorizontal: 0, paddingTop: 8},
   emptyCard: {
     backgroundColor: Colors.white,

@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   backBtn: {width: 44, height: 44, justifyContent: 'center', alignItems: 'center'},
-  backTxt: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
+  backTxt: {...Textstyles.normal, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
   title: {flex: 1, fontSize: 18, textAlign: 'center'},
   toolbarRight: {width: 44},
   scroll: {padding: 16, paddingBottom: 40},

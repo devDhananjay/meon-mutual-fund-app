@@ -22,6 +22,7 @@ import {Colors} from '../../utils/AppConstant';
 import FundCard from './components/FundCard';
 import FundListItem from './components/FundListItem';
 import FilterBar from './components/FilterBar';
+import Icons from '../../utils/icons';
 
 // Design-first mock dataset (used to guarantee pixel-perfect layout).
 const MOCK_ALL_FUNDS = [
@@ -353,7 +354,7 @@ export default function ExplorePixelPerfectScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -391,7 +392,12 @@ export default function ExplorePixelPerfectScreen() {
 
         <View style={styles.grid}>
           {popularFunds.map((f, idx) => (
-            <View key={f.id ?? idx} style={styles.gridItem}>
+            <View
+              key={f.id ?? idx}
+              style={[
+                styles.gridItemBase,
+                idx % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight,
+              ]}>
               <FundCard fund={f} variant="popular" onPress={() => onPressFund(f)} />
             </View>
           ))}
@@ -467,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY},
+  searchIconImg: {width: 16, height: 16},
   searchInput: {flex: 1, fontSize: 14, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   clearBtn: {padding: 4},
   clearTxt: {color: Colors.GREY, fontSize: 16},
@@ -495,7 +501,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
   },
-  sipButtonTxt: {color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
+  sipButtonTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
 
   sectionHead: {
     flexDirection: 'row',
@@ -505,7 +511,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
-  viewAll: {color: Colors.themeBlue, fontWeight: '500'},
+  viewAll: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '500'},
   viewAllHit: {paddingVertical: 8, paddingHorizontal: 8},
 
   grid: {
@@ -514,11 +520,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  gridItem: {
+  gridItemBase: {
     width: '50%',
-    paddingRight: 8,
     paddingBottom: 12,
   },
+  gridItemLeft: {paddingRight: 4},
+  gridItemRight: {paddingRight: 0},
 
   recentScroll: {marginTop: 4, marginBottom: 18},
   recentContent: {paddingHorizontal: 16, gap: 12},

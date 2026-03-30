@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 
@@ -10,6 +10,8 @@ import {Colors} from '../../utils/AppConstant';
 
 import FilterBar from './components/FilterBar';
 import FundListItem from './components/FundListItem';
+import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 
 const PRIMARY_GREEN = Colors.themeBlue;
 const LOAD_MORE_STEP = 10;
@@ -175,7 +177,7 @@ export default function AllMutualFundsScreen() {
 
       <View style={styles.controlsContainer}>
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
             value={searchTerm}
@@ -254,8 +256,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EBECED',
   },
   backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
-  backChevron: {fontSize: 28, color: PRIMARY_GREEN, fontWeight: '400'},
-  title: {flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: PRIMARY_GREEN, fontWeight: '400'},
+  title: {...Textstyles.heading, flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
   topRightSpacer: {width: 44},
 
   controlsContainer: {
@@ -275,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   filterWrap: {marginHorizontal: 0, marginBottom: 12},
-  searchIcon: {fontSize: 16, color: Colors.GREY},
+  searchIconImg: {width: 16, height: 16},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 2},
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
@@ -288,7 +290,7 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
     padding: 12,
   },
-  errorText: {color: '#B91C1C', fontSize: 13, fontWeight: '600'},
+  errorText: {...Textstyles.medium, color: '#B91C1C', fontSize: 13, fontWeight: '600'},
 
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
   listContent: {paddingBottom: 24},

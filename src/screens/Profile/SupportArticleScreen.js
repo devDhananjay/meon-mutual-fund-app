@@ -5,6 +5,7 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import AppHeader from '../../components/AppHeader';
 import AppColors from '../../theme/colors';
 import {SUPPORT_ARTICLES} from '../../constants/supportLegalContent';
+import Textstyles from '../../utils/text';
 
 export default function SupportArticleScreen() {
   const navigation = useNavigation();
@@ -38,11 +39,13 @@ const styles = StyleSheet.create({
   block: {marginBottom: 20},
   heading: {
     fontSize: 16,
+    ...Textstyles.medium,
     fontWeight: '600',
     color: AppColors.textPrimary,
     marginBottom: 8,
   },
   body: {
+    ...Textstyles.normal,
     fontSize: 15,
     lineHeight: 22,
     color: AppColors.textSecondary,

@@ -18,6 +18,7 @@ import {navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 
 function mapResultsToFunds(data) {
   if (!data?.results?.length) {
@@ -226,7 +227,7 @@ export default function AllFundsSIPScreen() {
         </View>
 
         <View style={styles.searchWrap}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search funds..."
@@ -329,8 +330,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.BORDER_GREY,
   },
   backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
-  backChevron: {fontSize: 28, color: Colors.themeBlue, fontWeight: '400'},
-  title: {flex: 1, fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY, textAlign: 'center'},
+  backChevron: {...Textstyles.normal, fontSize: 28, color: Colors.themeBlue},
+  title: {flex: 1, ...Textstyles.heading, fontSize: 18, color: Colors.TEXT_PRIMARY, textAlign: 'center'},
   topRightSpacer: {width: 44},
 
   searchWrap: {
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
+  searchIconImg: {width: 16, height: 16, marginRight: 8},
   searchInput: {flex: 1, paddingVertical: 6, fontSize: 15, color: Colors.TEXT_PRIMARY},
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   countText: {fontSize: 14, color: Colors.GREY},
   sortBtn: {paddingRight: 6},
   sortBtnInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  sortBtnTxt: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  sortBtnTxt: {...Textstyles.medium, fontSize: 14, color: Colors.TEXT_PRIMARY},
   sortChevron: {fontSize: 12, color: Colors.GREY, marginTop: 2},
   dottedUnderline: {
     marginTop: 6,
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 13},
   retryBtn: {paddingVertical: 6, paddingHorizontal: 10},
-  retryText: {color: Colors.themeBlue, fontWeight: '600'},
+  retryText: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '600'},
 
   row: {
     flexDirection: 'row',
@@ -403,15 +404,15 @@ const styles = StyleSheet.create({
   rowText: {flex: 1, paddingLeft: 12},
   logo: {width: 40, height: 40, borderRadius: 10},
   logoPlaceholder: {backgroundColor: Colors.offWhite, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.BORDER_GREY},
-  logoLetter: {fontSize: 15, fontWeight: '500', color: Colors.themeBlue},
-  fundName: {fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
+  logoLetter: {...Textstyles.medium, fontSize: 15, color: Colors.themeBlue},
+  fundName: {...Textstyles.medium, fontSize: 14, color: Colors.TEXT_PRIMARY},
   category: {fontSize: 12, color: Colors.GREY, marginTop: 4},
   ratingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4},
   star: {color: '#9CA3AF', fontSize: 12},
   ratingVal: {fontSize: 12, color: '#9CA3AF'},
 
   returnsCol: {alignItems: 'flex-end', minWidth: 90},
-  returnVal: {fontSize: 14, fontWeight: '500'},
+  returnVal: {...Textstyles.medium, fontSize: 14},
   periodLabel: {fontSize: 12, color: Colors.GREY, marginTop: 4},
 
   empty: {padding: 40, alignItems: 'center'},
