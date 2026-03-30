@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -30,6 +31,7 @@ import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
 import {Colors} from '../../utils/AppConstant';
 import {navigateToCart} from '../../navigation/navigationRef';
 import AppModal from '../../components/AppModal';
+import Icons from '../../utils/icons';
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -404,7 +406,7 @@ export default function FundInvestmentScreen() {
             </TouchableOpacity>
             <TouchableOpacity onPress={openCart} hitSlop={12} style={styles.cartHit}>
               <View style={styles.cartWrap}>
-                <Text style={styles.iconBtn}>🛒</Text>
+                <Image source={Icons.CartIcon} style={styles.cartIconImg} resizeMode="contain" />
                 {cartCount > 0 ? (
                   <View style={styles.badge}>
                     <Text style={styles.badgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -649,6 +651,7 @@ const styles = StyleSheet.create({
   back: {fontSize: 32, color: Colors.TEXT_PRIMARY, fontWeight: '300', lineHeight: 36},
   iconBtn: {fontSize: 22},
   cartWrap: {position: 'relative'},
+  cartIconImg: {width: 22, height: 22},
   badge: {
     position: 'absolute',
     top: -6,
@@ -682,12 +685,13 @@ const styles = StyleSheet.create({
   },
   orderTabs: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 40,
     backgroundColor: '#E8EAED',
     padding: 4,
     marginBottom: 4,
+    overflow: 'hidden',
   },
-  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10},
+  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 40},
   orderTabBtnActive: {backgroundColor: '#E3F0FF'},
   orderTabTxt: {fontSize: 17, color: '#6B7280', fontWeight: '600'},
   orderTabTxtActive: {color: Colors.themeBlue},

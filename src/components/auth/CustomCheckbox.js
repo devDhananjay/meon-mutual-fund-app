@@ -1,6 +1,7 @@
 import React from 'react';
 import {TouchableOpacity, Text, View, StyleSheet} from 'react-native';
 import {AuthColors} from '../../constants/authTheme';
+import Textstyles from '../../utils/text';
 
 export default function CustomCheckbox({label, value, onChange, disabled = false}) {
   return (
@@ -40,10 +41,11 @@ const styles = StyleSheet.create({
   check: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    ...Textstyles.heading,
   },
   label: {
     color: AuthColors.text,
     fontSize: 14,
+    ...Textstyles.medium,
   },
 });

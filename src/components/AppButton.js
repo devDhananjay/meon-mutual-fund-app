@@ -3,6 +3,7 @@ import {TouchableOpacity, Text, StyleSheet, ActivityIndicator} from 'react-nativ
 import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
 import {shadows} from '../theme/shadows';
+import Textstyles from '../utils/text';
 
 export default function AppButton({
   title,
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.65,
   },
-  txt: {fontSize: 16, fontWeight: '700'},
+  txt: {...Textstyles.heading, fontSize: 16},
   primaryTxt: {color: AppColors.white},
   secondaryTxt: {color: AppColors.textPrimary},
 });

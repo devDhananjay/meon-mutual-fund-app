@@ -18,6 +18,7 @@ import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navi
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 import {
   authenticateOrder,
   createCancelOrder,
@@ -593,11 +594,11 @@ export default function OrderDetailScreen() {
             <View style={styles.summaryIconWrap}>
               {cat === 'success' ? (
                 <View style={[styles.statusCircle, styles.statusCircleOk]}>
-                  <Text style={styles.statusIconTxt}>✓</Text>
+                  <Image source={Icons.checkIcons} style={styles.statusIconImg} resizeMode="contain" />
                 </View>
               ) : cat === 'failed' ? (
                 <View style={[styles.statusCircle, styles.statusCircleFail]}>
-                  <Text style={styles.statusIconTxt}>✕</Text>
+                  <Image source={Icons.CnacelIcon} style={styles.statusIconImg} resizeMode="contain" />
                 </View>
               ) : (
                 <View style={[styles.statusCircle, styles.statusCirclePending]}>
@@ -1033,6 +1034,7 @@ const styles = StyleSheet.create({
   statusCircleFail: {backgroundColor: '#FEE2E2'},
   statusCirclePending: {backgroundColor: '#FEF3C7'},
   statusIconTxt: {fontSize: 22, fontWeight: '500', color: '#15803D'},
+  statusIconImg: {width: 22, height: 22},
   clockTxt: {fontSize: 22},
   fundCard: {
     flexDirection: 'row',

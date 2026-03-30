@@ -1,5 +1,5 @@
 import React, {useCallback, useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, StatusBar, KeyboardAvoidingView, Platform, ScrollView} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {CommonActions, useNavigation} from '@react-navigation/native';
 import {useDispatch} from 'react-redux';
@@ -10,6 +10,8 @@ import AuthBrand from '../../components/auth/AuthBrand';
 import {navigationRef} from '../../navigation/navigationRef';
 import {clearAuthStorage} from '../../services/authStorage';
 import {logout} from '../../store/slices/authSlice';
+import Icons from '../../utils/icons';
+import Textstyles from '../../utils/text';
 
 export default function ForgotPassword() {
   const navigation = useNavigation();
@@ -59,7 +61,7 @@ export default function ForgotPassword() {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
             hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-            <Text style={styles.backArrow}>‹</Text>
+            <Image source={Icons.BackIcon} style={styles.backArrowImg} resizeMode="contain" />
           </TouchableOpacity>
           <Text style={styles.title}>Forgot Password?</Text>
           <Text style={styles.subtitle}>
@@ -110,22 +112,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  backArrow: {
-    fontSize: 30,
-    color: AuthColors.text,
-    fontWeight: '400',
+  backArrowImg: {
+    width: 18,
+    height: 18,
   },
   brandWrap: {
     alignItems: 'center',
     marginBottom: 14,
   },
   title: {
+    ...Textstyles.heading,
     fontSize: 24,
     color: AuthColors.text,
     fontWeight: '700',
     marginBottom: 12,
   },
   subtitle: {
+    ...Textstyles.normal,
     fontSize: 14,
     color: AuthColors.subText,
     lineHeight: 21,

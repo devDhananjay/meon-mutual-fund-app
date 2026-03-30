@@ -1,19 +1,21 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppColors from '../theme/colors';
+import Icons from '../utils/icons';
+import Textstyles from '../utils/text';
 
 export default function AppHeader({title, onBack, right, subtitle}) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.wrap, {paddingTop: insets.top + 8}]}>
+    <View style={[styles.wrap, {paddingTop: insets.top + 4}]}>
       <View style={styles.row}>
         <TouchableOpacity
           onPress={onBack}
           hitSlop={12}
           style={[styles.side, !onBack && styles.sideHidden]}
           disabled={!onBack}>
-          <Text style={styles.back}>{onBack ? '‹' : ''}</Text>
+          {onBack ? <Image source={Icons.BackIcon} style={styles.backImg} resizeMode="contain" /> : null}
         </TouchableOpacity>
         <View style={styles.center}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -29,13 +31,13 @@ const styles = StyleSheet.create({
   wrap: {
     backgroundColor: AppColors.background,
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
   row: {flexDirection: 'row', alignItems: 'center'},
   side: {width: 44, alignItems: 'center', justifyContent: 'center'},
   sideHidden: {opacity: 0},
-  back: {fontSize: 30, color: AppColors.textPrimary, lineHeight: 30},
+  backImg: {width: 18, height: 18, tintColor: AppColors.textPrimary},
   center: {flex: 1, alignItems: 'center', paddingHorizontal: 6},
-  title: {fontSize: 18, fontWeight: '700', color: AppColors.textPrimary},
-  subtitle: {fontSize: 12, color: AppColors.textSecondary, marginTop: 2},
+  title: {...Textstyles.heading, fontSize: 18, color: AppColors.textPrimary},
+  subtitle: {...Textstyles.medium, fontSize: 12, color: AppColors.textSecondary, marginTop: 2},
 });

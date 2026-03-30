@@ -26,6 +26,7 @@ import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
+import Icons from '../../utils/icons';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -224,93 +225,104 @@ export default function DashboardScreen() {
           <Text style={styles.searchIcon}>⌕</Text>
           <Text style={[Textstyles.normal, styles.searchPlaceholder]}>Search mutual funds...</Text>
         </TouchableOpacity>
+      </View>
+    ),
+    [firstName, headerPadTop, navigation],
+  );
 
-        <View style={styles.holdingsCard}>
-          <View style={styles.holdingsHeaderRow}>
-            <View>
-              <Text style={[Textstyles.normal, styles.holdingsLabel]}>Holdings ({holdings.length})</Text>
-              <Text style={[Textstyles.medium, styles.holdingsBig]}>
-                {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
+  const holdingsCard = useMemo(
+    () => (
+      <View style={styles.holdingsCard}>
+        <View style={styles.holdingsHeaderRow}>
+          <View>
+            <Text style={[Textstyles.normal, styles.holdingsLabel]}>Holdings ({holdings.length})</Text>
+            <Text style={[Textstyles.medium, styles.holdingsBig]}>
+              {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
+            </Text>
+          </View>
+
+          <View style={styles.holdingsIcons}>
+            <TouchableOpacity
+              onPress={refetch}
+              style={styles.iconCircle}
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              activeOpacity={0.75}>
+              {refreshing ? (
+                <ActivityIndicator size="small" color={Colors.themeBlue} />
+              ) : (
+                <Image
+                  source={Icons.RefreshIcon}
+                  style={styles.refreshIconImg}
+                  resizeMode="contain"
+                />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setHoldingVisible(v => !v)}
+              style={styles.iconCircle}
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              activeOpacity={0.75}>
+              {holdingVisible ? (
+                <Image source={Icons.EyeIcon} style={styles.eyeIconImg} resizeMode="contain" />
+              ) : (
+                <Image source={Icons.threeDots} style={styles.eyeIconImg} resizeMode="contain" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {holdingVisible && (
+          <View style={styles.statsCol}>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>1D Returns</Text>
+              <Text
+                style={[
+                  Textstyles.medium,
+                  styles.statValue,
+                  Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
+                ]}>
+                {formatSignedInr(portfolio?.one_day_return)} ({formatAbsPct(portfolio?.one_day_return_per)})
               </Text>
             </View>
 
-            <View style={styles.holdingsIcons}>
-              <TouchableOpacity
-                onPress={refetch}
-                style={styles.iconCircle}
-                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-                activeOpacity={0.75}>
-                {refreshing ? (
-                  <ActivityIndicator size="small" color={Colors.themeBlue} />
-                ) : (
-                  <Text style={styles.iconCircleTxt}>⟳</Text>
-                )}
-              </TouchableOpacity>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Total Returns</Text>
+              <Text
+                style={[
+                  Textstyles.medium,
+                  styles.statValue,
+                  Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
+                ]}>
+                {formatSignedInr(portfolio?.total_return)} ({formatAbsPct(portfolio?.total_return_per)})
+              </Text>
+            </View>
 
-              <TouchableOpacity
-                onPress={() => setHoldingVisible(v => !v)}
-                style={styles.iconCircle}
-                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-                activeOpacity={0.75}>
-                <Text style={styles.iconCircleTxt}>{holdingVisible ? '👁' : '•••'}</Text>
-              </TouchableOpacity>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Invested</Text>
+              <Text style={[Textstyles.medium, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
+            </View>
+
+            <View style={styles.statRow}>
+              <View style={styles.xirrLabelRow}>
+                <Text style={styles.statLabel}>XIRR</Text>
+                <Text style={styles.caretDown}>⌄</Text>
+              </View>
+              <Text style={[Textstyles.medium, styles.statValue]}>
+                {portfolio?.XIRR != null ? `${Number(portfolio.XIRR).toFixed(2)}%` : '—'}
+              </Text>
             </View>
           </View>
-
-          {holdingVisible && (
-            <View style={styles.statsCol}>
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>1D Returns</Text>
-                <Text
-                  style={[
-                    Textstyles.medium,
-                    styles.statValue,
-                    Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
-                  ]}>
-                  {formatSignedInr(portfolio?.one_day_return)} ({formatAbsPct(portfolio?.one_day_return_per)})
-                </Text>
-              </View>
-
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Total Returns</Text>
-                <Text
-                  style={[
-                    Textstyles.medium,
-                    styles.statValue,
-                    Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
-                  ]}>
-                  {formatSignedInr(portfolio?.total_return)} ({formatAbsPct(portfolio?.total_return_per)})
-                </Text>
-              </View>
-
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Invested</Text>
-                <Text style={[Textstyles.medium, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
-              </View>
-
-              <View style={styles.statRow}>
-                <View style={styles.xirrLabelRow}>
-                  <Text style={styles.statLabel}>XIRR</Text>
-                  <Text style={styles.caretDown}>⌄</Text>
-                </View>
-                <Text style={[Textstyles.medium, styles.statValue]}>
-                  {portfolio?.xirr != null ? `${Number(portfolio.xirr).toFixed(2)}%` : '—'}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
+        )}
       </View>
     ),
     [
-      firstName,
-      headerPadTop,
       holdings.length,
       holdingVisible,
-      navigation,
       portfolio,
       refreshing,
       refetch,
+      setHoldingVisible,
     ],
   );
 
@@ -342,7 +354,7 @@ export default function DashboardScreen() {
 
   if (isPending && !refreshing) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
@@ -358,7 +370,7 @@ export default function DashboardScreen() {
   const modalInvested = modalFund?.amount;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
       {error ? (
         <View style={styles.errorBanner}>
@@ -369,11 +381,14 @@ export default function DashboardScreen() {
         </View>
       ) : null}
 
+      {listHeader}
+
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.themeBlue} />}
         showsVerticalScrollIndicator={false}>
-        {listHeader}
+        {holdingsCard}
 
         <View style={styles.stocksCard}>
           <TouchableOpacity style={styles.listHeaderRow} activeOpacity={0.85} onPress={cycleSortMode}>
@@ -407,6 +422,7 @@ export default function DashboardScreen() {
           <View style={styles.importWrap}>
             <TouchableOpacity
               style={styles.importBtn}
+              disabled={true}
               onPress={() => navigation.navigate('Explore')}
               activeOpacity={0.85}>
               <View style={styles.importLeft}>
@@ -472,7 +488,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: Colors.WHITE},
+  safe: {flex: 1, backgroundColor: Colors.offWhite},
   loadingBox: {
     flex: 1,
     justifyContent: 'center',
@@ -503,11 +519,13 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 32,
   },
+  scrollView: {flex: 1},
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   headerBlock: {
     paddingHorizontal: 16,
+    backgroundColor: Colors.offWhite,
   },
   topRow: {
     flexDirection: 'row',
@@ -551,6 +569,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 14,
     padding: 16,
+    marginHorizontal: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
@@ -576,7 +595,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.white,
   },
-  iconCircleTxt: {fontSize: 18, color: Colors.TEXT_PRIMARY, lineHeight: 22},
+  iconCircleTxt: {fontSize: 30, color: Colors.TEXT_PRIMARY, lineHeight: 22},
+  refreshIconImg: {width: 20, height: 20},
+  eyeIconImg: {width: 22, height: 22},
   holdingsLabel: {fontSize: 14, color: Colors.GREY},
   holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 2},
   statsCol: {marginTop: 10},
@@ -733,7 +754,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 0.8,
     borderColor: '#E1E5EA',
@@ -758,20 +779,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    gap: 12,
+    gap: 14,
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    marginBottom: 24,
+    borderColor: '#EBECED',
+    marginBottom: 0,
   },
-  sipEmoji: {width: 40, height: 40},
+  sipEmoji: {width: 38, justifyContent: 'center', alignItems: 'center', top: 25, height: 38},
   sipTextCol: {flex: 1},
   sipTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#22C55E',
+    backgroundColor: Colors.themeBlue,
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingHorizontal: 18,
+    borderRadius: 10,
   },
   sipButtonText: {color: Colors.white, fontSize: 15},
 });

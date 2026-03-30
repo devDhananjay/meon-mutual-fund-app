@@ -1,21 +1,36 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {Text, View, StyleSheet} from 'react-native';
+import {Text, View, StyleSheet, Image} from 'react-native';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import ExplorePixelPerfectScreen from '../screens/Explore/ExplorePixelPerfectScreen';
 import MyFoliosScreen from '../screens/MyFolios/MyFoliosScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import {Colors} from '../utils/AppConstant';
+import Icons from '../utils/icons';
 
 const Tab = createBottomTabNavigator();
 
-function tabIcon(emoji) {
+function tabIcon(tabKey) {
   return function TabBarIcon({focused}) {
+    const source =
+      tabKey === 'Dashboard'
+        ? focused
+          ? Icons.TabHomeDark
+          : Icons.TabHomeGrey
+        : tabKey === 'Explore'
+          ? focused
+            ? Icons.TabExploreDark
+            : Icons.TabExploreGrey
+          : tabKey === 'MyFolios'
+            ? focused
+              ? Icons.TabMyFoliosDark
+              : Icons.TabMyFoliosGrey
+            : focused
+              ? Icons.TabProfileDark
+              : Icons.TabProfileGrey;
     return (
       <View style={styles.tabIconWrap}>
-        <Text style={[styles.tabIconTxt, focused && styles.tabIconTxtOn]} allowFontScaling={false}>
-          {emoji}
-        </Text>
+        <Image source={source} style={styles.tabIconImg} resizeMode="contain" />
         {focused ? <View style={styles.tabIndicator} /> : <View style={styles.tabIndicatorOff} />}
       </View>
     );
@@ -49,7 +64,7 @@ export default function MainTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: tabIcon('\u{1F3E0}'),
+          tabBarIcon: tabIcon('Dashboard'),
         }}
       />
       <Tab.Screen
@@ -57,7 +72,7 @@ export default function MainTabNavigator() {
         component={ExplorePixelPerfectScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: tabIcon('\u{1F50D}'),
+          tabBarIcon: tabIcon('Explore'),
         }}
       />
       <Tab.Screen
@@ -65,7 +80,7 @@ export default function MainTabNavigator() {
         component={MyFoliosScreen}
         options={{
           tabBarLabel: 'My Folios',
-          tabBarIcon: tabIcon('\u{1F4BC}'),
+          tabBarIcon: tabIcon('MyFolios'),
         }}
       />
       <Tab.Screen
@@ -73,7 +88,7 @@ export default function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: tabIcon('\u{1F464}'),
+          tabBarIcon: tabIcon('Profile'),
         }}
       />
     </Tab.Navigator>
@@ -82,8 +97,7 @@ export default function MainTabNavigator() {
 
 const styles = StyleSheet.create({
   tabIconWrap: {alignItems: 'center', justifyContent: 'center'},
-  tabIconTxt: {fontSize: 20, opacity: 0.45},
-  tabIconTxtOn: {opacity: 1},
+  tabIconImg: {width: 22, height: 22, marginTop: 2},
   tabIndicator: {
     marginTop: 6,
     width: 22,

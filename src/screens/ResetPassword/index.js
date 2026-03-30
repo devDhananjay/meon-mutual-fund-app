@@ -6,6 +6,7 @@ import {AuthColors, AuthSpacing} from '../../constants/authTheme';
 import AuthBrand from '../../components/auth/AuthBrand';
 import CustomInput from '../../components/auth/CustomInput';
 import CustomButton from '../../components/auth/CustomButton';
+import Textstyles from '../../utils/text';
 
 export default function ResetPassword() {
   const navigation = useNavigation();
@@ -118,12 +119,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
+    ...Textstyles.heading,
     fontSize: 24,
     color: AuthColors.text,
     fontWeight: '700',
     marginBottom: 8,
   },
   subtitle: {
+    ...Textstyles.normal,
     fontSize: 14,
     color: AuthColors.subText,
     lineHeight: 20,

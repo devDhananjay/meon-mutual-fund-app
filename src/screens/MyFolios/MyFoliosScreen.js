@@ -239,24 +239,23 @@ export default function MyFoliosScreen() {
     [onOpenFund, onInvestMore],
   );
 
+  const tabHeader = useMemo(() => <AppTabHeader title="My Folios" />, []);
+
   const listHeader = useMemo(
     () => (
-      <View>
-        <AppTabHeader title="My Folios" />
-        <View style={styles.searchOuter}>
-          <View style={styles.searchCard}>
-            <Text style={styles.searchIcon}>⌕</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search orders..."
-              placeholderTextColor={Colors.GREY}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+      <View style={styles.searchOuter}>
+        <View style={styles.searchCard}>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search orders..."
+            placeholderTextColor={Colors.GREY}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
         </View>
       </View>
     ),
@@ -265,7 +264,7 @@ export default function MyFoliosScreen() {
 
   if (isPending && !refreshing) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
@@ -276,7 +275,7 @@ export default function MyFoliosScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
       {error ? (
         <View style={styles.errorBanner}>
@@ -286,6 +285,8 @@ export default function MyFoliosScreen() {
           </TouchableOpacity>
         </View>
       ) : null}
+
+      <View style={styles.fixedHeaderWrap}>{tabHeader}</View>
 
       <SectionList
         sections={sections}
@@ -312,6 +313,7 @@ export default function MyFoliosScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
+        style={styles.sectionList}
       />
     </SafeAreaView>
   );
@@ -319,9 +321,10 @@ export default function MyFoliosScreen() {
 
 const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: PAGE_BG},
+  fixedHeaderWrap: {backgroundColor: PAGE_BG},
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingTxt: {marginTop: 12, color: Colors.GREY},
-  searchOuter: {paddingHorizontal: 16, marginTop: 16, marginBottom: 8},
+  searchOuter: {paddingHorizontal: 16, marginTop: 12, marginBottom: 8},
   searchCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -342,6 +345,7 @@ const styles = StyleSheet.create({
   searchIcon: {fontSize: 16, color: Colors.GREY, marginRight: 8},
   searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
+  sectionList: {flex: 1},
   sectionHead: {
     paddingTop: 12,
     paddingBottom: 8,

@@ -1,7 +1,9 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
 import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
+import Icons from '../utils/icons';
+import Textstyles from '../utils/text';
 
 const CONNECTOR_DOTS = 6;
 const DOT_SIZE = 3;
@@ -51,9 +53,9 @@ export default function StatusTimeline({
                       : styles.tlDotPending,
               ]}>
               {step.done ? (
-                <Text style={styles.tlCheck}>✓</Text>
+                <Image source={Icons.checkIcons} style={styles.tlCheckIcon} resizeMode="contain" />
               ) : step.cancelled || step.failed ? (
-                <Text style={styles.tlCheck}>✕</Text>
+                <Image source={Icons.CnacelIcon} style={styles.tlCheckIcon} resizeMode="contain" />
               ) : step.continueButton ? (
                 <Text style={styles.tlClock}>⏱</Text>
               ) : null}
@@ -138,12 +140,13 @@ const styles = StyleSheet.create({
   tlDotDone: {backgroundColor: '#22C55E', borderColor: '#22C55E'},
   tlDotFail: {backgroundColor: '#EF4444', borderColor: '#EF4444'},
   tlDotContinue: {backgroundColor: '#F59E0B', borderColor: '#F59E0B'},
+  tlCheckIcon: {width: 14, height: 14},
   tlDotPending: {backgroundColor: AppColors.white, borderColor: '#D1D5DB'},
-  tlCheck: {color: AppColors.white, fontSize: 11, fontWeight: '600'},
-  tlClock: {color: AppColors.white, fontSize: 10, fontWeight: '600'},
+  tlCheck: {...Textstyles.medium, color: AppColors.white, fontSize: 11, fontWeight: '600'},
+  tlClock: {...Textstyles.medium, color: AppColors.white, fontSize: 10, fontWeight: '600'},
   tlBody: {flex: 1, paddingLeft: 8, paddingBottom: 12},
-  tlTitle: {fontSize: 15, fontWeight: '600', color: AppColors.textPrimary},
-  tlTime: {fontSize: 12, color: AppColors.textSecondary, marginTop: 4},
+  tlTitle: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: AppColors.textPrimary},
+  tlTime: {...Textstyles.normal, fontSize: 12, color: AppColors.textSecondary, marginTop: 4},
   tlActionWrap: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
@@ -161,7 +164,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     marginRight: 10,
   },
-  cancelTxt: {fontSize: 13, color: '#374151', fontWeight: '600'},
+  cancelTxt: {...Textstyles.medium, fontSize: 13, color: '#374151', fontWeight: '600'},
   continueBtn: {
     backgroundColor: '#22C55E',
     borderRadius: 10,
@@ -169,5 +172,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
   },
-  continueTxt: {fontSize: 13, color: AppColors.white, fontWeight: '700'},
+  continueTxt: {...Textstyles.heading, fontSize: 13, color: AppColors.white, fontWeight: '700'},
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import {TouchableOpacity, Text, StyleSheet, ActivityIndicator} from 'react-native';
 import {AuthColors} from '../../constants/authTheme';
+import Textstyles from '../../utils/text';
 
 export default function CustomButton({
   title,
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    fontWeight: '700',
+    ...Textstyles.heading,
   },
   primaryText: {
     color: '#FFFFFF',

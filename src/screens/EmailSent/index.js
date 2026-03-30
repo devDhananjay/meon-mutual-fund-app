@@ -1,10 +1,12 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, StatusBar} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, StatusBar, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {AuthColors, AuthSpacing} from '../../constants/authTheme';
 import AuthBrand from '../../components/auth/AuthBrand';
 import CustomButton from '../../components/auth/CustomButton';
+import Icons from '../../utils/icons';
+import Textstyles from '../../utils/text';
 
 export default function EmailSent() {
   const navigation = useNavigation();
@@ -21,9 +23,9 @@ export default function EmailSent() {
 
         <View style={styles.iconWrapper}>
           <View style={styles.envelopeCircle}>
-            <Text style={styles.envelopeIcon}>✉</Text>
+            <Image source={Icons.EmailSend} style={styles.envelopeIcon} resizeMode="contain" />
             <View style={styles.checkBadge}>
-              <Text style={styles.checkBadgeText}>✓</Text>
+              <Image source={Icons.checkIcons} style={styles.checkBadgeIcon} resizeMode="contain" />
             </View>
           </View>
         </View>
@@ -68,8 +70,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   envelopeIcon: {
-    fontSize: 42,
-    color: '#FFFFFF',
+    width: 42,
+    height: 42,
   },
   checkBadge: {
     position: 'absolute',
@@ -82,18 +84,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  checkBadgeIcon: {
+    width: 18,
+    height: 18,
   },
   title: {
+    ...Textstyles.heading,
     fontSize: 24,
     color: AuthColors.text,
     fontWeight: '700',
     marginBottom: 12,
   },
   message: {
+    ...Textstyles.normal,
     fontSize: 14,
     color: AuthColors.subText,
     textAlign: 'center',
@@ -103,6 +106,7 @@ const styles = StyleSheet.create({
   },
   actionWrap: {width: '100%', maxWidth: 320},
   resetNowLink: {
+    ...Textstyles.medium,
     marginTop: 14,
     fontSize: 14,
     color: AuthColors.primary,

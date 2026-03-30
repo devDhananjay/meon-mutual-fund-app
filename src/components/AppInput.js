@@ -2,6 +2,7 @@ import React, {useMemo, useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet} from 'react-native';
 import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
+import Textstyles from '../utils/text';
 
 export default function AppInput({
   label,
@@ -43,7 +44,7 @@ export default function AppInput({
 
 const styles = StyleSheet.create({
   wrap: {marginBottom: 14},
-  label: {fontSize: 14, fontWeight: '600', color: AppColors.textPrimary, marginBottom: 8},
+  label: {...Textstyles.medium, fontSize: 14, color: AppColors.textPrimary, marginBottom: 8},
   row: {
     minHeight: 50,
     borderRadius: radius.input,
@@ -57,6 +58,6 @@ const styles = StyleSheet.create({
   rowFocus: {borderColor: AppColors.primary},
   rowErr: {borderColor: AppColors.danger},
   input: {flex: 1, fontSize: 16, color: AppColors.textPrimary, paddingVertical: 10},
-  toggle: {fontSize: 13, fontWeight: '600', color: AppColors.primary},
-  error: {marginTop: 6, marginLeft: 2, fontSize: 12, color: AppColors.danger},
+  toggle: {...Textstyles.medium, fontSize: 13, color: AppColors.primary},
+  error: {...Textstyles.normal, marginTop: 6, marginLeft: 2, fontSize: 12, color: AppColors.danger},
 });

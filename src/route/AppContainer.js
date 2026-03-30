@@ -1,4 +1,5 @@
 import React from 'react';
+import {StyleSheet} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {navigationRef} from '../navigation/navigationRef';
@@ -25,9 +26,13 @@ import DeleteAccountScreen from '../screens/Profile/DeleteAccountScreen';
 
 const Stack = createNativeStackNavigator();
 
+const navStyles = StyleSheet.create({
+  flex: {flex: 1},
+});
+
 export default function AppContainer() {
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} style={navStyles.flex}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

@@ -2,6 +2,7 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -21,6 +22,7 @@ import {logout} from '../../store/slices/authSlice';
 import {clearAuthStorage} from '../../services/authStorage';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
@@ -90,14 +92,18 @@ function SectionCard({title, children}) {
   );
 }
 
-function ProfileRow({emoji, label, onPress, isLast, destructive}) {
+function ProfileRow({icon, emoji, label, onPress, isLast, destructive}) {
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && styles.rowBorder]}
       onPress={onPress}
       activeOpacity={0.65}>
       <View style={styles.rowIconWrap}>
-        <Text style={styles.rowEmoji}>{emoji}</Text>
+        {icon ? (
+          <Image source={icon} style={styles.rowIconImg} resizeMode="contain" />
+        ) : (
+          <Text style={styles.rowEmoji}>{emoji}</Text>
+        )}
       </View>
       <Text style={[Textstyles.medium, styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
       <Text style={styles.chevron}>›</Text>
@@ -199,20 +205,20 @@ export default function ProfileScreen() {
         </View>
 
         <SectionCard title="Accounts">
-          <ProfileRow emoji="📦" label="My Orders" onPress={onOrders} />
-          <ProfileRow emoji="🔄" label="Mandate" onPress={onMandate} />
-          <ProfileRow emoji="🔖" label="My Watchlist" onPress={onWatchlist} />
-          <ProfileRow emoji="🌐" label="Choose Language" onPress={onLanguage} />
-          <ProfileRow emoji="🔒" label="Change Password" onPress={onForgotPassword} isLast />
+          <ProfileRow icon={Icons.MyOrdersIcon} label="My Orders" onPress={onOrders} />
+          <ProfileRow icon={Icons.MandateIcon} label="Mandate" onPress={onMandate} />
+          <ProfileRow icon={Icons.MyWatchlistIcon} label="My Watchlist" onPress={onWatchlist} />
+          {/* <ProfileRow emoji="🌐" label="Choose Language" onPress={onLanguage} /> */}
+          <ProfileRow icon={Icons.ChangePasswordIcon} label="Change Password" onPress={onForgotPassword} isLast />
         </SectionCard>
 
         <SectionCard title="Support & Legal">
-          <ProfileRow emoji="❔" label={"FAQ's"} onPress={() => onSupportArticle('faq')} />
-          <ProfileRow emoji="💬" label="Help & Support" onPress={() => onSupportArticle('help')} />
-          <ProfileRow emoji="🛡️" label="Privacy Policy" onPress={() => onSupportArticle('privacy')} />
-          <ProfileRow emoji="📄" label="Terms and Conditions" onPress={() => onSupportArticle('terms')} />
+          <ProfileRow icon={Icons.FaqIcon} label={"FAQ's"} onPress={() => onSupportArticle('faq')} />
+          <ProfileRow icon={Icons.HelpSupportIcon} label="Help & Support" onPress={() => onSupportArticle('help')} />
+          <ProfileRow icon={Icons.PrivacyPolicyIcon} label="Privacy Policy" onPress={() => onSupportArticle('privacy')} />
+          <ProfileRow icon={Icons.TermsAndConditionsIcon} label="Terms and Conditions" onPress={() => onSupportArticle('terms')} />
           <ProfileRow
-            emoji="🗑️"
+            icon={Icons.deleteIcon}
             label="Delete account"
             onPress={onDeleteAccount}
             destructive
@@ -229,7 +235,7 @@ export default function ProfileScreen() {
             <ActivityIndicator color={Colors.themeRed} />
           ) : (
             <>
-              <Text style={styles.logoutIcon}>🚪</Text>
+              <Image source={Icons.LogoutIcon} style={styles.logoutIconImg} resizeMode="contain" />
               <Text style={styles.logoutText}>Logout</Text>
             </>
           )}
@@ -316,6 +322,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   rowEmoji: {fontSize: 20},
+  rowIconImg: {width: 20, height: 20},
   rowLabel: {flex: 1, fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   rowLabelDestructive: {color: '#DC2626'},
   chevron: {fontSize: 18, color: '#9CA3AF', fontWeight: '300'},
@@ -329,6 +336,6 @@ const styles = StyleSheet.create({
     borderColor: CARD_BORDER,
     paddingVertical: 16,
   },
-  logoutIcon: {fontSize: 18, marginRight: 8},
+  logoutIconImg: {width: 20, height: 20, marginRight: 8},
   logoutText: {fontSize: 16, fontWeight: '500', color: '#EF4444'},
 });

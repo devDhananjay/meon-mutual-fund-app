@@ -4,7 +4,7 @@
  */
 
 import React, {useEffect} from 'react';
-import {StyleSheet} from 'react-native';
+import {StyleSheet, LogBox} from 'react-native';
 import {Provider, useDispatch} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -38,6 +38,10 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  useEffect(() => {
+    LogBox.ignoreAllLogs();
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>

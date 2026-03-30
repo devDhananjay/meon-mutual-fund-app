@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
+import Textstyles from '../utils/text';
 
 export default function AppModal({
   visible,
@@ -105,11 +106,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
+    ...Textstyles.heading,
     fontSize: 18,
-    fontWeight: '600',
     color: AppColors.textPrimary,
   },
   subtitle: {
+    ...Textstyles.medium,
     marginTop: 6,
     marginBottom: 4,
     color: AppColors.textSecondary,
@@ -133,6 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cancelText: {
+    ...Textstyles.medium,
     color: '#6B7280',
     fontSize: 15,
     fontWeight: '500',
@@ -147,5 +150,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   applyBtnDisabled: {opacity: 0.65},
-  applyText: {color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
+  applyText: {...Textstyles.medium, color: '#FFFFFF', fontSize: 15, fontWeight: '500'},
 });

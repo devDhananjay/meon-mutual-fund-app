@@ -1,6 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet} from 'react-native';
 import {AuthColors} from '../../constants/authTheme';
+import Textstyles from '../../utils/text';
 
 export default function CustomInput({
   label,
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 14,
     color: AuthColors.text,
-    fontWeight: '600',
+    ...Textstyles.medium,
   },
   inputRow: {
     minHeight: 50,
@@ -101,12 +102,13 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 13,
     color: AuthColors.primary,
-    fontWeight: '600',
+    ...Textstyles.medium,
   },
   errorText: {
     fontSize: 12,
     color: AuthColors.error,
     marginTop: 6,
     marginLeft: 2,
+    ...Textstyles.normal,
   },
 });

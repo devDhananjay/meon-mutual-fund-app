@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
@@ -8,6 +8,7 @@ import {navigateToCart, navigateToNotifications} from '../navigation/navigationR
 import Textstyles from '../utils/text';
 import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
+import Icons from '../utils/icons';
 
 /**
  * Bell + cart cluster — same behaviour on Dashboard, Explore, My Folios.
@@ -24,8 +25,7 @@ export function HeaderActionCluster() {
         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
         activeOpacity={0.75}
         accessibilityLabel="Notifications">
-        <Text style={styles.headerIconTxt}>🔔</Text>
-        <View style={styles.notifDot} />
+        <Image source={Icons.NotificationsIcon} style={styles.headerIconImg} resizeMode="contain" />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerIconBtn}
@@ -33,7 +33,7 @@ export function HeaderActionCluster() {
         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
         activeOpacity={0.75}
         accessibilityLabel="Cart">
-        <Text style={styles.headerIconTxt}>🛒</Text>
+        <Image source={Icons.CartIcon} style={styles.headerIconImg} resizeMode="contain" />
         {cartCount > 0 ? (
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerIconTxt: {fontSize: 20},
+  headerIconImg: {width: 22, height: 22},
   notifDot: {
     position: 'absolute',
     top: 8,

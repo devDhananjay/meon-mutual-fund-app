@@ -1,6 +1,7 @@
 import React from 'react';
 import {TouchableOpacity, View, Text, StyleSheet} from 'react-native';
 import AppColors from '../theme/colors';
+import Textstyles from '../utils/text';
 
 export default function AppCheckbox({label, value, onChange, disabled = false}) {
   return (
@@ -25,6 +26,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   checked: {borderColor: AppColors.primary, backgroundColor: AppColors.primary},
-  tick: {color: AppColors.white, fontSize: 12, fontWeight: '700'},
-  label: {fontSize: 14, color: AppColors.textPrimary},
+  tick: {...Textstyles.heading, color: AppColors.white, fontSize: 12},
+  label: {...Textstyles.medium, fontSize: 14, color: AppColors.textPrimary},
 });

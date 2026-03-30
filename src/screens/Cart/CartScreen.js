@@ -19,6 +19,8 @@ import {
 } from '../../services/ordersService';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
+import AppHeader from '../../components/AppHeader';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
@@ -121,7 +123,7 @@ function CartLineItem({item, onRemove, onChangeAmount, onToggleSip}) {
       {item.isSIP && item.mandateLabel ? <Text style={styles.sipMeta}>Mandate: {item.mandateLabel}</Text> : null}
 
       <TouchableOpacity style={styles.removeRow} onPress={() => onRemove(item.fund.scheme_code)} hitSlop={12}>
-        <Text style={styles.removeTxt}>Remove</Text>
+        <Image source={Icons.deleteIcon} style={styles.removeTxt} resizeMode="contain" />
       </TouchableOpacity>
     </View>
   );
@@ -265,7 +267,6 @@ export default function CartScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <Text style={styles.pageTitle}>My cart</Text>
         <Text style={styles.pageSub}>
           Review your order before checkout. You can switch Lumpsum / SIP and adjust amounts.
         </Text>
@@ -280,12 +281,15 @@ export default function CartScreen() {
               <Text style={styles.summaryLabel}>Estimated total</Text>
               <Text style={styles.summaryTotal}>{formatInr(total)}</Text>
             </View>
+            <TouchableOpacity onPress={onClearAll} activeOpacity={0.8} style={styles.clearLink}>
+              <Text style={styles.clearLinkTxt}>Clear cart</Text>
+            </TouchableOpacity>
             <Text style={styles.summaryHint}>Taxes and charges may apply at checkout (same as web).</Text>
           </View>
         ) : null}
       </View>
     ),
-    [items.length, total],
+    [items.length, total, onClearAll],
   );
 
   const renderItem = useCallback(
@@ -296,92 +300,68 @@ export default function CartScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.toolbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Text style={styles.back}>‹ Back</Text>
-        </TouchableOpacity>
-        <View style={styles.toolbarMid}>
-          <Text style={[Textstyles.heading, styles.toolbarTitle]}>Cart</Text>
-          {items.length > 0 ? (
-            <View style={[styles.badge, styles.badgeMargin]}>
-              <Text style={styles.badgeTxt}>{items.length}</Text>
-            </View>
-          ) : null}
-        </View>
-        {items.length > 0 ? (
-          <TouchableOpacity onPress={onClearAll} hitSlop={12}>
-            <Text style={styles.clearAll}>Clear</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.toolbarSpacer} />
-        )}
-      </View>
-
-      <FlatList
-        data={items}
-        keyExtractor={item => item.id}
-        ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyEmoji}>🛒</Text>
-              <Text style={[Textstyles.medium, styles.emptyTitle]}>Your cart is empty</Text>
-              <Text style={[Textstyles.normal, styles.emptySub]}>
-                Add funds from Explore or open a fund and tap &quot;Add to cart&quot;.
-              </Text>
-              <TouchableOpacity style={styles.exploreBtn} onPress={() => navigation.navigate('Explore')} activeOpacity={0.9}>
-                <Text style={[Textstyles.medium, styles.exploreBtnTxt]}>Explore funds</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        }
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <AppHeader
+        title="Cart"
+        onBack={() => navigation.goBack()}
       />
 
-      {items.length > 0 ? (
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
-            <Text style={styles.footerLabel}>Total</Text>
-            <Text style={styles.footerTotal}>{formatInr(total)}</Text>
+      <View style={styles.pageBody}>
+        <FlatList
+          style={styles.list}
+          data={items}
+          keyExtractor={item => item.id}
+          ListHeaderComponent={listHeader}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <View style={styles.emptyCard}>
+                <Image source={Icons.EmptyCart} style={styles.emptyImg} resizeMode="contain" />
+                <Text style={[Textstyles.medium, styles.emptyTitle]}>Your cart is empty</Text>
+                <Text style={[Textstyles.normal, styles.emptySub]}>
+                  Add funds from Explore or open a fund and tap &quot;Add to cart&quot;.
+                </Text>
+                <TouchableOpacity style={styles.exploreBtn} onPress={() => navigation.navigate('Explore')} activeOpacity={0.9}>
+                  <Text style={[Textstyles.medium, styles.exploreBtnTxt]}>Explore funds</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          }
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {items.length > 0 ? (
+          <View style={styles.footer}>
+            <View style={styles.footerRow}>
+              <Text style={styles.footerLabel}>Total</Text>
+              <Text style={styles.footerTotal}>{formatInr(total)}</Text>
+            </View>
+            {pendingOrderId ? (
+              <TouchableOpacity style={styles.checkout} onPress={onAuthenticateAndContinue} activeOpacity={0.9} disabled={authLoading}>
+                <Text style={[Textstyles.medium, styles.checkoutTxt]}>
+                  {authLoading ? 'Authenticating...' : 'Authenticate & Continue'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.checkout} onPress={onCheckout} activeOpacity={0.9} disabled={checkoutLoading}>
+                <Text style={[Textstyles.medium, styles.checkoutTxt]}>
+                  {checkoutLoading ? 'Placing order...' : 'Proceed to checkout'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {pendingOrderId ? (
-            <TouchableOpacity style={styles.checkout} onPress={onAuthenticateAndContinue} activeOpacity={0.9} disabled={authLoading}>
-              <Text style={[Textstyles.medium, styles.checkoutTxt]}>
-                {authLoading ? 'Authenticating...' : 'Authenticate & Continue'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.checkout} onPress={onCheckout} activeOpacity={0.9} disabled={checkoutLoading}>
-              <Text style={[Textstyles.medium, styles.checkoutTxt]}>
-                {checkoutLoading ? 'Placing order...' : 'Proceed to checkout'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : null}
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: PAGE_BG},
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: CARD_BORDER,
-  },
-  back: {fontSize: 17, color: THEME_BLUE, fontWeight: '600'},
-  toolbarMid: {flexDirection: 'row', alignItems: 'center'},
-  badgeMargin: {marginLeft: 8},
-  toolbarTitle: {fontSize: 18, color: Colors.TEXT_PRIMARY},
+  // toolbar styles replaced by AppHeader
+  pageBody: {flex: 1},
+  list: {flex: 1},
   badge: {
     minWidth: 22,
     height: 22,
@@ -394,9 +374,11 @@ const styles = StyleSheet.create({
   badgeTxt: {color: Colors.white, fontSize: 12, fontWeight: '500'},
   toolbarSpacer: {width: 48},
   clearAll: {fontSize: 15, color: '#DC2626', fontWeight: '600'},
-  pageHead: {paddingHorizontal: 16, paddingBottom: 8},
-  pageTitle: {fontSize: 24, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 6},
-  pageSub: {fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 12},
+  clearLink: {alignSelf: 'flex-end', marginTop: 6},
+  clearLinkTxt: {fontSize: 14, color: '#DC2626', fontWeight: '600'},
+  pageHead: {paddingHorizontal: 16, paddingBottom: 4},
+  pageTitle: {fontSize: 22, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 6},
+  pageSub: {fontSize: 14, color: '#6B7280', lineHeight: 20, marginVertical: 12},
   summaryCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -420,7 +402,7 @@ const styles = StyleSheet.create({
   summaryVal: {fontSize: 16, fontWeight: '600', color: Colors.TEXT_PRIMARY},
   summaryTotal: {fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   summaryHint: {fontSize: 11, color: '#9CA3AF', marginTop: 4, lineHeight: 16},
-  listContent: {paddingHorizontal: 16, paddingBottom: 140},
+  listContent: {paddingHorizontal: 16, paddingBottom: 16},
   lineCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -485,7 +467,7 @@ const styles = StyleSheet.create({
   minNote: {fontSize: 11, color: '#9CA3AF', marginTop: 6},
   sipMeta: {fontSize: 11, color: '#6B7280', marginTop: 4},
   removeRow: {alignSelf: 'flex-end', marginTop: 10},
-  removeTxt: {fontSize: 14, color: '#DC2626', fontWeight: '600'},
+  removeTxt: {width: 24, height: 24, color: '#DC2626', fontWeight: '600'},
   emptyWrap: {paddingTop: 8},
   emptyCard: {
     backgroundColor: Colors.white,
@@ -495,7 +477,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
   },
-  emptyEmoji: {fontSize: 40, marginBottom: 12},
+  emptyImg: {width: 54, height: 54, marginBottom: 10},
   emptyTitle: {fontSize: 17, color: Colors.TEXT_PRIMARY, marginBottom: 8, textAlign: 'center'},
   emptySub: {fontSize: 14, color: Colors.GREY, textAlign: 'center', lineHeight: 20, marginBottom: 20},
   exploreBtn: {
@@ -506,10 +488,6 @@ const styles = StyleSheet.create({
   },
   exploreBtnTxt: {color: Colors.white, fontSize: 15},
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     padding: 16,
     paddingBottom: 28,
     backgroundColor: Colors.white,
@@ -526,8 +504,10 @@ const styles = StyleSheet.create({
   footerTotal: {fontSize: 22, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   checkout: {
     backgroundColor: GREEN_BTN,
-    borderRadius: 10,
+    height: 52,
+    borderRadius: 14,
     paddingVertical: 15,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   checkoutTxt: {color: Colors.white, fontSize: 16, fontWeight: '600'},

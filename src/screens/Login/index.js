@@ -12,6 +12,7 @@ import CustomCheckbox from '../../components/auth/CustomCheckbox';
 import {login as loginAction} from '../../store/slices/authSlice';
 import {loginWithCredentials} from '../../services/authService';
 import {persistAuth, getRememberedUsername, setRememberedUsername} from '../../services/authStorage';
+import Textstyles from '../../utils/text';
 
 export default function Login() {
   const navigation = useNavigation();
@@ -218,6 +219,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   forgotLink: {
+    ...Textstyles.medium,
     fontSize: 14,
     color: AuthColors.primary,
     fontWeight: '600',
@@ -230,5 +232,5 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
     backgroundColor: '#FEF2F2',
   },
-  errorText: {fontSize: 13, color: AuthColors.error},
+  errorText: {...Textstyles.normal, fontSize: 13, color: AuthColors.error},
 });

@@ -333,7 +333,7 @@ export default function ExplorePixelPerfectScreen() {
     (!listData && listLoading)
   ) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={Colors.themeBlue} />
@@ -343,14 +343,15 @@ export default function ExplorePixelPerfectScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={{marginVertical: 15}}>
+      <View style={styles.fixedHeaderWrap}>
         <AppTabHeader title="Explore" />
-        </View>
-       
-
+      </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}>
         <View style={styles.searchWrap}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
@@ -446,8 +447,10 @@ export default function ExplorePixelPerfectScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#FFFFFF'},
-  scroll: {paddingBottom: 28},
+  safe: {flex: 1, backgroundColor: Colors.offWhite},
+  scroll: {paddingBottom: 32},
+  scrollView: {flex: 1},
+  stickyHeaderWrap: {backgroundColor: Colors.offWhite},
 
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
 
@@ -531,6 +534,6 @@ const styles = StyleSheet.create({
   allFundsTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
 
   list: {paddingBottom: 18},
-  bottomPad: {height: 30},
+  bottomPad: {height: 0},
 });
 

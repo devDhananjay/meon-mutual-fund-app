@@ -38,6 +38,7 @@ import NavLineChart from '../../components/FundDetail/NavLineChart';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
+import Icons from '../../utils/icons';
 
 function formatDate(iso) {
   if (!iso) {
@@ -721,7 +722,7 @@ export default function FundDetailScreen() {
             <Text style={styles.iconBtn}>{isFav ? '★' : '☆'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={openCart} style={[styles.cartWrap, styles.cartBtn]} hitSlop={12}>
-            <Text style={styles.iconBtn}>🛒</Text>
+            <Image source={Icons.CartIcon} style={styles.cartIconImg} resizeMode="contain" />
             {cartCount > 0 ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -1245,7 +1246,7 @@ export default function FundDetailScreen() {
       </ScrollView>
       <View style={styles.stickyInvestWrap}>
         <TouchableOpacity style={styles.stickyInvestBtn} onPress={onPressInvestment} activeOpacity={0.9}>
-          <Text style={styles.stickyInvestTxt}>Invest Now</Text>
+          <Text style={[styles.stickyInvestTxt, Textstyles.medium]}>Continue to Invest</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -1270,6 +1271,7 @@ const styles = StyleSheet.create({
   topActions: {flexDirection: 'row', alignItems: 'center'},
   cartBtn: {marginLeft: 20},
   iconBtn: {fontSize: 22},
+  cartIconImg: {width: 22, height: 22},
   cartWrap: {position: 'relative'},
   badge: {
     position: 'absolute',
@@ -1488,11 +1490,14 @@ const styles = StyleSheet.create({
   orderCard: {padding: 0, overflow: 'hidden'},
   orderTabs: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderRadius: 40,
+    backgroundColor: '#E8EAED',
+    padding: 4,
+    marginBottom: 4,
+    overflow: 'hidden',
   },
-  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 14},
-  orderTabBtnActive: {borderBottomWidth: 3, borderBottomColor: Colors.themeBlue},
+  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 40},
+  orderTabBtnActive: {backgroundColor: '#E3F0FF'},
   orderTabTxt: {fontSize: 18, color: '#6B7280', fontWeight: '500'},
   orderTabTxtActive: {color: Colors.themeBlue},
   amountInputWrap: {
@@ -1644,5 +1649,5 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 3},
     // elevation: 4,
   },
-  stickyInvestTxt: {fontSize: 18, fontWeight: '700', color: Colors.white},
+  stickyInvestTxt: {fontSize: 18, color: Colors.white},
 });

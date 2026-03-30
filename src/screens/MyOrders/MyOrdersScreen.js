@@ -130,10 +130,7 @@ function FundLogo({name, uri}) {
 function FilterSlidersIcon() {
   return (
     <View style={styles.filterIcon}>
-      {/* <View style={[styles.filterBar, styles.filterBarWide]} />
-      <View style={[styles.filterBar, styles.filterBarNarrow]} />
-      <View style={[styles.filterBar, styles.filterBarWide]} /> */}
-      <Image source={Icons.FilterBlack} style={styles.filterIcon} />
+      <Image resizeMode='contain' source={Icons.FilterBlack} style={styles.filterIcon} />
     </View>
   );
 }
@@ -561,7 +558,7 @@ const styles = StyleSheet.create({
   backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, width: 72},
   backChevron: {fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2, fontWeight: '400'},
   backLabel: {fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  filterIcon: {width: 20, height: 20, alignSelf: 'flex-end', justifyContent: 'center', paddingVertical: 4},
+  filterIcon: {width: 24, height: 24, alignSelf: 'flex-end', justifyContent: 'center', paddingVertical: 4},
   filterBar: {height: 3, backgroundColor: THEME_BLUE, borderRadius: 1, marginBottom: 4},
   filterBarWide: {width: 18, alignSelf: 'flex-end'},
   filterBarNarrow: {width: 14, alignSelf: 'flex-end'},
