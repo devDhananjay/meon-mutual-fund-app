@@ -92,7 +92,7 @@ function SectionCard({title, children}) {
   );
 }
 
-function ProfileRow({icon, emoji, label, onPress, isLast, destructive}) {
+function ProfileRow({icon, emoji, label, onPress, isLast, destructive, tintColor}) {
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -100,7 +100,7 @@ function ProfileRow({icon, emoji, label, onPress, isLast, destructive}) {
       activeOpacity={0.65}>
       <View style={styles.rowIconWrap}>
         {icon ? (
-          <Image source={icon} style={styles.rowIconImg} resizeMode="contain" />
+          <Image source={icon} tintColor={tintColor ? tintColor : null} style={styles.rowIconImg} resizeMode="contain" />
         ) : (
           <Text style={styles.rowEmoji}>{emoji}</Text>
         )}
@@ -150,6 +150,10 @@ export default function ProfileScreen() {
     },
     [navigation],
   );
+
+  const onPrivacyPolicy = useCallback(() => {
+    navigation.navigate('PrivacyPolicy');
+  }, [navigation]);
 
   const onDeleteAccount = useCallback(() => {
     navigation.navigate('DeleteAccount');
@@ -215,7 +219,7 @@ export default function ProfileScreen() {
         <SectionCard title="Support & Legal">
           <ProfileRow icon={Icons.FaqIcon} label={"FAQ's"} onPress={() => onSupportArticle('faq')} />
           <ProfileRow icon={Icons.HelpSupportIcon} label="Help & Support" onPress={() => onSupportArticle('help')} />
-          <ProfileRow icon={Icons.PrivacyPolicyIcon} label="Privacy Policy" onPress={() => onSupportArticle('privacy')} />
+          <ProfileRow icon={Icons.PrivacyPolicyIcon} label="Privacy Policy" onPress={onPrivacyPolicy} />
           <ProfileRow icon={Icons.TermsAndConditionsIcon} label="Terms and Conditions" onPress={() => onSupportArticle('terms')} />
           <ProfileRow
             icon={Icons.deleteIcon}
@@ -223,6 +227,7 @@ export default function ProfileScreen() {
             onPress={onDeleteAccount}
             destructive
             isLast
+            tintColor={'red'}
           />
         </SectionCard>
 
