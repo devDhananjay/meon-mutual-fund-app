@@ -171,7 +171,7 @@ export default function AllMutualFundsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
           <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>All Mutual Funds</Text>
+        <Text style={[styles.title, Textstyles.heading]}>All Mutual Funds</Text>
         <View style={styles.topRightSpacer} />
       </View>
 
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
   backChevron: {...Textstyles.normal, fontSize: 28, color: PRIMARY_GREEN, fontWeight: '400'},
-  title: {...Textstyles.heading, flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
+  title: {...Textstyles.heading, flex: 1, textAlign: 'center', fontSize: 18, color: Colors.TEXT_PRIMARY},
   topRightSpacer: {width: 44},
 
   controlsContainer: {

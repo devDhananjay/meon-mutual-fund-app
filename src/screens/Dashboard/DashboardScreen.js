@@ -10,6 +10,7 @@ import {
   Image,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
@@ -422,8 +423,11 @@ export default function DashboardScreen() {
           <View style={styles.importWrap}>
             <TouchableOpacity
               style={styles.importBtn}
-              disabled={true}
-              onPress={() => navigation.navigate('Explore')}
+              // disabled={true}
+              onPress={() => {
+                Alert.alert('Coming Soon!')
+                // navigation.navigate('Explore')
+              }}
               activeOpacity={0.85}>
               <View style={styles.importLeft}>
                 <View style={styles.importIconCircle}>
