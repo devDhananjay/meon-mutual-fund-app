@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   avatarTxt: {fontSize: 22, fontWeight: '500', color: Colors.white},
   profileTextCol: {flex: 1},
-  displayName: {fontSize: 20, color: Colors.TEXT_PRIMARY, marginBottom: 4, fontWeight: '600'},
+  displayName: {fontSize: 20, color: Colors.TEXT_PRIMARY, marginBottom: 4},
   verifyLine: {fontSize: 13, color: '#6B7280', marginBottom: 2},
   memberLine: {fontSize: 12, color: '#9CA3AF'},
   sectionCard: {

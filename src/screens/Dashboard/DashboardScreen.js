@@ -542,7 +542,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     color: Colors.TEXT_PRIMARY,
-    fontWeight: '600',
     lineHeight: 28,
     paddingRight: 4,
   },
