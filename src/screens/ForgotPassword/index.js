@@ -1,157 +1,148 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {Colors} from '../../utils/AppConstant';
+import React, {useCallback, useState} from 'react';
+import {View, Text, TouchableOpacity, StyleSheet, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {CommonActions, useNavigation} from '@react-navigation/native';
+import {useDispatch} from 'react-redux';
+import {AuthColors, AuthSpacing} from '../../constants/authTheme';
+import CustomInput from '../../components/auth/CustomInput';
+import CustomButton from '../../components/auth/CustomButton';
+import AuthBrand from '../../components/auth/AuthBrand';
+import {navigationRef} from '../../navigation/navigationRef';
+import {clearAuthStorage} from '../../services/authStorage';
+import {logout} from '../../store/slices/authSlice';
+import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
 
 export default function ForgotPassword() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [fieldError, setFieldError] = useState('');
 
   const canSend = usernameOrEmail.trim().length > 0;
 
-  const onSend = () => {
-    // TODO: API call to send reset email
-    navigation.navigate('EmailSent');
+  const onSend = async () => {
+    if (!canSend) {
+      setFieldError('Username or email is required');
+      return;
+    }
+    setFieldError('');
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 700));
+    setLoading(false);
+    navigation.navigate('EmailSent', {identifier: usernameOrEmail.trim()});
   };
 
+  const onBackToSignIn = useCallback(async () => {
+    await clearAuthStorage();
+    dispatch(logout());
+    if (navigationRef.isReady()) {
+      navigationRef.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{name: 'Login'}],
+        }),
+      );
+    } else {
+      navigation.navigate('Login');
+    }
+  }, [dispatch, navigation]);
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      <View style={styles.content}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-          <Text style={styles.backArrow}>{'<'}</Text>
-        </TouchableOpacity>
-
-        <Text style={[Textstyles.bold, styles.title]}>Forgot Password?</Text>
-        <Text style={[Textstyles.normal, styles.subtitle]}>
-          Enter your username or email address, and we'll give you reset instructions.
-        </Text>
-
-        <Text style={[Textstyles.medium, styles.label]}>Username / Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter username/email address"
-          placeholderTextColor={Colors.GREY}
-          value={usernameOrEmail}
-          onChangeText={setUsernameOrEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <TouchableOpacity
-          onPress={onSend}
-          disabled={!canSend}
-          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}>
-          <Text
-            style={[
-              Textstyles.medium,
-              styles.sendText,
-              !canSend && styles.sendTextDisabled,
-            ]}>
-            Send
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bounces={false}>
+          <View style={styles.brandWrap}>
+            <AuthBrand compact />
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
+            <Image source={Icons.BackIcon} style={styles.backArrowImg} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Forgot Password?</Text>
+          <Text style={styles.subtitle}>
+            Enter your username or email address and we will send reset instructions.
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Login')}
-          style={styles.backToSignIn}>
-          <Text style={[Textstyles.medium, styles.backToSignInText]}>Back to Sign In</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.card}>
+            <CustomInput
+              label="Username / Email"
+              value={usernameOrEmail}
+              onChangeText={v => {
+                setUsernameOrEmail(v);
+                if (fieldError) {
+                  setFieldError('');
+                }
+              }}
+              placeholder="Enter username or email"
+              keyboardType="email-address"
+              error={fieldError}
+            />
+            <CustomButton title="Send" onPress={onSend} loading={loading} disabled={!canSend} />
+            <View style={styles.secondaryWrap}>
+              <CustomButton title="Back to Sign In" variant="secondary" onPress={onBackToSignIn} />
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex1: {flex: 1},
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: AuthColors.bg,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
+    paddingHorizontal: AuthSpacing.screenHorizontal,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    position: 'absolute',
+    top: 8,
+    left: AuthSpacing.screenHorizontal,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
-    marginBottom: 24,
+    zIndex: 2,
   },
-  backArrow: {
-    fontSize: 28,
-    color: Colors.TEXT_PRIMARY,
-    fontWeight: '300',
+  backArrowImg: {
+    width: 18,
+    height: 18,
+  },
+  brandWrap: {
+    alignItems: 'center',
+    marginBottom: 14,
   },
   title: {
+    ...Textstyles.heading,
     fontSize: 24,
-    color: Colors.TEXT_PRIMARY,
+    color: AuthColors.text,
+    fontWeight: '700',
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 15,
-    color: Colors.gray,
-    lineHeight: 22,
-    marginBottom: 28,
-  },
-  label: {
+    ...Textstyles.normal,
     fontSize: 14,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 8,
+    color: AuthColors.subText,
+    lineHeight: 21,
+    marginBottom: 18,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 24,
+  card: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: {width: 0, height: 3},
+    shadowRadius: 8,
+    // elevation: 3,
   },
-  sendButton: {
-    backgroundColor: Colors.themeBlue,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  sendButtonDisabled: {
-    backgroundColor: Colors.BUTTON_DISABLED,
-  },
-  sendText: {
-    fontSize: 16,
-    color: Colors.white,
-  },
-  sendTextDisabled: {
-    color: Colors.GREY,
-  },
-  backToSignIn: {
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backToSignInText: {
-    fontSize: 16,
-    color: Colors.TEXT_PRIMARY,
-  },
+  secondaryWrap: {marginTop: 12},
 });

@@ -31,8 +31,15 @@ local.properties
 *.iml
 *.hprof
 .cxx/
+android/.gradle-user-home/
+android/.kotlin/
+android/runtime-logcat*.txt
+android/tmp-*.bundle
+android/tmp-assets/
 *.keystore
+*.jks
 !debug.keystore
+android/keystore.properties
 
 # node.js
 #

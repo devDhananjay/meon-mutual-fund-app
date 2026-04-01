@@ -1,250 +1,236 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {View, Text, TouchableOpacity, StyleSheet, StatusBar, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {useForm, Controller} from 'react-hook-form';
 import {useNavigation} from '@react-navigation/native';
-import Images from '../../utils/images';
-import {Colors} from '../../utils/AppConstant';
+import {useDispatch} from 'react-redux';
+import {AuthColors, AuthSpacing} from '../../constants/authTheme';
+import AuthBrand from '../../components/auth/AuthBrand';
+import CustomInput from '../../components/auth/CustomInput';
+import CustomButton from '../../components/auth/CustomButton';
+import CustomCheckbox from '../../components/auth/CustomCheckbox';
+import {login as loginAction} from '../../store/slices/authSlice';
+import {loginWithCredentials} from '../../services/authService';
+import {persistAuth, getRememberedUsername, setRememberedUsername} from '../../services/authStorage';
 import Textstyles from '../../utils/text';
 
 export default function Login() {
   const navigation = useNavigation();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const dispatch = useDispatch();
   const [rememberPassword, setRememberPassword] = useState(false);
-  const [showPassword, setShowPassword] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
-  const canSignIn = username.trim().length > 0 && password.trim().length > 0;
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: {errors, isSubmitting},
+  } = useForm({
+    defaultValues: {username: '', password: ''},
+    mode: 'onSubmit',
+  });
+  const username = watch('username');
+  const password = watch('password');
+  const isSubmitDisabled = useMemo(
+    () => !String(username || '').trim() || !String(password || '').trim(),
+    [password, username],
+  );
 
-  const onSignIn = () => {
-    // TODO: API login - then navigation.replace('Bottom') or Home
+  useEffect(() => {
+    (async () => {
+      const remembered = await getRememberedUsername();
+      if (remembered) {
+        setValue('username', remembered);
+        setRememberPassword(true);
+      }
+      setHydrated(true);
+    })();
+  }, [setValue]);
+
+  const onSubmit = async ({username: formUsername, password: formPassword}) => {
+    setApiError('');
+    const u = formUsername.trim();
+    const p = formPassword.trim();
+    if (!u || !p) {
+      setApiError('Please enter both username and password');
+      return;
+    }
+
+    try {
+      const result = await loginWithCredentials(u, p);
+      const body = result?.data;
+      if (body?.status === 'success' && body?.data?.tokens && body?.data?.user) {
+        const {access_token, refresh_token} = body.data.tokens;
+        const userData = body.data.user;
+        await persistAuth({
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          user: userData,
+        });
+        if (rememberPassword) {
+          await setRememberedUsername(u);
+        } else {
+          await setRememberedUsername(null);
+        }
+        dispatch(
+          loginAction({
+            user: userData,
+            accessToken: access_token,
+            refreshToken: refresh_token,
+          }),
+        );
+        navigation.reset({index: 0, routes: [{name: 'MainTabs'}]});
+        return;
+      }
+      setApiError(body?.message || 'Login failed');
+    } catch (err) {
+      const data = err?.data;
+      if (data?.status === 'error' && data?.errors?.non_field_errors?.length) {
+        setApiError(data.errors.non_field_errors[0]);
+      } else if (err?.message) {
+        setApiError(err.message);
+      } else {
+        setApiError('Something went wrong. Please try again.');
+      }
+    }
   };
 
+  if (!hydrated) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centered]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <ActivityIndicator size="large" color={AuthColors.primary} />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
-      <View style={styles.content}>
-        <View style={styles.logoRow}>
-          <Image source={Images.themeLogo} style={styles.logoIcon} resizeMode="contain" />
-          <View style={styles.brandText}>
-            <Text style={[Textstyles.bold, styles.meonText]}>
-              <Text style={styles.meBlue}>me</Text>
-              <Text style={styles.onRed}>on</Text>
-            </Text>
-            <Text style={[Textstyles.bold, styles.mutualFunds]}>MUTUAL FUNDS</Text>
-            <View style={styles.underline}>
-              <View style={[styles.underlineSegment, styles.underlineBlue]} />
-              <View style={[styles.underlineSegment, styles.underlineRed]} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.logoWrap}>
+            <AuthBrand />
+          </View>
+          {apiError ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{apiError}</Text>
             </View>
-          </View>
-        </View>
-
-        <View style={styles.form}>
-          <Text style={[Textstyles.medium, styles.label]}>Username</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter username"
-            placeholderTextColor={Colors.GREY}
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
-
-          <Text style={[Textstyles.medium, styles.label]}>Password</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Enter password"
-              placeholderTextColor={Colors.GREY}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={showPassword}
+          ) : null}
+          <View style={styles.card}>
+            <Controller
+              control={control}
+              name="username"
+              rules={{required: 'Username is required'}}
+              render={({field: {onChange, value}}) => (
+                <CustomInput
+                  label="Username"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Enter username"
+                  error={errors.username?.message}
+                  editable={!isSubmitting}
+                />
+              )}
             />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeButton}
-              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-              <Text style={styles.eyeText}>{showPassword ? '👁' : '👁‍🗨'}</Text>
-            </TouchableOpacity>
+            <Controller
+              control={control}
+              name="password"
+              rules={{required: 'Password is required'}}
+              render={({field: {onChange, value}}) => (
+                <CustomInput
+                  label="Password"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Enter password"
+                  error={errors.password?.message}
+                  secureTextEntry
+                  editable={!isSubmitting}
+                />
+              )}
+            />
+            <View style={styles.optionsRow}>
+              <CustomCheckbox
+                label="Remember Password"
+                value={rememberPassword}
+                onChange={setRememberPassword}
+                disabled={isSubmitting}
+              />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                disabled={isSubmitting}
+                activeOpacity={0.8}>
+                <Text style={styles.forgotLink}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
+            <CustomButton
+              title="Sign In"
+              onPress={handleSubmit(onSubmit)}
+              loading={isSubmitting}
+              disabled={isSubmitDisabled}
+            />
           </View>
-
-          <View style={styles.optionsRow}>
-            <TouchableOpacity
-              onPress={() => setRememberPassword(!rememberPassword)}
-              style={styles.checkRow}>
-              <View style={[styles.checkbox, rememberPassword && styles.checkboxChecked]}>
-                {rememberPassword && <Text style={styles.checkMark}>✓</Text>}
-              </View>
-              <Text style={[Textstyles.normal, styles.checkLabel]}>Remember Password</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-              <Text style={[Textstyles.normal, styles.forgotLink]}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            onPress={onSignIn}
-            disabled={!canSignIn}
-            style={[styles.signInButton, !canSignIn && styles.signInButtonDisabled]}>
-            <Text
-              style={[
-                Textstyles.medium,
-                styles.signInText,
-                !canSignIn && styles.signInTextDisabled,
-              ]}>
-              Sign In
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex1: {flex: 1},
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: AuthColors.bg,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: AuthSpacing.screenHorizontal,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoWrap: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: 16,
   },
-  logoIcon: {
-    width: 48,
-    height: 48,
-    marginRight: 8,
-  },
-  brandText: {
-    alignItems: 'flex-start',
-  },
-  meonText: {
-    fontSize: 24,
-    letterSpacing: 0.5,
-  },
-  meBlue: { color: Colors.themeBlue },
-  onRed: { color: Colors.themeRed },
-  mutualFunds: {
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.black,
-    marginTop: 2,
-  },
-  underline: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 2,
-    marginTop: 2,
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  underlineSegment: { flex: 1 },
-  underlineBlue: { backgroundColor: Colors.themeBlue },
-  underlineRed: { backgroundColor: Colors.themeRed },
-  form: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: Colors.TEXT_PRIMARY,
-    marginBottom: 20,
-  },
-  passwordRow: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  passwordInput: {
-    paddingRight: 48,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 12,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  eyeText: {
-    fontSize: 20,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    // elevation: 3,
   },
   optionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 4,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.themeBlue,
-    borderColor: Colors.themeBlue,
-  },
-  checkMark: {
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  checkLabel: {
-    fontSize: 14,
-    color: Colors.TEXT_PRIMARY,
+    marginBottom: 22,
+    marginTop: 2,
   },
   forgotLink: {
+    ...Textstyles.medium,
     fontSize: 14,
-    color: Colors.LINK_BLUE,
+    color: AuthColors.primary,
+    fontWeight: '600',
   },
-  signInButton: {
-    backgroundColor: Colors.themeBlue,
+  errorBanner: {
+    marginBottom: 12,
+    padding: 10,
     borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
   },
-  signInButtonDisabled: {
-    backgroundColor: Colors.BUTTON_DISABLED,
-  },
-  signInText: {
-    fontSize: 16,
-    color: Colors.white,
-  },
-  signInTextDisabled: {
-    color: Colors.GREY,
-  },
+  errorText: {...Textstyles.normal, fontSize: 13, color: AuthColors.error},
 });

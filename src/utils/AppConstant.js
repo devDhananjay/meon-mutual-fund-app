@@ -37,25 +37,25 @@ export const passwordRegex =
 export const mobileRegex = /^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[789]\d{9}$/;
 
 export const Colors = {
-  themeColor: '#0285C5',
-  themeBlue: '#0285C5',
+  themeColor: '#2F80ED',
+  themeBlue: '#2F80ED',
   themeRed: '#DD0000',
   white: '#FFFFFF',
   red: '#DD0000',
-  gray: '#7D7C7C',
-  green: '#02a556',
-  offWhite: '#F3F5F9',
-  lightWhite: '#F5F5F5',
+  gray: '#6B7280',
+  green: '#16A34A',
+  offWhite: '#F8FAFC',
+  lightWhite: '#F8FAFC',
   black: '#000000',
   lightBlue: '#87CEFA',
-  blue: '#0285C5',
+  blue: '#2F80ED',
   WHITE: '#FFFFFF',
-  GREY: '#808080',
-  BORDER_GREY: '#EBECED',
-  LIGHT_GREY: '#E8E8E8',
+  GREY: '#6B7280',
+  BORDER_GREY: '#E5E7EB',
+  LIGHT_GREY: '#EEF2F7',
   BUTTON_DISABLED: '#D1D1D6',
-  TEXT_PRIMARY: '#000000',
-  LINK_BLUE: '#0285C5',
+  TEXT_PRIMARY: '#111827',
+  LINK_BLUE: '#2F80ED',
 };
 
 export const FontSize = {
@@ -66,7 +66,8 @@ export const FontSize = {
   small: 12,
 };
 
-export const baseUrl = ''; // Add API base URL when ready
+/** Same API host as web `apiClient` / `BACKEND_IP` */
+export const baseUrl = 'https://mutualfunds.meon.co.in/v1';
 
 export const wp = widthPercentageToDP;
 export const hp = heightPercentageToDP;
