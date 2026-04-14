@@ -21,10 +21,13 @@ import {usePortfolioData} from '../../hooks/usePortfolioData';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import {TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
-const GREEN_CTA = '#22C55E';
+const GREEN_CTA = '#21C76E';
 const LOSS_RED = '#DC2626';
 const GAIN_GREEN = '#16A34A';
 const LABEL_GRAY = '#6B7280';
@@ -97,19 +100,19 @@ function pickDurationLabel(item) {
   return null;
 }
 
-function FundLogo({name, uri}) {
+function FundLogo({name, uri, colors, isDark}) {
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
   }
   const letter = (name || '?')[0]?.toUpperCase() ?? '?';
   return (
-    <View style={[styles.fundLogo, styles.fundLogoPh]}>
-      <Text style={styles.fundLogoLetter}>{letter}</Text>
+    <View style={[styles.fundLogo, styles.fundLogoPh, {backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6', borderColor: colors.border}]}>
+      <Text style={[styles.fundLogoLetter, {color: colors.primary}]}>{letter}</Text>
     </View>
   );
 }
 
-function FolioHoldingRow({item, onOpenFund, onInvestMore}) {
+function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
   const rawName = item.scheme_name ?? item.base_scheme_name ?? 'Fund';
   const name = typeof rawName === 'string' ? rawName.trim() : String(rawName);
   const logo = item.logo_url ?? item.logo;
@@ -120,50 +123,49 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore}) {
   const currentVal = formatInr(item.current_holding);
 
   return (
-    <View style={styles.folioCard}>
+    <View style={[styles.folioCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenFund(item)} style={styles.cardTap}>
         <View style={styles.cardTopRow}>
-          <FundLogo name={name} uri={logo} />
-          <Text style={styles.fundName} numberOfLines={2}>
-            {name}
-          </Text>
-          {duration ? (
-            <Text style={styles.durationBadge}>{duration}</Text>
-          ) : (
-            <View style={styles.durationPlaceholder} />
-          )}
+          <FundLogo name={name} uri={logo} colors={colors} isDark={isDark} />
+          <View style={styles.cardTitleBlock}>
+            <Text style={[styles.fundName, {color: colors.textPrimary}]} numberOfLines={2}>
+              {name}
+            </Text>
+            {duration ? (
+              <Text style={[styles.durationBadge, {color: colors.textSecondary}]}>{duration}</Text>
+            ) : null}
+          </View>
+          <View style={styles.xirrCorner}>
+            <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>XIRR</Text>
+            <Text style={[styles.metricValueDark, {color: colors.textPrimary}]}>
+              {xirr != null ? `${xirr.toFixed(2)}%` : '—'}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.metrics3Col}>
+        <View style={styles.metrics2Col}>
           <View style={styles.metricCol}>
-            <Text style={styles.metricLabel}>Invested Value</Text>
-            <Text style={styles.metricValueDark}>{formatInr(item.amount)}</Text>
+            <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Invested Value</Text>
+            <Text style={[styles.metricValueDark, {color: colors.textPrimary}]}>{formatInr(item.amount)}</Text>
           </View>
           <View style={styles.metricCol}>
-            <Text style={styles.metricLabel}>Gain/Loss</Text>
+            <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Gain/Loss</Text>
             <Text style={[styles.metricValueGl, {color: glColor}]} numberOfLines={2}>
               {glText}
             </Text>
           </View>
-          <View style={styles.metricCol}>
-            <View style={styles.xirrLabelRow}>
-              <Text style={styles.metricLabel}>XIRR</Text>
-              <Text style={styles.xirrChev}>▼</Text>
-            </View>
-            <Text style={styles.metricValueDark}>{xirr != null ? `${xirr.toFixed(2)}%` : '—'}</Text>
-          </View>
         </View>
       </TouchableOpacity>
 
-      <View style={styles.cardDivider} />
+      <View style={[styles.cardDivider, {backgroundColor: colors.border}]} />
 
       <View style={styles.cardFooter}>
         <View style={styles.currentBlock}>
-          <Text style={styles.metricLabel}>Current Value</Text>
+          <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Current Value</Text>
           <Text style={[styles.currentValue, {color: GAIN_GREEN}]}>{currentVal}</Text>
         </View>
         <TouchableOpacity
-          style={styles.investMoreBtn}
+          style={[styles.investMoreBtn, {backgroundColor: colors.primary}]}
           onPress={() => onInvestMore(item)}
           activeOpacity={0.88}>
           <Text style={styles.investMoreTxt}>Invest more</Text>
@@ -175,6 +177,7 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore}) {
 
 export default function MyFoliosScreen() {
   const navigation = useNavigation();
+  const {colors, isDark} = useAppTheme();
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
   const [search, setSearch] = useState('');
 
@@ -235,9 +238,9 @@ export default function MyFoliosScreen() {
 
   const renderItem = useCallback(
     ({item}) => (
-      <FolioHoldingRow item={item} onOpenFund={onOpenFund} onInvestMore={onInvestMore} />
+      <FolioHoldingRow item={item} onOpenFund={onOpenFund} onInvestMore={onInvestMore} colors={colors} isDark={isDark} />
     ),
-    [onOpenFund, onInvestMore],
+    [colors, isDark, onOpenFund, onInvestMore],
   );
 
   const tabHeader = useMemo(() => <AppTabHeader title="My Folios" />, []);
@@ -245,12 +248,12 @@ export default function MyFoliosScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.searchOuter}>
-        <View style={styles.searchCard}>
+        <View style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search orders..."
-            placeholderTextColor={Colors.GREY}
+            style={[styles.searchInput, {color: colors.textPrimary}]}
+            placeholder="Search folios..."
+            placeholderTextColor={colors.textSecondary}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
@@ -260,54 +263,52 @@ export default function MyFoliosScreen() {
         </View>
       </View>
     ),
-    [search],
+    [colors.border, colors.inputBg, colors.textPrimary, colors.textSecondary, search],
   );
 
-  if (isPending && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-          <Text style={[Textstyles.normal, styles.loadingTxt]}>Loading folios…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const showInlineLoader = isPending && !refreshing;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       {error ? (
-        <View style={styles.errorBanner}>
+        <View style={[styles.errorBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} hitSlop={8}>
-            <Text style={styles.retry}>Retry</Text>
+            <Text style={[styles.retry, {color: colors.primary}]}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      <View style={styles.fixedHeaderWrap}>{tabHeader}</View>
+      <View style={[styles.fixedHeaderWrap, {backgroundColor: colors.background}]}>{tabHeader}</View>
+
+      {showInlineLoader ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Textstyles.normal, styles.loadingTxtInline, {color: colors.textSecondary}]}>Loading folios…</Text>
+        </View>
+      ) : null}
 
       <SectionList
         sections={sections}
         keyExtractor={(item, index) => String(item.scheme_code ?? item.isin ?? index)}
         renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
+        // renderSectionHeader={renderSectionHeader}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.themeBlue} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <View style={styles.emptyCard}>
-              <Text style={[Textstyles.medium, styles.emptyTitle]}>No folios match</Text>
-              <Text style={[Textstyles.normal, styles.emptySub]}>
+            <View style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <Text style={[Textstyles.medium, styles.emptyTitle, {color: colors.textPrimary}]}>No folios match</Text>
+              <Text style={[Textstyles.normal, styles.emptySub, {color: colors.textSecondary}]}>
                 {search ? 'Try another search or clear the filter.' : 'Invest from Explore to see holdings here.'}
               </Text>
-              <TouchableOpacity style={styles.cta} onPress={() => navigation.navigate('Explore')} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[styles.cta, {backgroundColor: colors.primary}]}
+                onPress={() => navigation.navigate('Explore')}
+                activeOpacity={0.85}>
                 <Text style={[Textstyles.medium, styles.ctaTxt]}>Explore funds</Text>
               </TouchableOpacity>
             </View>
@@ -324,18 +325,20 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: PAGE_BG},
   fixedHeaderWrap: {backgroundColor: PAGE_BG},
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
+  loadingInline: {paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
   loadingTxt: {marginTop: 12, color: Colors.GREY},
-  searchOuter: {paddingHorizontal: 16, marginTop: 12, marginBottom: 8},
+  loadingTxtInline: {marginTop: 0, color: Colors.GREY},
+  searchOuter: {marginTop: TAB_SCREEN_TITLE_TO_SEARCH, marginBottom: 8},
   searchCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: SEARCH_FIELD.borderRadius,
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    minHeight: 50,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
     marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
@@ -343,17 +346,26 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIconImg: {width: 16, height: 16, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
+  searchIconImg: {
+    width: SEARCH_FIELD.iconSize,
+    height: SEARCH_FIELD.iconSize,
+    marginRight: SEARCH_FIELD.iconMarginRight,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    color: Colors.TEXT_PRIMARY,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+  },
   listContent: {paddingBottom: 32, paddingHorizontal: 16},
   sectionList: {flex: 1},
   sectionHead: {
     paddingTop: 12,
     paddingBottom: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
   },
   sectionTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY},
-  sectionMeta: {fontSize: 13, color: LABEL_GRAY, marginTop: 4},
+  sectionMeta: {fontSize: 13, color: LABEL_GRAY, marginTop: 4, textAlign: 'left'},
   folioCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -369,6 +381,8 @@ const styles = StyleSheet.create({
   },
   cardTap: {padding: 14},
   cardTopRow: {flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14},
+  cardTitleBlock: {flex: 1, minWidth: 0, marginRight: 8},
+  xirrCorner: {alignItems: 'flex-end', justifyContent: 'flex-start', minWidth: 64, paddingTop: 2},
   fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 10},
   fundLogoPh: {
     backgroundColor: '#F3F4F6',
@@ -386,15 +400,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingRight: 8,
   },
-  durationBadge: {...Textstyles.medium, fontSize: 12, fontWeight: '600', color: LABEL_GRAY, marginTop: 2},
-  durationPlaceholder: {width: 28},
-  metrics3Col: {flexDirection: 'row', justifyContent: 'space-between', gap: 8},
+  durationBadge: {...Textstyles.medium, fontSize: 12, fontWeight: '600', marginTop: 4},
+  metrics2Col: {flexDirection: 'row', justifyContent: 'space-between', gap: 12},
   metricCol: {flex: 1, minWidth: 0},
   metricLabel: {fontSize: 12, color: LABEL_GRAY, marginBottom: 6},
   metricValueDark: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   metricValueGl: {...Textstyles.medium, fontSize: 13, fontWeight: '500', lineHeight: 18},
-  xirrLabelRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 6},
-  xirrChev: {fontSize: 8, color: LABEL_GRAY, marginLeft: 3, marginTop: 1},
   cardDivider: {height: StyleSheet.hairlineWidth, backgroundColor: '#E5E7EB', marginHorizontal: 14},
   cardFooter: {
     flexDirection: 'row',

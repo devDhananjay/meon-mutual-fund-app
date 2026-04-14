@@ -5,34 +5,35 @@ import {useNavigation} from '@react-navigation/native';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import {navigateToMyOrders} from '../../navigation/navigationRef';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const {colors} = useAppTheme();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.toolbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backTxt}>‹</Text>
-        </TouchableOpacity>
-        <Text style={[Textstyles.heading, styles.title]}>Notifications</Text>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
+      <View style={[styles.toolbar, {borderBottomColor: colors.border, backgroundColor: colors.card}]}>
+        <AppBackButton onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn} />
+        <Text style={[Textstyles.heading, styles.title, {color: colors.textPrimary}]}>Notifications</Text>
         <View style={styles.toolbarRight} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <Text style={[Textstyles.medium, styles.cardTitle]}>Stay updated</Text>
-          <Text style={[Textstyles.normal, styles.cardBody]}>
+        <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Text style={[Textstyles.medium, styles.cardTitle, {color: colors.textPrimary}]}>Stay updated</Text>
+          <Text style={[Textstyles.normal, styles.cardBody, {color: colors.textSecondary}]}>
             Order confirmations, SIP alerts, and account updates will appear here when available.
           </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.linkRow}
+          style={[styles.linkRow, {backgroundColor: colors.card, borderColor: colors.border}]}
           onPress={() => navigateToMyOrders(navigation)}
           activeOpacity={0.85}>
-          <Text style={[Textstyles.medium, styles.linkLabel]}>View order activity</Text>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={[Textstyles.medium, styles.linkLabel, {color: colors.primary}]}>View order activity</Text>
+          <Text style={[styles.chevron, {color: colors.textSecondary}]}>›</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -44,14 +45,14 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+    minHeight: 44,
     borderBottomWidth: 1,
     borderBottomColor: Colors.BORDER_GREY,
     backgroundColor: Colors.white,
   },
   backBtn: {width: 44, height: 44, justifyContent: 'center', alignItems: 'center'},
-  backTxt: {...Textstyles.normal, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
   title: {flex: 1, fontSize: 18, textAlign: 'center'},
   toolbarRight: {width: 44},
   scroll: {padding: 16, paddingBottom: 40},

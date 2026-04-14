@@ -6,6 +6,7 @@ import AppHeader from '../components/AppHeader';
 import AppColors from '../theme/colors';
 import Textstyles from '../utils/text';
 import blocks from './privacyPolicyBlocks.json';
+import {useAppTheme} from '../theme/useAppTheme';
 
 const LINK = '#1155CC';
 const HEADING = '#6C7794';
@@ -117,12 +118,13 @@ function paragraphVariant(plain, idx) {
 
 export default function PrivacyPolicyScreen() {
   const navigation = useNavigation();
+  const {colors} = useAppTheme();
   const onBack = useCallback(() => navigation.goBack(), [navigation]);
 
   let pIdx = -1;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right', 'bottom']}>
       <AppHeader title="Privacy Policy" onBack={onBack} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {blocks.map((block, idx) => {
@@ -130,7 +132,7 @@ export default function PrivacyPolicyScreen() {
             pIdx += 1;
             return (
               <View key={idx} style={styles.block}>
-                <Text style={[styles.body, styles.em]}>{block.text}</Text>
+              <Text style={[styles.body, styles.em, {color: colors.textSecondary}]}>{block.text}</Text>
               </View>
             );
           }
@@ -144,8 +146,8 @@ export default function PrivacyPolicyScreen() {
                     <View style={styles.liBody}>
                       <SegmentLine
                         segments={row}
-                        baseStyle={styles.body}
-                        linkStyle={styles.link}
+                        baseStyle={[styles.body, {color: colors.textSecondary}]}
+                        linkStyle={[styles.link, {color: colors.primary}]}
                         emStyle={styles.em}
                       />
                     </View>
@@ -171,9 +173,9 @@ export default function PrivacyPolicyScreen() {
                   ? styles.sectionHeading
                   : variant === 'address'
                     ? styles.address
-                    : styles.body;
+              : [styles.body, {color: colors.textSecondary}];
 
-          const linkStyle = [styles.link, variant === 'address' && styles.addressLink];
+          const linkStyle = [styles.link, {color: colors.primary}, variant === 'address' && styles.addressLink];
 
           return (
             <View key={idx} style={styles.block}>

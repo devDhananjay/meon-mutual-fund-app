@@ -5,4 +5,5 @@ export const STORAGE_KEYS = {
   USER_DATA: 'user_data',
   REMEMBERED_USERNAME: 'remembered_username',
   CART_ITEMS: 'cartItems',
+  THEME_MODE: 'theme_mode',
 };

@@ -50,7 +50,14 @@ export function pickStatus(item) {
 
 export function pickBank(item) {
   return String(
-    item.bank_name ?? item.bank ?? item.bank_details?.bank_name ?? item.ifsc_bank_name ?? '—',
+    item.bank_name ??
+      item.bankName ??
+      item.bank ??
+      item.bank_details?.bank_name ??
+      item.bank_details?.bankName ??
+      item.ifsc_bank_name ??
+      item.bank_master_name ??
+      '—',
   ).trim();
 }
 
@@ -110,13 +117,29 @@ export function formatDateDDMMYYYY(raw) {
 
 export function pickStartDateDD(item) {
   return formatDateDDMMYYYY(
-    item.start_date ?? item.mandate_start_date ?? item.from_date ?? item.created_at ?? item.mandate_date,
+    item.start_date ??
+      item.startDate ??
+      item.mandate_start_date ??
+      item.mandateStartDate ??
+      item.from_date ??
+      item.fromDate ??
+      item.created_at ??
+      item.mandate_date,
   );
 }
 
 export function pickEndDateDD(item) {
   return formatDateDDMMYYYY(
-    item.end_date ?? item.mandate_end_date ?? item.to_date ?? item.expiry_date ?? item.valid_till,
+    item.end_date ??
+      item.endDate ??
+      item.mandate_end_date ??
+      item.mandateEndDate ??
+      item.to_date ??
+      item.toDate ??
+      item.expiry_date ??
+      item.expiryDate ??
+      item.valid_till ??
+      item.validTill,
   );
 }
 

@@ -1,4 +1,4 @@
-import {Alert} from 'react-native';
+import {appAlert} from '../../utils/appAlert';
 import {postMandateAuth} from '../../services/mandateService';
 import {buildMandateAuthPayload} from './mandateFieldUtils';
 
@@ -45,7 +45,7 @@ export function extractAuthMessage(resData) {
 export async function authenticateMandate(navigation, item) {
   const body = buildMandateAuthPayload(item);
   if (Object.keys(body).length === 0) {
-    Alert.alert(
+    appAlert(
       'Authenticate',
       'This mandate is missing UMRN or ID. Try again after refreshing the list.',
     );
@@ -64,13 +64,13 @@ export async function authenticateMandate(navigation, item) {
         const msg =
           extractAuthMessage(res.data) ??
           'Authentication request was submitted. Check the mandate list after a short while.';
-        Alert.alert('Authenticate', msg);
+        appAlert('Authenticate', msg);
       }
     } else {
-      Alert.alert('Authenticate', 'Request could not be completed.');
+      appAlert('Authenticate', 'Request could not be completed.');
     }
   } catch (e) {
     const msg = e?.message || e?.data?.message || 'Could not start authentication.';
-    Alert.alert('Authenticate', String(msg));
+    appAlert('Authenticate', String(msg));
   }
 }

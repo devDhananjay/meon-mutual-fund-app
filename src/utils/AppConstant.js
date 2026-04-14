@@ -37,8 +37,8 @@ export const passwordRegex =
 export const mobileRegex = /^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[789]\d{9}$/;
 
 export const Colors = {
-  themeColor: '#2F80ED',
-  themeBlue: '#2F80ED',
+  themeColor: '#21C76E',
+  themeBlue: '#21C76E',
   themeRed: '#DD0000',
   white: '#FFFFFF',
   red: '#DD0000',
@@ -48,14 +48,14 @@ export const Colors = {
   lightWhite: '#F8FAFC',
   black: '#000000',
   lightBlue: '#87CEFA',
-  blue: '#2F80ED',
+  blue: '#21C76E',
   WHITE: '#FFFFFF',
   GREY: '#6B7280',
   BORDER_GREY: '#E5E7EB',
   LIGHT_GREY: '#EEF2F7',
   BUTTON_DISABLED: '#D1D1D6',
   TEXT_PRIMARY: '#111827',
-  LINK_BLUE: '#2F80ED',
+  LINK_BLUE: '#21C76E',
 };
 
 export const FontSize = {

@@ -1,16 +1,16 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
-import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
 import Icons from '../utils/icons';
 import Textstyles from '../utils/text';
+import {useAppTheme} from '../theme/useAppTheme';
 
 const CONNECTOR_DOTS = 6;
 const DOT_SIZE = 3;
 const DOT_GAP = 5;
 
-function DottedConnector({completed}) {
-  const color = completed ? '#22C55E' : '#D1D5DB';
+function DottedConnector({completed, lineMuted}) {
+  const color = completed ? '#22C55E' : lineMuted;
   return (
     <View style={styles.dottedConnector}>
       {Array.from({length: CONNECTOR_DOTS}).map((_, i) => (
@@ -36,8 +36,32 @@ export default function StatusTimeline({
   onCancel,
   formatDateTime,
 }) {
+  const {colors, isDark} = useAppTheme();
+  const dynamic = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          backgroundColor: colors.card,
+          borderRadius: radius.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: 16,
+          marginBottom: 16,
+        },
+        tlTitle: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: colors.textPrimary},
+        tlTime: {...Textstyles.normal, fontSize: 12, color: colors.textSecondary, marginTop: 4},
+        tlDotPending: {
+          backgroundColor: colors.card,
+          borderColor: isDark ? colors.border : '#D1D5DB',
+        },
+      }),
+    [colors, isDark],
+  );
+
+  const lineMuted = isDark ? colors.border : '#D1D5DB';
+
   return (
-    <View style={styles.card}>
+    <View style={dynamic.card}>
       {steps.map((step, index) => (
         <View key={step.key} style={styles.tlRow}>
           <View style={styles.tlLeft}>
@@ -50,7 +74,7 @@ export default function StatusTimeline({
                     ? styles.tlDotFail
                     : step.continueButton
                       ? styles.tlDotContinue
-                      : styles.tlDotPending,
+                      : dynamic.tlDotPending,
               ]}>
               {step.done ? (
                 <Image source={Icons.checkIcons} style={styles.tlCheckIcon} resizeMode="contain" />
@@ -60,28 +84,26 @@ export default function StatusTimeline({
                 <Text style={styles.tlClock}>⏱</Text>
               ) : null}
             </View>
-            {index < steps.length - 1 ? <DottedConnector completed={!!step.done} /> : null}
+            {index < steps.length - 1 ? <DottedConnector completed={!!step.done} lineMuted={lineMuted} /> : null}
           </View>
           <View style={styles.tlBody}>
-            <Text style={styles.tlTitle}>{step.title}</Text>
-            <Text style={styles.tlTime}>{formatDateTime(step.at)}</Text>
+            <Text style={dynamic.tlTitle}>{step.title}</Text>
+            <Text style={dynamic.tlTime}>{formatDateTime(step.at)}</Text>
           </View>
 
           {step?.id === 0 && timelineStatus === 'SUBMITTED' ? (
             <View style={styles.tlActionWrap}>
               <View style={styles.authActionRow}>
                 <TouchableOpacity
-                  style={styles.cancelBtn}
+                  style={[styles.cancelBtn, {backgroundColor: isDark ? '#2C2C2C' : '#F3F4F6', borderColor: colors.border}]}
                   onPress={onCancel}
                   activeOpacity={0.9}
                   disabled={loading}>
-                  <Text style={styles.cancelTxt}>{loading ? 'Canceling...' : 'Cancel'}</Text>
+                  <Text style={[styles.cancelTxt, {color: colors.textPrimary}]}>
+                    {loading ? 'Canceling...' : 'Cancel'}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.continueBtn}
-                  onPress={onContinue}
-                  activeOpacity={0.9}
-                  disabled={paymentLoading || loading}>
+                <TouchableOpacity style={styles.continueBtn} onPress={onContinue} activeOpacity={0.9} disabled={paymentLoading || loading}>
                   <Text style={styles.continueTxt}>{loading ? 'Please wait...' : 'Continue'}</Text>
                 </TouchableOpacity>
               </View>
@@ -90,11 +112,7 @@ export default function StatusTimeline({
 
           {step?.continueButton && timelineStatus !== 'SUBMITTED' ? (
             <View style={styles.tlActionWrap}>
-              <TouchableOpacity
-                style={styles.continueBtn}
-                onPress={onContinue}
-                activeOpacity={0.9}
-                disabled={paymentLoading || loading}>
+              <TouchableOpacity style={styles.continueBtn} onPress={onContinue} activeOpacity={0.9} disabled={paymentLoading || loading}>
                 <Text style={styles.continueTxt}>
                   {loading ? 'Please wait...' : timelineStatus === 'FAILED' ? 'Retry' : 'Continue'}
                 </Text>
@@ -108,14 +126,6 @@ export default function StatusTimeline({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    padding: 16,
-    marginBottom: 16,
-  },
   tlRow: {flexDirection: 'row', alignItems: 'flex-start'},
   tlLeft: {width: 28, alignItems: 'center'},
   dottedConnector: {
@@ -141,12 +151,8 @@ const styles = StyleSheet.create({
   tlDotFail: {backgroundColor: '#EF4444', borderColor: '#EF4444'},
   tlDotContinue: {backgroundColor: '#F59E0B', borderColor: '#F59E0B'},
   tlCheckIcon: {width: 14, height: 14},
-  tlDotPending: {backgroundColor: AppColors.white, borderColor: '#D1D5DB'},
-  tlCheck: {...Textstyles.medium, color: AppColors.white, fontSize: 11, fontWeight: '600'},
-  tlClock: {...Textstyles.medium, color: AppColors.white, fontSize: 10, fontWeight: '600'},
+  tlClock: {...Textstyles.medium, color: '#FFFFFF', fontSize: 10, fontWeight: '600'},
   tlBody: {flex: 1, paddingLeft: 8, paddingBottom: 12},
-  tlTitle: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: AppColors.textPrimary},
-  tlTime: {...Textstyles.normal, fontSize: 12, color: AppColors.textSecondary, marginTop: 4},
   tlActionWrap: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
@@ -159,12 +165,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     marginRight: 10,
   },
-  cancelTxt: {...Textstyles.medium, fontSize: 13, color: '#374151', fontWeight: '600'},
+  cancelTxt: {...Textstyles.medium, fontSize: 13, fontWeight: '600'},
   continueBtn: {
     backgroundColor: '#22C55E',
     borderRadius: 10,
@@ -172,5 +176,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
   },
-  continueTxt: {...Textstyles.heading, fontSize: 13, color: AppColors.white, fontWeight: '700'},
+  continueTxt: {...Textstyles.heading, fontSize: 13, color: '#FFFFFF', fontWeight: '700'},
 });

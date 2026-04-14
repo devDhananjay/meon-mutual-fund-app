@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {getSchemes, normalizeSchemesResponse} from '../services/fundsService';
 
 /**
@@ -17,29 +17,40 @@ export function useAllFunds({
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const requestIdRef = useRef(0);
 
   const fetchFunds = useCallback(async () => {
+    const reqId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
+      const q = debouncedSearch?.trim?.() ?? '';
       const params = {
         page: isMobile ? 1 : page + 1,
         page_size: isMobile ? showMoreCount : rowsPerPage,
-        search: debouncedSearch,
-        filter1: selectedCategory,
-        filter2: selectedRisk,
+        ...(q ? {search: q, q} : {}),
+        ...(selectedCategory ? {filter1: selectedCategory} : {}),
+        ...(selectedRisk ? {filter2: selectedRisk} : {}),
       };
       const res = await getSchemes(params);
+      if (reqId !== requestIdRef.current) {
+        return;
+      }
       if (res?.success) {
         setData(normalizeSchemesResponse(res.data));
       } else {
         setData({results: [], count: 0});
       }
     } catch (e) {
+      if (reqId !== requestIdRef.current) {
+        return;
+      }
       setError(e?.message || 'Failed to load funds');
       setData({results: [], count: 0});
     } finally {
-      setIsLoading(false);
+      if (reqId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [
     page,

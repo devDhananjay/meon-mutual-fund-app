@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from 'react';
-import {View, Text, StyleSheet, StatusBar, ScrollView, KeyboardAvoidingView, Platform, Alert} from 'react-native';
+import {View, Text, StyleSheet, StatusBar, ScrollView, KeyboardAvoidingView, Platform} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {AuthColors, AuthSpacing} from '../../constants/authTheme';
@@ -7,9 +7,12 @@ import AuthBrand from '../../components/auth/AuthBrand';
 import CustomInput from '../../components/auth/CustomInput';
 import CustomButton from '../../components/auth/CustomButton';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {appAlert} from '../../utils/appAlert';
 
 export default function ResetPassword() {
   const navigation = useNavigation();
+  const {colors} = useAppTheme();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,25 +48,25 @@ export default function ResetPassword() {
     setLoading(true);
     await new Promise(r => setTimeout(r, 800));
     setLoading(false);
-    Alert.alert('Password updated', 'Your password has been updated successfully.', [
+    appAlert('Password updated', 'Your password has been updated successfully.', [
       {text: 'OK', onPress: () => navigation.navigate('Login')},
     ]);
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bounces={false}>
           <View style={styles.brandWrap}>
             <AuthBrand compact />
           </View>
-          <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, {color: colors.textPrimary}]}>Reset Password</Text>
+          <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
             Set a new password for your account.
           </Text>
 
-          <View style={styles.card}>
+          <View style={[styles.card, {backgroundColor: colors.card}]}>
             <CustomInput
               label="Password"
               value={password}

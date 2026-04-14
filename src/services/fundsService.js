@@ -1,8 +1,15 @@
 import apiClient from './apiClient';
 
-/** Same as web `fundsServices.getSchemes` */
+/** MF scheme list — same family as `/mf/schemes/<slug>/`. Falls back if host only exposes legacy path. */
 export async function getSchemes(params = {}) {
-  return apiClient.get('/api/company/schemes/list', {params});
+  try {
+    return await apiClient.get('/api/company/mf/schemes/list', {params});
+  } catch (e) {
+    if (e?.status === 404) {
+      return apiClient.get('/api/company/schemes/list', {params});
+    }
+    throw e;
+  }
 }
 
 /**

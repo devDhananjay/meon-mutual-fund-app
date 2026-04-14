@@ -6,9 +6,15 @@ import {useSelector} from 'react-redux';
 import {selectCartItemCount} from '../store/slices/cartSlice';
 import {navigateToCart, navigateToNotifications} from '../navigation/navigationRef';
 import Textstyles from '../utils/text';
-import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
 import Icons from '../utils/icons';
+import {useAppTheme} from '../theme/useAppTheme';
+import AppColors from '../theme/colors';
+import {typeScale} from '../theme/typography';
+import {TAB_SCREEN_SAFE_TOP_EXTRA} from '../theme/tabScreenLayout';
+
+const HEADER_ICON_LIGHT = '#000000';
+const HEADER_ICON_DARK = '#FFFFFF';
 
 /**
  * Bell + cart cluster — same behaviour on Dashboard, Explore, My Folios.
@@ -16,27 +22,37 @@ import Icons from '../utils/icons';
 export function HeaderActionCluster() {
   const navigation = useNavigation();
   const cartCount = useSelector(selectCartItemCount);
+  const {colors, isDark} = useAppTheme();
+  const headerIconTint = isDark ? HEADER_ICON_DARK : HEADER_ICON_LIGHT;
 
   return (
     <View style={styles.headerActions}>
       <TouchableOpacity
-        style={styles.headerIconBtn}
+        style={[styles.headerIconBtn, {borderColor: colors.border, backgroundColor: colors.card}]}
         onPress={() => navigateToNotifications(navigation)}
         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
         activeOpacity={0.75}
         accessibilityLabel="Notifications">
-        <Image source={Icons.NotificationsIcon} style={styles.headerIconImg} resizeMode="contain" />
+        <Image
+          source={Icons.NotificationsIcon}
+          style={[styles.headerIconImg, {tintColor: headerIconTint}]}
+          resizeMode="contain"
+        />
       </TouchableOpacity>
       <TouchableOpacity
-        style={styles.headerIconBtn}
+        style={[styles.headerIconBtn, {borderColor: colors.border, backgroundColor: colors.card}]}
         onPress={() => navigateToCart(navigation)}
         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
         activeOpacity={0.75}
         accessibilityLabel="Cart">
-        <Image source={Icons.CartIcon} style={styles.headerIconImg} resizeMode="contain" />
+        <Image
+          source={Icons.CartIcon}
+          style={[styles.headerIconImg, {tintColor: headerIconTint}]}
+          resizeMode="contain"
+        />
         {cartCount > 0 ? (
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
+          <View style={[styles.cartBadge, {backgroundColor: colors.textPrimary}]}>
+            <Text style={[styles.cartBadgeTxt, {color: colors.card}]}>{cartCount > 99 ? '99+' : cartCount}</Text>
           </View>
         ) : null}
       </TouchableOpacity>
@@ -49,17 +65,23 @@ export function HeaderActionCluster() {
  */
 export default function AppTabHeader({title, subtitle}) {
   const insets = useSafeAreaInsets();
-  const padTop = insets.top + 12;
+  const {colors} = useAppTheme();
+  const padTop = insets.top + TAB_SCREEN_SAFE_TOP_EXTRA;
 
   return (
-    <View style={[styles.block, {paddingTop: padTop}]}>
+    <View
+      style={[
+        styles.block,
+        subtitle ? styles.blockWithSubtitle : null,
+        {paddingTop: padTop, backgroundColor: colors.background},
+      ]}>
       <View style={styles.row}>
         <View style={styles.titleCol}>
-          <Text style={[Textstyles.heading, styles.title]} numberOfLines={2}>
+          <Text style={[Textstyles.heading, styles.title, {color: colors.textPrimary}]} numberOfLines={2}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[Textstyles.normal, styles.subtitle]} numberOfLines={2}>
+            <Text style={[Textstyles.normal, styles.subtitle, {color: colors.textSecondary}]} numberOfLines={2}>
               {subtitle}
             </Text>
           ) : null}
@@ -73,7 +95,10 @@ export default function AppTabHeader({title, subtitle}) {
 const styles = StyleSheet.create({
   block: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 0,
+  },
+  blockWithSubtitle: {
+    paddingBottom: 8,
   },
   row: {
     flexDirection: 'row',
@@ -83,34 +108,20 @@ const styles = StyleSheet.create({
   },
   titleCol: {flex: 1, minWidth: 0},
   title: {
-    fontSize: 22,
-    color: AppColors.textPrimary,
-    lineHeight: 28,
+    fontSize: typeScale.title,
+    lineHeight: 22,
   },
-  subtitle: {fontSize: 14, color: AppColors.textSecondary, marginTop: 4},
-  headerActions: {flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2},
+  subtitle: {fontSize: 14, marginTop: 4},
+  headerActions: {flexDirection: 'row', alignItems: 'center', gap: 6},
   headerIconBtn: {
     width: 44,
     height: 44,
     borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: AppColors.border,
-    backgroundColor: AppColors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerIconImg: {width: 22, height: 22},
-  notifDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1.5,
-    borderColor: AppColors.white,
-  },
   cartBadge: {
     position: 'absolute',
     top: 4,
@@ -123,5 +134,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  cartBadgeTxt: {...Textstyles.heading, color: AppColors.white, fontSize: 10, fontWeight: '700'},
+  cartBadgeTxt: {...Textstyles.heading, fontSize: 10, fontWeight: '700'},
 });

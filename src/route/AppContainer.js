@@ -1,7 +1,12 @@
 import React from 'react';
 import {StyleSheet} from 'react-native';
-import {NavigationContainer} from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme as NavDefaultTheme,
+  DarkTheme as NavDarkTheme,
+} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {useSelector} from 'react-redux';
 import {navigationRef} from '../navigation/navigationRef';
 import Splash from '../screens/Splash';
 import Login from '../screens/Login';
@@ -32,8 +37,34 @@ const navStyles = StyleSheet.create({
 });
 
 export default function AppContainer() {
+  const themeMode = useSelector(s => s.theme.mode);
+  const isDark = themeMode === 'dark';
+  const navigationTheme = isDark
+    ? {
+        ...NavDarkTheme,
+        colors: {
+          ...NavDarkTheme.colors,
+          background: '#121212',
+          card: '#1E1E1E',
+          text: '#FFFFFF',
+          border: '#2C2C2C',
+          primary: '#21C76E',
+        },
+      }
+    : {
+        ...NavDefaultTheme,
+        colors: {
+          ...NavDefaultTheme.colors,
+          background: '#F8FAFC',
+          card: '#FFFFFF',
+          text: '#111827',
+          border: '#E5E7EB',
+          primary: '#21C76E',
+        },
+      };
+
   return (
-    <NavigationContainer ref={navigationRef} style={navStyles.flex}>
+    <NavigationContainer ref={navigationRef} style={navStyles.flex} theme={navigationTheme}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

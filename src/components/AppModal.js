@@ -8,9 +8,9 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import AppColors from '../theme/colors';
 import {radius} from '../theme/radius';
 import Textstyles from '../utils/text';
+import {useAppTheme} from '../theme/useAppTheme';
 
 export default function AppModal({
   visible,
@@ -29,6 +29,7 @@ export default function AppModal({
   maxHeight = '88%',
   animationType,
 }) {
+  const {colors} = useAppTheme();
   return (
     <Modal
       visible={visible}
@@ -43,22 +44,27 @@ export default function AppModal({
           style={[
             styles.sheet,
             !isBottomSheet && styles.centerSheet,
+            {backgroundColor: colors.card},
             {maxHeight},
           ]}>
-          {isBottomSheet ? <View style={styles.grabber} /> : null}
-          {title ? <Text style={[styles.title, Textstyles.heading, {marginVertical: 10}]}>{title}</Text> : null}
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {isBottomSheet ? <View style={[styles.grabber, {backgroundColor: colors.border}]} /> : null}
+          {title ? (
+            <Text style={[styles.title, Textstyles.heading, {marginVertical: 10, color: colors.textPrimary}]}>
+              {title}
+            </Text>
+          ) : null}
+          {subtitle ? <Text style={[styles.subtitle, {color: colors.textSecondary}]}>{subtitle}</Text> : null}
           <View style={styles.content}>{children}</View>
           {showActions ? (
             <View style={styles.actions}>
               <TouchableOpacity
-                style={styles.cancelTextBtn}
+                style={[styles.cancelTextBtn, {borderColor: colors.border, backgroundColor: colors.inputBg}]}
                 onPress={onCancel || onClose}
                 activeOpacity={0.8}>
-                <Text style={styles.cancelText}>{cancelText}</Text>
+                <Text style={[styles.cancelText, {color: colors.textSecondary}]}>{cancelText}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.applyBtn, applyDisabled && styles.applyBtnDisabled]}
+                style={[styles.applyBtn, {backgroundColor: colors.primary}, applyDisabled && styles.applyBtnDisabled]}
                 onPress={onApply}
                 activeOpacity={0.9}
                 disabled={applyDisabled || applyLoading}>
@@ -79,7 +85,6 @@ const styles = StyleSheet.create({
   overlayCenter: {justifyContent: 'center', paddingHorizontal: 20},
   dim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.38)'},
   sheet: {
-    backgroundColor: AppColors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -108,13 +113,11 @@ const styles = StyleSheet.create({
   title: {
     ...Textstyles.heading,
     fontSize: 18,
-    color: AppColors.textPrimary,
   },
   subtitle: {
     ...Textstyles.medium,
     marginTop: 6,
     marginBottom: 4,
-    color: AppColors.textSecondary,
     fontSize: 13,
   },
   content: {marginTop: 12},
@@ -131,12 +134,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: AppColors.border,
-    backgroundColor: '#FFFFFF',
   },
   cancelText: {
     ...Textstyles.medium,
-    color: '#6B7280',
     fontSize: 15,
     fontWeight: '500',
   },

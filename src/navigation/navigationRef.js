@@ -157,16 +157,16 @@ export function navigateToMandate(navigation) {
   navigation?.navigate?.('Mandate');
 }
 
-/** Root stack — open All Funds list for SIP start flow. */
-export function navigateToAllFundsSIP(navigation) {
+/** Root stack — open All Funds list (SIP / browse). Optional params e.g. `{ focusSearch: true }`. */
+export function navigateToAllFundsSIP(navigation, params) {
   if (navigationRef.isReady()) {
-    navigationRef.navigate('AllFundsSIP');
+    navigationRef.navigate('AllFundsSIP', params);
     return;
   }
   const rootNav = navigation?.getParent?.()?.getParent?.();
   if (rootNav?.dispatch) {
-    rootNav.dispatch(CommonActions.navigate({name: 'AllFundsSIP', merge: true}));
+    rootNav.dispatch(CommonActions.navigate({name: 'AllFundsSIP', params, merge: true}));
     return;
   }
-  navigation?.navigate?.('AllFundsSIP');
+  navigation?.navigate?.('AllFundsSIP', params);
 }

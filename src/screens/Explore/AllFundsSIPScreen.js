@@ -19,6 +19,8 @@ import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
+import AppBackButton from '../../components/AppBackButton';
+import {SEARCH_FIELD} from '../../theme/searchField';
 
 function mapResultsToFunds(data) {
   if (!data?.results?.length) {
@@ -112,8 +114,6 @@ function FundRow({item, sortMode, onPress}) {
         : item.return3yr;
 
   const retLabel = sortMode === '1y' ? '1Y' : sortMode === '5y' ? '5Y' : '3Y';
-  const rating = item.groww_rating;
-  const ratingNum = rating === null || rating === undefined || rating === '' ? null : Number(rating);
 
   return (
     <TouchableOpacity style={styles.row} onPress={() => onPress(item)} activeOpacity={0.7}>
@@ -127,8 +127,10 @@ function FundRow({item, sortMode, onPress}) {
             {(item.category || '').toLowerCase()}
           </Text>
           <View style={styles.ratingRow}>
-            <Text style={styles.star}>★</Text>
-            <Text style={styles.ratingVal}>{ratingNum === null || Number.isNaN(ratingNum) ? '—' : ratingNum}</Text>
+            <Text style={[styles.ratingVal, {color: returnColor(raw)}]}>
+              {formatSignedReturnPct(raw)}
+            </Text>
+            <Text style={styles.ratingPeriod}>{retLabel}</Text>
           </View>
         </View>
       </View>
@@ -219,9 +221,7 @@ export default function AllFundsSIPScreen() {
     () => (
       <View>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-            <Text style={styles.backChevron}>‹</Text>
-          </TouchableOpacity>
+          <AppBackButton onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10} />
           <Text style={styles.title}>All Funds</Text>
           <View style={styles.topRightSpacer} />
         </View>
@@ -283,19 +283,15 @@ export default function AllFundsSIPScreen() {
 
   const initialLoading = isLoading && !data;
 
-  if (initialLoading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-          <Text style={[Textstyles.normal, styles.loadingText]}>Loading funds…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      {initialLoading ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={Colors.themeBlue} />
+          <Text style={[Textstyles.normal, styles.loadingTextInline]}>Loading funds…</Text>
+        </View>
+      ) : null}
+
       <FlatList
         data={sortedFunds}
         keyExtractor={item => String(item.id ?? item.scheme_code)}
@@ -319,18 +315,20 @@ const styles = StyleSheet.create({
   safe: {flex: 1, backgroundColor: '#F9FAFB'},
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingText: {marginTop: 12, color: Colors.GREY, fontSize: 15},
+  loadingInline: {paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 10},
+  loadingTextInline: {marginTop: 0, color: Colors.GREY, fontSize: 14},
   listContent: {paddingBottom: 24},
 
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.BORDER_GREY,
   },
-  backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: Colors.themeBlue},
+  backBtn: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
   title: {flex: 1, ...Textstyles.heading, fontSize: 18, color: Colors.TEXT_PRIMARY, textAlign: 'center'},
   topRightSpacer: {width: 44},
 
@@ -340,14 +338,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
-    borderRadius: 10,
+    borderRadius: SEARCH_FIELD.borderRadius,
     marginHorizontal: 16,
     marginTop: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
   },
-  searchIconImg: {width: 16, height: 16, marginRight: 8},
-  searchInput: {flex: 1, paddingVertical: 6, fontSize: 15, color: Colors.TEXT_PRIMARY},
+  searchIconImg: {
+    width: SEARCH_FIELD.iconSize,
+    height: SEARCH_FIELD.iconSize,
+    marginRight: SEARCH_FIELD.iconMarginRight,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    color: Colors.TEXT_PRIMARY,
+  },
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
 

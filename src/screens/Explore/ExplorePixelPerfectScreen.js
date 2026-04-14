@@ -1,14 +1,14 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Image,
   ActivityIndicator,
   StatusBar,
+  FlatList,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -23,6 +23,9 @@ import FundCard from './components/FundCard';
 import FundListItem from './components/FundListItem';
 import FilterBar from './components/FilterBar';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import {TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 
 // Design-first mock dataset (used to guarantee pixel-perfect layout).
 const MOCK_ALL_FUNDS = [
@@ -205,9 +208,8 @@ function mapApiResultsToFunds(apiData) {
 
 export default function ExplorePixelPerfectScreen() {
   const navigation = useNavigation();
+  const {colors} = useAppTheme();
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortPeriodKey, setSortPeriodKey] = useState('3y'); // 1y | 3y | 5y
   const [selectedCategory, setSelectedCategory] = useState(''); // '' means All categories
   const [selectedRisk, setSelectedRisk] = useState(''); // '' means All risks
@@ -219,11 +221,6 @@ export default function ExplorePixelPerfectScreen() {
         ? '7Y Returns'
         : '3Y Returns';
   }, [sortPeriodKey]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const categoryOptions = useMemo(
     () => [
@@ -258,18 +255,20 @@ export default function ExplorePixelPerfectScreen() {
   });
 
   // List query (All Mutual Funds) - filtered by category/risk from website.
-  const {data: listData, isLoading: listLoading} = useAllFunds({
+  const {data: listData, isLoading: listLoading, error: listError, refetch: refetchList} = useAllFunds({
     page: 0,
     rowsPerPage: 10,
     showMoreCount: 20,
     isMobile: true,
-    debouncedSearch,
+    debouncedSearch: '',
     selectedCategory,
     selectedRisk,
   });
 
   const homeFunds = useMemo(() => mapApiResultsToFunds(homeData), [homeData]);
   const listFunds = useMemo(() => mapApiResultsToFunds(listData), [listData]);
+
+  const hasActiveListQuery = Boolean(selectedCategory) || Boolean(selectedRisk);
 
   const popularFunds = useMemo(() => {
     const list = homeFunds.length ? homeFunds : MOCK_ALL_FUNDS;
@@ -282,7 +281,13 @@ export default function ExplorePixelPerfectScreen() {
   }, [homeFunds]);
 
   const sortedListFunds = useMemo(() => {
-    const list = listFunds.length ? listFunds : MOCK_ALL_FUNDS;
+    // Never substitute mock data when the user is searching or filtering — empty API = empty list.
+    const list =
+      listFunds.length > 0
+        ? listFunds
+        : hasActiveListQuery || listLoading
+          ? []
+          : MOCK_ALL_FUNDS;
   const getVal = item => {
       const raw =
         sortPeriodKey === '1y'
@@ -299,7 +304,7 @@ export default function ExplorePixelPerfectScreen() {
     const copy = [...list];
     copy.sort((a, b) => getVal(b) - getVal(a));
     return copy;
-  }, [listFunds, sortPeriodKey]);
+  }, [listFunds, sortPeriodKey, hasActiveListQuery, listLoading]);
 
   const count = listData?.count ?? sortedListFunds.length;
 
@@ -329,52 +334,51 @@ export default function ExplorePixelPerfectScreen() {
     navigateToAllFundsSIP(navigation);
   }, [navigation]);
 
-  if (
-    (!homeData && homeLoading) &&
-    (!listData && listLoading)
-  ) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const onPressSearchBar = useCallback(() => {
+    navigateToAllFundsSIP(navigation, {focusSearch: true});
+  }, [navigation]);
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={styles.fixedHeaderWrap}>
-        <AppTabHeader title="Explore" />
+  const listRows = useMemo(() => sortedListFunds.slice(0, 20), [sortedListFunds]);
+
+  const renderFundRow = useCallback(
+    ({item}) => (
+      <View style={styles.allFundsItemWrap}>
+        <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
       </View>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.searchWrap}>
-          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search orders..."
-            placeholderTextColor={Colors.GREY}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {search.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearBtn} hitSlop={10}>
-              <Text style={styles.clearTxt}>✕</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+    ),
+    [sortPeriodKey, onPressFund],
+  );
 
-        <View style={styles.sipBanner}>
+  const keyExtractor = useCallback((item, index) => String(item.id ?? item.scheme_code ?? `fund-${index}`), []);
+
+  const exploreListHeader = useMemo(
+    () => (
+      <>
+        <TouchableOpacity
+          style={[styles.searchWrap, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+          onPress={onPressSearchBar}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Search mutual funds">
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
+          <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
+            Search funds...
+          </Text>
+        </TouchableOpacity>
+
+        {listError ? (
+          <View style={[styles.errorBanner, {borderColor: colors.border, backgroundColor: colors.card}]}>
+            <Text style={[Textstyles.normal, {color: colors.danger, flex: 1}]}>{listError}</Text>
+            <TouchableOpacity onPress={() => refetchList()} hitSlop={8}>
+              <Text style={[Textstyles.medium, {color: colors.primary}]}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <View style={[styles.sipBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <Image source={require('../../assets/Icons/calendarSip.png')} style={styles.sipEmoji} resizeMode="contain" />
           <View style={styles.sipTextCol}>
-            <Text style={[Textstyles.medium, styles.sipTitle]}>
+            <Text style={[Textstyles.medium, styles.sipTitle, {color: colors.textPrimary}]}>
               Invest every month and grow your wealth with SIP
             </Text>
             <TouchableOpacity style={styles.sipButton} onPress={onStartSIP} activeOpacity={0.9}>
@@ -384,9 +388,9 @@ export default function ExplorePixelPerfectScreen() {
         </View>
 
         <View style={styles.sectionHead}>
-          <Text style={[Textstyles.heading, styles.sectionTitle]}>Popular Funds</Text>
+          <Text style={[Textstyles.heading, styles.sectionTitle, {color: colors.textPrimary}]}>Popular Funds</Text>
           <TouchableOpacity onPress={onStartSIP} hitSlop={10} activeOpacity={0.85} style={styles.viewAllHit}>
-            <Text style={styles.viewAll}>View All</Text>
+            <Text style={[styles.viewAll, {color: colors.primary}]}>View All</Text>
           </TouchableOpacity>
         </View>
 
@@ -404,7 +408,7 @@ export default function ExplorePixelPerfectScreen() {
         </View>
 
         <View style={styles.sectionHead}>
-          <Text style={[Textstyles.heading, styles.sectionTitle]}>Recently Viewed</Text>
+          <Text style={[Textstyles.heading, styles.sectionTitle, {color: colors.textPrimary}]}>Recently Viewed</Text>
           <View />
         </View>
 
@@ -417,9 +421,9 @@ export default function ExplorePixelPerfectScreen() {
         </ScrollView>
 
         <View style={styles.allFundsHeadRow}>
-          <Text style={[Textstyles.heading, styles.allFundsTitle]}>All Mutual Funds</Text>
+          <Text style={[Textstyles.heading, styles.allFundsTitle, {color: colors.textPrimary}]}>All Mutual Funds</Text>
           <TouchableOpacity onPress={onStartSIP} hitSlop={10} activeOpacity={0.85}>
-            <Text style={styles.viewAll}>View all</Text>
+            <Text style={[styles.viewAll, {color: colors.primary}]}>View all</Text>
           </TouchableOpacity>
         </View>
 
@@ -435,19 +439,92 @@ export default function ExplorePixelPerfectScreen() {
           onSelectRisk={setSelectedRisk}
         />
 
-        <View style={styles.list}>
-          {sortedListFunds.slice(0, 10).map((f, idx) => (
-            <FundListItem
-              key={f.id ?? idx}
-                fund={f}
-                returnPeriodKey={sortPeriodKey}
-              onPress={() => onPressFund(f)}
-            />
-          ))}
-        </View>
+        {listLoading && hasActiveListQuery ? (
+          <View style={styles.listStatusBox}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[Textstyles.medium, styles.listStatusTxt, {color: colors.textSecondary}]}>
+              Searching funds…
+            </Text>
+          </View>
+        ) : null}
 
-        <View style={styles.bottomPad} />
-      </ScrollView>
+        <View style={styles.listSectionTitleRow}>
+          <Text style={[Textstyles.medium, {color: colors.textSecondary, fontSize: 13}]}>Showing {listRows.length} funds</Text>
+        </View>
+      </>
+    ),
+    [
+      colors,
+      listError,
+      popularFunds,
+      recentlyViewed,
+      count,
+      sortLabel,
+      onPressSort,
+      categoryOptions,
+      selectedCategory,
+      riskOptions,
+      selectedRisk,
+      listLoading,
+      hasActiveListQuery,
+      listRows.length,
+      refetchList,
+      onStartSIP,
+      onPressSearchBar,
+      onPressFund,
+    ],
+  );
+
+  const renderListEmpty = useCallback(() => {
+    if (listLoading || !hasActiveListQuery) {
+      return null;
+    }
+    if (sortedListFunds.length > 0) {
+      return null;
+    }
+    return (
+      <View style={styles.listEmptyBox}>
+        <Text style={[Textstyles.medium, styles.listEmptyTitle, {color: colors.textPrimary}]}>No funds found</Text>
+        <Text style={[Textstyles.normal, styles.listEmptySub, {color: colors.textSecondary}]}>
+          Adjust category / risk filters, or search from All Mutual Funds.
+        </Text>
+      </View>
+    );
+  }, [colors.textPrimary, colors.textSecondary, hasActiveListQuery, listLoading, sortedListFunds.length]);
+
+  const initialLoading = (!homeData && homeLoading) && (!listData && listLoading);
+
+  return (
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <View style={[styles.fixedHeaderWrap, {backgroundColor: colors.background}]}>
+        <AppTabHeader title="Explore" />
+      </View>
+      {initialLoading ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Textstyles.normal, styles.loadingInlineText, {color: colors.textSecondary}]}>Loading funds…</Text>
+        </View>
+      ) : null}
+      <FlatList
+        style={styles.scrollView}
+        data={listRows}
+        keyExtractor={keyExtractor}
+        renderItem={renderFundRow}
+        ListHeaderComponent={exploreListHeader}
+        ListEmptyComponent={renderListEmpty}
+        extraData={{
+          listLoading,
+          sortPeriodKey,
+          listError,
+          listRowsLen: listRows.length,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        initialNumToRender={12}
+        windowSize={8}
+      />
     </SafeAreaView>
   );
 }
@@ -459,22 +536,38 @@ const styles = StyleSheet.create({
   stickyHeaderWrap: {backgroundColor: Colors.offWhite},
 
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+  loadingInline: {paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
+  loadingInlineText: {marginTop: 0, fontSize: 14},
 
   searchWrap: {
     marginHorizontal: 16,
+    marginTop: TAB_SCREEN_TITLE_TO_SEARCH,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EBECED',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    minHeight: 50,
+    borderRadius: SEARCH_FIELD.borderRadius,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
-  searchIconImg: {width: 16, height: 16},
-  searchInput: {flex: 1, fontSize: 14, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
+  searchIconImg: {
+    width: SEARCH_FIELD.iconSize,
+    height: SEARCH_FIELD.iconSize,
+    marginRight: SEARCH_FIELD.iconMarginRight,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    color: Colors.TEXT_PRIMARY,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+  },
   clearBtn: {padding: 4},
   clearTxt: {color: Colors.GREY, fontSize: 16},
 
@@ -496,7 +589,7 @@ const styles = StyleSheet.create({
   sipTitle: {color: Colors.TEXT_PRIMARY, lineHeight: 20, marginBottom: 12},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: '#21C76E',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 18,
@@ -540,7 +633,46 @@ const styles = StyleSheet.create({
   },
   allFundsTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY},
 
-  list: {paddingBottom: 18},
-  bottomPad: {height: 0},
+  listContent: {paddingBottom: 32, flexGrow: 1},
+  errorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  listSectionTitleRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  allFundsItemWrap: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.BORDER_GREY,
+    backgroundColor: Colors.white,
+  },
+  listStatusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  listStatusTxt: {fontSize: 14},
+  listEmptyBox: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  listEmptyTitle: {fontSize: 16, fontWeight: '600', marginBottom: 8},
+  listEmptySub: {fontSize: 14, textAlign: 'center'},
 });
 

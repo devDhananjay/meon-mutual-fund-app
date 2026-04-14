@@ -1,19 +1,25 @@
 import React from 'react';
 import {TouchableOpacity, Text, View, StyleSheet} from 'react-native';
-import {AuthColors} from '../../constants/authTheme';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function CustomCheckbox({label, value, onChange, disabled = false}) {
+  const {colors} = useAppTheme();
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={() => onChange(!value)}
       disabled={disabled}
       activeOpacity={0.85}>
-      <View style={[styles.box, value && styles.boxChecked]}>
-        {value ? <Text style={styles.check}>✓</Text> : null}
+      <View
+        style={[
+          styles.box,
+          {borderColor: colors.border, backgroundColor: colors.inputBg},
+          value && [styles.boxChecked, {borderColor: colors.primary, backgroundColor: colors.primary}],
+        ]}>
+        {value ? <Text style={[styles.check, {color: colors.card}]}>✓</Text> : null}
       </View>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, {color: colors.textPrimary}]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -28,15 +34,15 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: AuthColors.border,
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   boxChecked: {
-    borderColor: AuthColors.primary,
-    backgroundColor: AuthColors.primary,
+    borderColor: '#2F80ED',
+    backgroundColor: '#2F80ED',
   },
   check: {
     color: '#FFFFFF',
@@ -44,7 +50,7 @@ const styles = StyleSheet.create({
     ...Textstyles.heading,
   },
   label: {
-    color: AuthColors.text,
+    color: '#111827',
     fontSize: 14,
     ...Textstyles.medium,
   },

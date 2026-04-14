@@ -12,6 +12,7 @@ import {clearAuthStorage} from '../../services/authStorage';
 import {logout} from '../../store/slices/authSlice';
 import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function ForgotPassword() {
   const navigation = useNavigation();
@@ -19,6 +20,7 @@ export default function ForgotPassword() {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldError, setFieldError] = useState('');
+  const {colors} = useAppTheme();
 
   const canSend = usernameOrEmail.trim().length > 0;
 
@@ -50,8 +52,8 @@ export default function ForgotPassword() {
   }, [dispatch, navigation]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bounces={false}>
           <View style={styles.brandWrap}>
@@ -61,13 +63,17 @@ export default function ForgotPassword() {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
             hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-            <Image source={Icons.BackIcon} style={styles.backArrowImg} resizeMode="contain" />
+            <Image
+              source={Icons.BackIcon}
+              style={[styles.backArrowImg, {tintColor: colors.textPrimary}]}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
-          <Text style={styles.title}>Forgot Password?</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, {color: colors.textPrimary}]}>Forgot Password?</Text>
+          <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
             Enter your username or email address and we will send reset instructions.
           </Text>
-          <View style={styles.card}>
+          <View style={[styles.card, {backgroundColor: colors.card}]}>
             <CustomInput
               label="Username / Email"
               value={usernameOrEmail}

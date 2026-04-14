@@ -1,18 +1,19 @@
 import React, {useCallback, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator} from 'react-native';
+import {View, Text, StyleSheet, ActivityIndicator} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {WebView} from 'react-native-webview';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
 
 const PAGE_BG = '#F0F2F5';
 const CARD_BORDER = '#E8E8E8';
-const THEME_BLUE = '#1890FF';
-
 export default function MandateAuthWebViewScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const {colors, isDark} = useAppTheme();
   const uri = route.params?.uri;
   const title = route.params?.title ?? 'Authenticate';
 
@@ -28,34 +29,40 @@ export default function MandateAuthWebViewScreen() {
 
   if (!uri || typeof uri !== 'string') {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-            <Text style={styles.backChevron}>‹</Text>
-            <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
+        <View style={[styles.topBar, {borderBottomColor: colors.border, backgroundColor: colors.background}]}>
+          <View style={styles.topBarSide}>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+          </View>
+          <View style={styles.topBarFill} />
+          <View style={styles.topBarSide} />
         </View>
         <View style={styles.errBox}>
-          <Text style={[Textstyles.medium, styles.errTxt]}>No authentication link available.</Text>
+          <Text style={[Textstyles.medium, styles.errTxt, {color: colors.textSecondary}]}>No authentication link available.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-          <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title} numberOfLines={1}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
+      <View style={[styles.topBar, {borderBottomColor: colors.border, backgroundColor: colors.background}]}>
+        <View style={styles.topBarSide}>
+          <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+        </View>
+        <Text style={[styles.title, {color: colors.textPrimary}]} numberOfLines={1}>
           {title}
         </Text>
+        <View style={styles.topBarSide} />
       </View>
       {loading ? (
-        <View style={styles.loadingWrap} pointerEvents="none">
-          <ActivityIndicator size="large" color={THEME_BLUE} />
+        <View
+          style={[
+            styles.loadingWrap,
+            {backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.65)'},
+          ]}
+          pointerEvents="none">
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : null}
       <WebView
@@ -67,7 +74,7 @@ export default function MandateAuthWebViewScreen() {
         javaScriptEnabled
         domStorageEnabled
         sharedCookiesEnabled
-        style={styles.webview}
+        style={[styles.webview, {backgroundColor: colors.card}]}
       />
     </SafeAreaView>
   );
@@ -78,22 +85,21 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    minHeight: 44,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: CARD_BORDER,
     backgroundColor: PAGE_BG,
   },
-  backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2},
-  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  title: {flex: 1, ...Textstyles.heading, fontSize: 16, color: Colors.TEXT_PRIMARY, marginRight: 8},
+  topBarSide: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+  topBarFill: {flex: 1},
+  title: {flex: 1, ...Textstyles.heading, fontSize: 16, color: Colors.TEXT_PRIMARY, textAlign: 'center'},
   webview: {flex: 1, backgroundColor: Colors.white},
   loadingWrap: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.6)',
     zIndex: 1,
   },
   errBox: {flex: 1, justifyContent: 'center', padding: 24},

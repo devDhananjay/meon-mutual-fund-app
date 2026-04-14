@@ -6,16 +6,18 @@ import AppHeader from '../../components/AppHeader';
 import AppColors from '../../theme/colors';
 import {SUPPORT_ARTICLES} from '../../constants/supportLegalContent';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function SupportArticleScreen() {
   const navigation = useNavigation();
+  const {colors} = useAppTheme();
   const route = useRoute();
   const id = route.params?.id ?? 'faq';
 
   const article = useMemo(() => SUPPORT_ARTICLES[id] ?? SUPPORT_ARTICLES.faq, [id]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right', 'bottom']}>
       <AppHeader title={article.title} onBack={() => navigation.goBack()} />
       <ScrollView
         style={styles.scroll}
@@ -23,8 +25,8 @@ export default function SupportArticleScreen() {
         showsVerticalScrollIndicator={false}>
         {article.sections.map((sec, idx) => (
           <View key={String(idx)} style={styles.block}>
-            <Text style={styles.heading}>{sec.heading}</Text>
-            <Text style={styles.body}>{sec.body}</Text>
+            <Text style={[styles.heading, {color: colors.textPrimary}]}>{sec.heading}</Text>
+            <Text style={[styles.body, {color: colors.textSecondary}]}>{sec.body}</Text>
           </View>
         ))}
       </ScrollView>

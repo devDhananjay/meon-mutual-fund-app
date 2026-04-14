@@ -7,7 +7,6 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -28,11 +27,15 @@ import {
   isAuthenticatedOrderState,
 } from '../../services/ordersService';
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
-import {Colors} from '../../utils/AppConstant';
 import {navigateToCart} from '../../navigation/navigationRef';
 import AppModal from '../../components/AppModal';
+import AppBackButton from '../../components/AppBackButton';
 import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {pickMaxSipInvestment, pickMinSipInvestment} from '../../utils/schemeLimits';
+import {typeScale} from '../../theme/typography';
+import {appAlert} from '../../utils/appAlert';
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -75,6 +78,8 @@ export default function FundInvestmentScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const dispatch = useDispatch();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => getFundInvestmentStyles(colors, isDark), [colors, isDark]);
   const cartCount = useSelector(selectCartItemCount);
   const user = useSelector(s => s.auth.user);
 
@@ -112,7 +117,8 @@ export default function FundInvestmentScreen() {
   const [readyForPayment, setReadyForPayment] = useState(false);
 
   const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
-  const minSip = Number(fundInfo?.holdings?.min_sip_investment) || 500;
+  const minSip = useMemo(() => pickMinSipInvestment(fundInfo), [fundInfo]);
+  const maxSip = useMemo(() => pickMaxSipInvestment(fundInfo), [fundInfo]);
   const minOrderAmount = orderType === 'SIP' ? minSip : minLumpsum;
   const selectedMandateLabel = selectedMandate
     ? pickMandateLabel(selectedMandate)
@@ -125,14 +131,44 @@ export default function FundInvestmentScreen() {
   }, [mandates, selectedMandate]);
 
   const parseOrderAmount = useCallback(() => {
-    const parsed = Number(String(orderAmount).replace(/[^0-9.]/g, ''));
+    const parsed = Number(String(orderAmount).replace(/[^0-9]/g, ''));
     return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   }, [orderAmount]);
 
-  const onTapQuickAmount = useCallback(v => {
-    setOrderAmount(String(v));
+  const validateAmountForSubmit = useCallback(() => {
+    const raw = parseOrderAmount();
+    if (!raw || raw <= 0) {
+      setAmountError('Enter a valid amount');
+      return null;
+    }
+    if (orderType === 'SIP') {
+      if (raw < minSip) {
+        setAmountError(`Minimum investment is ${safeInr(minSip)}`);
+        return null;
+      }
+      if (raw > maxSip) {
+        setAmountError(`Maximum investment is ${safeInr(maxSip)}`);
+        return null;
+      }
+    } else if (raw < minLumpsum) {
+      setAmountError(`Minimum investment is ${safeInr(minLumpsum)}`);
+      return null;
+    }
     setAmountError(null);
-  }, []);
+    return raw;
+  }, [orderType, parseOrderAmount, minSip, maxSip, minLumpsum]);
+
+  const onTapQuickAmount = useCallback(
+    v => {
+      let n = v;
+      if (orderType === 'SIP') {
+        n = Math.min(maxSip, Math.max(minSip, v));
+      }
+      setOrderAmount(String(n));
+      setAmountError(null);
+    },
+    [orderType, minSip, maxSip],
+  );
 
   const openCart = useCallback(() => {
     navigateToCart(navigation);
@@ -140,21 +176,18 @@ export default function FundInvestmentScreen() {
 
   const onAddToCart = useCallback(() => {
     if (!fundInfo?.scheme_code) {
-      Alert.alert('Error', 'Fund data not loaded');
+      appAlert('Error', 'Fund data not loaded');
       return;
     }
-    const amount = Math.max(minOrderAmount, parseOrderAmount());
-    if (parseOrderAmount() < minOrderAmount) {
-      setAmountError(
-        `Please enter amount more than ${minOrderAmount - 1}.`,
-      );
+    const raw = validateAmountForSubmit();
+    if (raw == null) {
       return;
     }
+    const amount = raw;
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      Alert.alert('Select mandate', 'Please choose a mandate for SIP.');
+      appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
-    setAmountError(null);
     dispatch(
       addToCart({
         fund: fundInfo,
@@ -168,16 +201,15 @@ export default function FundInvestmentScreen() {
         logo_url: logoUrl,
       }),
     );
-    Alert.alert('Cart', `${displayName} added to cart`);
+    appAlert('Cart', `${displayName} added to cart`);
   }, [
     dispatch,
     displayName,
     fundInfo,
     logoUrl,
     mandates.length,
-    minOrderAmount,
+    validateAmountForSubmit,
     orderType,
-    parseOrderAmount,
     selectedMandate,
     selectedMandateLabel,
     sipDate,
@@ -187,18 +219,16 @@ export default function FundInvestmentScreen() {
 
   const onPlaceOrder = useCallback(async () => {
     if (!fundInfo?.scheme_code) {
-      Alert.alert('Order', 'Fund details not available.');
+      appAlert('Order', 'Fund details not available.');
       return;
     }
-    const raw = parseOrderAmount();
-    if (!raw || raw < minOrderAmount) {
-      setAmountError(`Please enter amount more than ${minOrderAmount - 1}.`);
+    const raw = validateAmountForSubmit();
+    if (raw == null) {
       return;
     }
-    setAmountError(null);
-    const amount = Math.max(minOrderAmount, raw);
+    const amount = raw;
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      Alert.alert('Select mandate', 'Please choose a mandate for SIP.');
+      appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
     try {
@@ -224,7 +254,7 @@ export default function FundInvestmentScreen() {
         setPendingOrderId(orderId);
         setPendingOrderAmount(amount);
         setReadyForPayment(false);
-        Alert.alert('Order placed', 'Please tap "Authenticate & Continue" to complete payment.');
+        appAlert('Order placed', 'Please tap "Authenticate & Continue" to complete payment.');
       } else {
         const fallbackAuthUrl = extractOrderAuthUrl(res?.data);
         if (fallbackAuthUrl) {
@@ -233,7 +263,7 @@ export default function FundInvestmentScreen() {
             title: 'Authenticate order',
           });
         } else {
-          Alert.alert(
+          appAlert(
             'Order placed',
             'Your order is submitted. You can track it in My Orders.',
             [
@@ -244,16 +274,15 @@ export default function FundInvestmentScreen() {
         }
       }
     } catch (e) {
-      Alert.alert('Order failed', String(e?.message || 'Could not place order.'));
+      appAlert('Order failed', String(e?.message || 'Could not place order.'));
     } finally {
       setPlacingOrder(false);
     }
   }, [
     fundInfo,
-    minOrderAmount,
     navigation,
     orderType,
-    parseOrderAmount,
+    validateAmountForSubmit,
     selectedMandate,
     mandates.length,
     sipFrequency,
@@ -290,7 +319,7 @@ export default function FundInvestmentScreen() {
           title: 'Authenticate order',
         });
       } else {
-        Alert.alert('Authenticate', 'Could not get payment gateway URL.');
+        appAlert('Authenticate', 'Could not get payment gateway URL.');
       }
     } catch (e) {
       const msg = String(e?.message || '');
@@ -306,7 +335,7 @@ export default function FundInvestmentScreen() {
         setReadyForPayment(true);
         return;
       }
-      Alert.alert('Authenticate failed', msg || 'Could not start authentication.');
+      appAlert('Authenticate failed', msg || 'Could not start authentication.');
     } finally {
       setAuthLoading(false);
     }
@@ -317,7 +346,7 @@ export default function FundInvestmentScreen() {
     const totalAmount = Number(pendingOrderAmount ?? parseOrderAmount() ?? 0);
     const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
     if (!orderNumber || !clientCode || !totalAmount) {
-      Alert.alert('Pay now', 'Payment details are incomplete.');
+      appAlert('Pay now', 'Payment details are incomplete.');
       return;
     }
     try {
@@ -335,10 +364,10 @@ export default function FundInvestmentScreen() {
           title: 'Complete payment',
         });
       } else {
-        Alert.alert('Pay now', 'Payment gateway URL not found.');
+        appAlert('Pay now', 'Payment gateway URL not found.');
       }
     } catch (e) {
-      Alert.alert('Payment failed', String(e?.message || 'Could not start payment.'));
+      appAlert('Payment failed', String(e?.message || 'Could not start payment.'));
     } finally {
       setPaymentLoading(false);
     }
@@ -362,7 +391,7 @@ export default function FundInvestmentScreen() {
 
   if (!schemeCode) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.center}>
           <Text style={styles.err}>Missing scheme code</Text>
         </View>
@@ -372,9 +401,9 @@ export default function FundInvestmentScreen() {
 
   if (loading && !folioData) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -382,7 +411,7 @@ export default function FundInvestmentScreen() {
 
   if (error || !fundInfo?.scheme_code) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.center}>
           <Text style={styles.err}>{error || 'Could not load fund'}</Text>
         </View>
@@ -391,7 +420,7 @@ export default function FundInvestmentScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -402,9 +431,7 @@ export default function FundInvestmentScreen() {
           keyboardShouldPersistTaps="handled"
           bounces={false}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={14} style={styles.backHit}>
-              <Text style={styles.back}>‹</Text>
-            </TouchableOpacity>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={14} style={styles.backHit} />
             <TouchableOpacity onPress={openCart} hitSlop={12} style={styles.cartHit}>
               <View style={styles.cartWrap}>
                 <Image source={Icons.CartIcon} style={styles.cartIconImg} resizeMode="contain" />
@@ -478,15 +505,24 @@ export default function FundInvestmentScreen() {
                   style={styles.amountInput}
                   value={orderAmount}
                   onChangeText={t => {
-                    setOrderAmount(t.replace(/[^0-9]/g, ''));
+                    setOrderAmount(t.replace(/[^0-9]/g, '').slice(0, 12));
                     setAmountError(null);
                   }}
                   keyboardType="number-pad"
+                  maxLength={12}
                   placeholder="Enter Amount"
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
               {amountError ? <Text style={styles.amountErrTxt}>{amountError}</Text> : null}
+              {!amountError && orderType === 'SIP' ? (
+                <Text style={styles.amountHintTxt}>
+                  SIP amount: {safeInr(minSip)} – {safeInr(maxSip)}
+                </Text>
+              ) : null}
+              {!amountError && orderType === 'ONE_TIME' ? (
+                <Text style={styles.amountHintTxt}>Minimum one-time: {safeInr(minLumpsum)}</Text>
+              ) : null}
 
               <View style={[styles.quickAmountRow, amountError ? styles.quickRowAfterErr : null]}>
                 {[500, 1000, 2000].map(v => (
@@ -548,7 +584,11 @@ export default function FundInvestmentScreen() {
                 </>
               ) : null}
 
-              <Text style={styles.minAmtHint}>Min amount: {safeInr(minOrderAmount)}</Text>
+              <Text style={styles.minAmtHint}>
+                {orderType === 'SIP'
+                  ? `SIP range: ${safeInr(minSip)} – ${safeInr(maxSip)}`
+                  : `Min amount: ${safeInr(minLumpsum)}`}
+              </Text>
             </View>
           )}
 
@@ -580,7 +620,7 @@ export default function FundInvestmentScreen() {
         title="Select mandate"
         isBottomSheet
         maxHeight={'72%'}>
-        {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={styles.modalLoader} /> : null}
+        {mandateLoading ? <ActivityIndicator color={colors.primary} style={styles.modalLoader} /> : null}
         {!mandateLoading && mandates.length === 0 ? (
           <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
         ) : null}
@@ -637,22 +677,24 @@ export default function FundInvestmentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getFundInvestmentStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
   flex1: {flex: 1},
-  safe: {flex: 1, backgroundColor: '#F0F0F3'},
+  safe: {flex: 1, backgroundColor: c.background},
   scrollContent: {paddingHorizontal: 16, paddingBottom: 8},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 4,
+    minHeight: 44,
   },
-  backHit: {minWidth: 40},
-  cartHit: {minWidth: 40, alignItems: 'flex-end'},
-  back: {fontSize: 32, color: Colors.TEXT_PRIMARY, fontWeight: '300', lineHeight: 36},
-  iconBtn: {fontSize: 22},
+  backHit: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+  cartHit: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+  iconBtn: {fontSize: typeScale.chevron + 2},
   cartWrap: {position: 'relative'},
-  cartIconImg: {width: 24, height: 24},
+  cartIconImg: {width: 22, height: 22, tintColor: isDark ? '#FFFFFF' : '#000000'},
   badge: {
     position: 'absolute',
     top: -6,
@@ -667,19 +709,21 @@ const styles = StyleSheet.create({
   },
   badgeTxt: {...Textstyles.medium, color: '#fff', fontSize: 10},
   screenTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    color: Colors.TEXT_PRIMARY,
-    fontWeight: '700',
+    ...Textstyles.heading,
+    fontSize: typeScale.title,
+    lineHeight: 22,
+    color: c.textPrimary,
     marginTop: 8,
     marginBottom: 16,
   },
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
+    borderWidth: 1,
+    borderColor: c.border,
+    shadowColor: isDark ? 'transparent' : '#000',
+    shadowOpacity: isDark ? 0 : 0.06,
     shadowRadius: 12,
     shadowOffset: {width: 0, height: 4},
     // elevation: 3,
@@ -687,35 +731,47 @@ const styles = StyleSheet.create({
   orderTabs: {
     flexDirection: 'row',
     borderRadius: 40,
-    backgroundColor: '#E8EAED',
+    backgroundColor: isDark ? '#2C2C2C' : '#E8EAED',
     padding: 4,
     marginBottom: 4,
     overflow: 'hidden',
   },
   orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 40},
-  orderTabBtnActive: {backgroundColor: '#E3F0FF'},
-  orderTabTxt: {...Textstyles.medium, fontSize: 17, color: '#6B7280', fontWeight: '600'},
-  orderTabTxtActive: {color: Colors.themeBlue},
+  orderTabBtnActive: {backgroundColor: isDark ? 'rgba(96,165,250,0.15)' : '#E3F0FF'},
+  orderTabTxt: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.textSecondary, fontWeight: '600'},
+  orderTabTxtActive: {color: c.primary},
   amountInputWrap: {
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 12,
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.inputBg,
   },
   amountInputWrapErr: {
     borderColor: '#DC2626',
-    backgroundColor: '#FFFBFB',
+    backgroundColor: isDark ? 'rgba(248,113,113,0.08)' : '#FFFBFB',
   },
-  amountCurrency: {...Textstyles.medium, fontSize: 22, color: '#6B7280', marginRight: 8, fontWeight: '600'},
-  amountInput: {flex: 1, fontSize: 22, color: Colors.TEXT_PRIMARY, paddingVertical: 10},
+  amountCurrency: {
+    ...Textstyles.medium,
+    fontSize: typeScale.amountCurrency,
+    color: c.textSecondary,
+    marginRight: 8,
+    fontWeight: '600',
+  },
+  amountInput: {flex: 1, fontSize: typeScale.amountInput, color: c.textPrimary, paddingVertical: 10},
   amountErrTxt: {
     color: '#DC2626',
     fontSize: 13,
+    marginTop: 8,
+    marginLeft: 2,
+  },
+  amountHintTxt: {
+    fontSize: 12,
+    color: c.textSecondary,
     marginTop: 8,
     marginLeft: 2,
   },
@@ -729,71 +785,71 @@ const styles = StyleSheet.create({
   },
   quickAmountChip: {
     borderWidth: 1,
-    borderColor: Colors.themeBlue,
+    borderColor: c.primary,
     borderRadius: 10,
     paddingVertical: 12,
     width: '31%',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
   },
-  quickAmountChipTxt: {...Textstyles.medium, fontSize: 16, color: Colors.themeBlue, fontWeight: '600'},
-  fieldLabel: {...Textstyles.medium, fontSize: 14, color: '#4B5563', fontWeight: '600', top:6, marginBottom: 8},
+  quickAmountChipTxt: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.primary, fontWeight: '600'},
+  fieldLabel: {...Textstyles.medium, fontSize: 14, color: c.textSecondary, fontWeight: '600', top:6, marginBottom: 8},
   fieldLabelSpaced: {marginTop: 16},
   dropdownField: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.inputBg,
   },
-  dropdownValue: {...Textstyles.medium, fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
-  dropdownChevron: {fontSize: 18, top:-6, color: '#6B7280'},
-  calendarIcon: {fontSize: 18},
+  dropdownValue: {...Textstyles.medium, fontSize: typeScale.bodyLg, color: c.textPrimary, fontWeight: '500'},
+  dropdownChevron: {fontSize: typeScale.chevron, top:-6, color: c.textSecondary},
+  calendarIcon: {fontSize: typeScale.chevron},
   sipOptionRow: {flexDirection: 'row', gap: 8, flexWrap: 'wrap'},
   inlineChip: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.inputBg,
     minWidth: 56,
     alignItems: 'center',
   },
-  inlineChipOn: {backgroundColor: '#EAF4FF', borderColor: Colors.themeBlue},
-  inlineChipTxt: {...Textstyles.medium, fontSize: 14, color: '#374151', fontWeight: '600'},
-  inlineChipTxtOn: {color: Colors.themeBlue},
+  inlineChipOn: {backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#EAF4FF', borderColor: c.primary},
+  inlineChipTxt: {...Textstyles.medium, fontSize: 14, color: c.textPrimary, fontWeight: '600'},
+  inlineChipTxtOn: {color: c.primary},
   mandateSelectCard: {
     marginTop: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
     minHeight: 72,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: c.inputBg,
   },
-  mandateTitle: {...Textstyles.heading, fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  mandateTitle: {...Textstyles.heading, fontSize: 15, color: c.textPrimary, fontWeight: '700'},
   mandateTextWrap: {flex: 1},
-  mandateSub: {fontSize: 13, color: '#6B7280', marginTop: 4},
-  mandateArrow: {fontSize: 26, color: '#9CA3AF', marginLeft: 8},
-  minAmtHint: {marginTop: 14, color: '#6B7280', fontSize: 13},
+  mandateSub: {fontSize: 13, color: c.textSecondary, marginTop: 4},
+  mandateArrow: {fontSize: typeScale.chevron + 6, color: c.textSecondary, marginLeft: 8},
+  minAmtHint: {marginTop: 14, color: c.textSecondary, fontSize: 13},
   viewCart: {marginTop: 18, alignItems: 'center', paddingVertical: 8},
-  viewCartTxt: {...Textstyles.medium, color: Colors.themeBlue, fontSize: 16, fontWeight: '600'},
+  viewCartTxt: {...Textstyles.medium, color: c.primary, fontSize: 16, fontWeight: '600'},
   scrollBottomPad: {height: 24},
   footer: {
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#F0F0F3',
+    backgroundColor: c.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: c.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -802,13 +858,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 54,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addCartLinkTxt: {...Textstyles.medium, fontSize: 16, color: Colors.themeBlue, fontWeight: '600'},
+  addCartLinkTxt: {...Textstyles.medium, fontSize: 16, color: c.primary, fontWeight: '600'},
   primaryCta: {
     minHeight: 54,
     borderRadius: 12,
@@ -818,18 +874,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryCtaDisabled: {opacity: 0.65},
-  primaryCtaTxt: {...Textstyles.heading, fontSize: 17, color: Colors.white},
+  primaryCtaTxt: {...Textstyles.heading, fontSize: typeScale.bodyLg, color: '#FFFFFF'},
   authSummaryWrap: {paddingVertical: 4},
-  authSummaryLabel: {fontSize: 13, color: '#6B7280', marginBottom: 6},
-  authSummaryAmount: {...Textstyles.medium, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '600', marginBottom: 16},
+  authSummaryLabel: {fontSize: 13, color: c.textSecondary, marginBottom: 6},
+  authSummaryAmount: {
+    ...Textstyles.medium,
+    fontSize: typeScale.amountInput,
+    color: c.textPrimary,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
   authContinueBtn: {
     borderRadius: 12,
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: c.primary,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  authContinueTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '600'},
+  authContinueTxt: {...Textstyles.medium, fontSize: 16, color: '#FFFFFF', fontWeight: '600'},
   payNowPrimaryBtn: {
     marginTop: 12,
     borderRadius: 12,
@@ -838,23 +900,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payNowPrimaryTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '600'},
+  payNowPrimaryTxt: {...Textstyles.medium, fontSize: 16, color: '#FFFFFF', fontWeight: '600'},
   modalRoot: {flex: 1, justifyContent: 'flex-end'},
   modalDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
   modalSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
     maxHeight: '70%',
   },
-  modalTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
-  modalEmpty: {fontSize: 13, color: '#6B7280', marginVertical: 10},
+  modalTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: c.textPrimary, marginBottom: 10},
+  modalEmpty: {fontSize: 13, color: c.textSecondary, marginVertical: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 6},
-  modalRowActive: {backgroundColor: '#EAF4FF'},
-  modalRowTxt: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  modalRowTxtActive: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '600'},
+  modalRowActive: {backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#EAF4FF'},
+  modalRowTxt: {fontSize: 14, color: c.textPrimary},
+  modalRowTxtActive: {...Textstyles.medium, color: c.primary, fontWeight: '600'},
   modalLoader: {marginVertical: 12},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
 });
+}

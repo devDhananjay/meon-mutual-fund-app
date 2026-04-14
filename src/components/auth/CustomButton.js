@@ -1,7 +1,7 @@
 import React from 'react';
 import {TouchableOpacity, Text, StyleSheet, ActivityIndicator} from 'react-native';
-import {AuthColors} from '../../constants/authTheme';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function CustomButton({
   title,
@@ -10,22 +10,31 @@ export default function CustomButton({
   disabled = false,
   variant = 'primary',
 }) {
+  const {colors} = useAppTheme();
   const isDisabled = disabled || loading;
   const secondary = variant === 'secondary';
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        secondary ? styles.secondaryBtn : styles.primaryBtn,
+        secondary
+          ? [styles.secondaryBtn, {borderColor: colors.border, backgroundColor: colors.inputBg}]
+          : [styles.primaryBtn, {backgroundColor: colors.primary}],
         isDisabled && styles.disabledBtn,
       ]}
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.9}>
       {loading ? (
-        <ActivityIndicator color={secondary ? AuthColors.primary : '#FFFFFF'} />
+        <ActivityIndicator color={secondary ? colors.primary : colors.card} />
       ) : (
-        <Text style={[styles.text, secondary ? styles.secondaryText : styles.primaryText]}>{title}</Text>
+        <Text
+          style={[
+            styles.text,
+            secondary ? [styles.secondaryText, {color: colors.textPrimary}] : [styles.primaryText, {color: colors.card}],
+          ]}>
+          {title}
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -40,11 +49,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   primaryBtn: {
-    backgroundColor: AuthColors.primary,
+    backgroundColor: '#2F80ED',
   },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: AuthColors.border,
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
   },
   disabledBtn: {
@@ -58,6 +67,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   secondaryText: {
-    color: AuthColors.text,
+    color: '#111827',
   },
 });

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   StatusBar,
 } from 'react-native';
@@ -18,6 +17,10 @@ import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppColors from '../../theme/colors';
 import {radius} from '../../theme/radius';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
+import {typeScale} from '../../theme/typography';
+import {appAlert} from '../../utils/appAlert';
 
 const BANNER_BG = '#DCFCE7';
 const BANNER_FG = '#166534';
@@ -38,6 +41,7 @@ function formatUnits(u) {
 export default function RedeemScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const {colors} = useAppTheme();
   const schemeCode = route.params?.schemeCode ?? route.params?.scheme_code;
   const schemeName = route.params?.schemeName ?? route.params?.scheme_name ?? 'Fund';
   const folioNumber = route.params?.folioNumber ?? '';
@@ -64,26 +68,26 @@ export default function RedeemScreen() {
 
   const onProceed = useCallback(async () => {
     if (!schemeCode) {
-      Alert.alert('Redeem', 'Missing scheme. Go back and try again.');
+      appAlert('Redeem', 'Missing scheme. Go back and try again.');
       return;
     }
 
     if (redeemByAmount) {
       if (parsedAmount <= 0) {
-        Alert.alert('Redeem', 'Enter a valid amount.');
+        appAlert('Redeem', 'Enter a valid amount.');
         return;
       }
       if (maxAmount > 0 && parsedAmount > maxAmount + 0.01) {
-        Alert.alert('Redeem', `Amount cannot exceed ₹${maxAmount.toFixed(2)}.`);
+        appAlert('Redeem', `Amount cannot exceed ₹${maxAmount.toFixed(2)}.`);
         return;
       }
     } else if (!redeemAll) {
       if (parsedUnits <= 0) {
-        Alert.alert('Redeem', 'Enter a valid quantity.');
+        appAlert('Redeem', 'Enter a valid quantity.');
         return;
       }
       if (availableUnits > 0 && parsedUnits > availableUnits + 1e-8) {
-        Alert.alert('Redeem', `Units cannot exceed ${formatUnits(availableUnits)}.`);
+        appAlert('Redeem', `Units cannot exceed ${formatUnits(availableUnits)}.`);
         return;
       }
     }
@@ -104,17 +108,17 @@ export default function RedeemScreen() {
       const res = await createSingleOrder(payload);
       if (!res?.success) {
         const msg = res?.message ?? res?.error ?? 'Could not place redemption.';
-        Alert.alert('Redeem', String(msg));
+        appAlert('Redeem', String(msg));
         return;
       }
       const orderId = extractOrderId(res?.data);
-      Alert.alert(
+      appAlert(
         'Redemption submitted',
         orderId ? `Reference: ${orderId}\nTrack status in My Orders.` : 'Check My Orders for status.',
         [{text: 'OK', onPress: () => navigation.goBack()}],
       );
     } catch (e) {
-      Alert.alert('Redeem', String(e?.message ?? 'Request failed'));
+      appAlert('Redeem', String(e?.message ?? 'Request failed'));
     } finally {
       setSubmitting(false);
     }
@@ -135,23 +139,21 @@ export default function RedeemScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.toolbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backTxt}>‹</Text>
-        </TouchableOpacity>
-        <Text style={[Textstyles.heading, styles.toolbarTitle]} numberOfLines={1}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <View style={[styles.toolbar, {borderBottomColor: colors.border}]}>
+        <AppBackButton onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn} />
+        <Text style={[Textstyles.heading, styles.toolbarTitle, {color: colors.textPrimary}]} numberOfLines={1}>
           Redeem
         </Text>
         <View style={styles.toolbarRight} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={[Textstyles.medium, styles.fundTitle]} numberOfLines={3}>
+        <Text style={[Textstyles.medium, styles.fundTitle, {color: colors.textPrimary}]} numberOfLines={3}>
           {schemeName}
         </Text>
-        <View style={styles.divider} />
+        <View style={[styles.divider, {backgroundColor: colors.border}]} />
 
         <View style={styles.banner}>
           <Text style={styles.bannerLabel}>Redeem available</Text>
@@ -185,7 +187,7 @@ export default function RedeemScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Enter Amount"
-                placeholderTextColor={Colors.GREY}
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="decimal-pad"
                 value={amountText}
                 onChangeText={setAmountText}
@@ -206,7 +208,7 @@ export default function RedeemScreen() {
               <TextInput
                 style={[styles.input, styles.inputFlex]}
                 placeholder="Enter Quantity"
-                placeholderTextColor={Colors.GREY}
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="decimal-pad"
                 editable={!redeemAll}
                 value={unitsText}
@@ -232,12 +234,12 @@ export default function RedeemScreen() {
           </>
         )}
 
-        <Text style={styles.hint}>
+        <Text style={[styles.hint, {color: colors.textSecondary}]}>
           SWP (systematic withdrawal) is not available in the app yet — use the website for SWP setup.
         </Text>
 
         <TouchableOpacity
-          style={[styles.cta, submitting && styles.ctaDisabled]}
+          style={[styles.cta, {backgroundColor: colors.primary}, submitting && styles.ctaDisabled]}
           onPress={onProceed}
           disabled={submitting}
           activeOpacity={0.9}>
@@ -257,17 +259,17 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
     borderBottomWidth: 1,
     borderBottomColor: AppColors.border,
   },
   backBtn: {width: 44, height: 44, justifyContent: 'center', alignItems: 'center'},
-  backTxt: {...Textstyles.normal, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
-  toolbarTitle: {flex: 1, fontSize: 17, textAlign: 'center'},
+  toolbarTitle: {flex: 1, fontSize: typeScale.title, textAlign: 'center'},
   toolbarRight: {width: 44},
   scroll: {padding: 16, paddingBottom: 40},
-  fundTitle: {fontSize: 17, color: Colors.TEXT_PRIMARY, lineHeight: 22},
+  fundTitle: {fontSize: typeScale.bodyMd, color: Colors.TEXT_PRIMARY, lineHeight: 22},
   divider: {height: 1, backgroundColor: Colors.BORDER_GREY, marginVertical: 14},
   banner: {
     flexDirection: 'row',
@@ -299,7 +301,7 @@ const styles = StyleSheet.create({
   segBtnOn: {
     backgroundColor: '#E3F0FF',
   },
-  segTxt: {...Textstyles.medium, fontSize: 16, lineHeight: 20, color: '#6B7280', fontWeight: '600'},
+  segTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, lineHeight: 20, color: '#6B7280', fontWeight: '600'},
   segTxtOn: {color: CHIP_BLUE},
   inputWrap: {
     flexDirection: 'row',
@@ -312,9 +314,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     minHeight: 52,
   },
-  rupee: {fontSize: 17, color: Colors.TEXT_PRIMARY, marginRight: 6},
-  unitsLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, marginRight: 8, minWidth: 44},
-  input: {flex: 1, fontSize: 16, color: Colors.TEXT_PRIMARY, paddingVertical: 10},
+  rupee: {fontSize: typeScale.bodyLg, color: Colors.TEXT_PRIMARY, marginRight: 6},
+  unitsLabel: {fontSize: typeScale.bodyMd, color: Colors.TEXT_PRIMARY, marginRight: 8, minWidth: 44},
+  input: {flex: 1, fontSize: typeScale.bodyLg, color: Colors.TEXT_PRIMARY, paddingVertical: 10},
   inputFlex: {flex: 1},
   chips: {flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20},
   chip: {
@@ -336,5 +338,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaDisabled: {opacity: 0.7},
-  ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: 17},
+  ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: typeScale.bodyLg},
 });

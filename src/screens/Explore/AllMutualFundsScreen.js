@@ -1,19 +1,19 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Image} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Image, InteractionManager} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
 
 import {useAllFunds} from '../../hooks/useAllFunds';
 import {navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
-import {Colors} from '../../utils/AppConstant';
 
 import FilterBar from './components/FilterBar';
 import FundListItem from './components/FundListItem';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
-
-const PRIMARY_GREEN = Colors.themeBlue;
+import {useAppTheme} from '../../theme/useAppTheme';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import AppBackButton from '../../components/AppBackButton';
 const LOAD_MORE_STEP = 10;
 
 function mapApiResultsToFundsForList(data) {
@@ -65,9 +65,92 @@ function getReturnValue(f, periodKey) {
   return Number.isNaN(n) ? -Infinity : n;
 }
 
+function createStyles(colors, isDark) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: colors.background},
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      minHeight: 44,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    backBtn: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+    title: {...Textstyles.heading, flex: 1, textAlign: 'center', fontSize: 18, color: colors.textPrimary},
+    topRightSpacer: {width: 44},
+
+    controlsContainer: {
+      paddingTop: 12,
+      paddingHorizontal: 16,
+    },
+    searchWrap: {
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: SEARCH_FIELD.borderRadius,
+      paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+      paddingVertical: SEARCH_FIELD.paddingVertical,
+      minHeight: SEARCH_FIELD.minHeight,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 18,
+    },
+    filterWrap: {marginHorizontal: 0, marginBottom: 12},
+    searchIconImg: {
+      width: SEARCH_FIELD.iconSize,
+      height: SEARCH_FIELD.iconSize,
+      tintColor: isDark ? colors.textSecondary : undefined,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: SEARCH_FIELD.inputFontSize,
+      color: colors.textPrimary,
+      paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+    },
+    clearSearch: {padding: 4},
+    clearText: {fontSize: 16, color: colors.textSecondary},
+
+    errorBanner: {
+      marginBottom: 12,
+      backgroundColor: isDark ? 'rgba(248,113,113,0.12)' : '#FEF2F2',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(248,113,113,0.35)' : '#FECACA',
+      padding: 12,
+    },
+    errorText: {...Textstyles.medium, color: colors.danger, fontSize: 13, fontWeight: '600'},
+
+    loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+    listContent: {paddingBottom: 24, paddingHorizontal: 16},
+    fundItemWrap: {
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      marginBottom: 10,
+    },
+
+    footerLoading: {
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerSpacer: {height: 24},
+  });
+}
+
 export default function AllMutualFundsScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
+  const searchInputRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -81,6 +164,27 @@ export default function AllMutualFundsScreen() {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
     return () => clearTimeout(t);
   }, [searchTerm]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!route.params?.focusSearch) {
+        return undefined;
+      }
+      let timeoutId;
+      const handle = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(() => {
+          searchInputRef.current?.focus();
+          navigation.setParams({focusSearch: undefined});
+        }, 120);
+      });
+      return () => {
+        handle.cancel?.();
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      };
+    }, [navigation, route.params?.focusSearch]),
+  );
 
   const categoryOptions = useMemo(
     () => [
@@ -168,9 +272,7 @@ export default function AllMutualFundsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-        </TouchableOpacity>
+        <AppBackButton onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10} />
         <Text style={[styles.title, Textstyles.heading]}>All Mutual Funds</Text>
         <View style={styles.topRightSpacer} />
       </View>
@@ -179,11 +281,12 @@ export default function AllMutualFundsScreen() {
         <View style={styles.searchWrap}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
+            ref={searchInputRef}
             style={styles.searchInput}
             value={searchTerm}
             onChangeText={setSearchTerm}
             placeholder="Search funds..."
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.muted}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
@@ -217,14 +320,16 @@ export default function AllMutualFundsScreen() {
 
       {isLoading && sortedFunds.length === 0 ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={PRIMARY_GREEN} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
           data={sortedFunds.slice(0, showMoreCount)}
           keyExtractor={(item, index) => String(item?.id ?? item?.scheme_code ?? index)}
           renderItem={({item}) => (
-            <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
+            <View style={styles.fundItemWrap}>
+              <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
+            </View>
           )}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -233,7 +338,7 @@ export default function AllMutualFundsScreen() {
           ListFooterComponent={
             hasMore && isLoading && sortedFunds.length > 0 ? (
               <View style={styles.footerLoading}>
-                <ActivityIndicator size="small" color={PRIMARY_GREEN} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : (
               <View style={styles.footerSpacer} />
@@ -244,62 +349,4 @@ export default function AllMutualFundsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: Colors.offWhite},
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#EBECED',
-  },
-  backBtn: {width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center'},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: PRIMARY_GREEN, fontWeight: '400'},
-  title: {...Textstyles.heading, flex: 1, textAlign: 'center', fontSize: 18, color: Colors.TEXT_PRIMARY},
-  topRightSpacer: {width: 44},
-
-  controlsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  searchWrap: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#EBECED',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    minHeight: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 18,
-  },
-  filterWrap: {marginHorizontal: 0, marginBottom: 12},
-  searchIconImg: {width: 16, height: 16},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 2},
-  clearSearch: {padding: 4},
-  clearText: {fontSize: 16, color: Colors.GREY},
-
-  errorBanner: {
-    marginBottom: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 12,
-  },
-  errorText: {...Textstyles.medium, color: '#B91C1C', fontSize: 13, fontWeight: '600'},
-
-  loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  listContent: {paddingBottom: 24},
-
-  footerLoading: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerSpacer: {height: 24},
-});
 

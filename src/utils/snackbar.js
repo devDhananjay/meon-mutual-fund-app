@@ -1,6 +1,5 @@
-import {Alert} from 'react-native';
-import {Colors} from './AppConstant';
+import {appAlert} from './appAlert';
 
 export default function Snack(msg) {
-  Alert.alert('', msg, [{text: 'OK'}]);
+  appAlert('', msg, [{text: 'OK'}]);
 }

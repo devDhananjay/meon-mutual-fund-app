@@ -13,6 +13,7 @@ import {login as loginAction} from '../../store/slices/authSlice';
 import {loginWithCredentials} from '../../services/authService';
 import {persistAuth, getRememberedUsername, setRememberedUsername} from '../../services/authStorage';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function Login() {
   const navigation = useNavigation();
@@ -20,6 +21,7 @@ export default function Login() {
   const [rememberPassword, setRememberPassword] = useState(false);
   const [apiError, setApiError] = useState('');
   const [hydrated, setHydrated] = useState(false);
+  const {colors} = useAppTheme();
 
   const {
     control,
@@ -100,15 +102,15 @@ export default function Login() {
   if (!hydrated) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <ActivityIndicator size="large" color={AuthColors.primary} />
+        <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={styles.content}
@@ -123,7 +125,7 @@ export default function Login() {
               <Text style={styles.errorText}>{apiError}</Text>
             </View>
           ) : null}
-          <View style={styles.card}>
+          <View style={[styles.card, {backgroundColor: colors.card}]}>
             <Controller
               control={control}
               name="username"
@@ -136,6 +138,7 @@ export default function Login() {
                   placeholder="Enter username"
                   error={errors.username?.message}
                   editable={!isSubmitting}
+                  autoFocus
                 />
               )}
             />
@@ -166,7 +169,7 @@ export default function Login() {
                 onPress={() => navigation.navigate('ForgotPassword')}
                 disabled={isSubmitting}
                 activeOpacity={0.8}>
-                <Text style={styles.forgotLink}>Forgot Password?</Text>
+                <Text style={[styles.forgotLink, {color: colors.primary}]}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
             <CustomButton

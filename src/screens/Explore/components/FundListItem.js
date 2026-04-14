@@ -1,7 +1,8 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
-import AppColors from '../../../theme/colors';
 import {radius} from '../../../theme/radius';
+import {useAppTheme} from '../../../theme/useAppTheme';
+import {pickTrailingReturn} from './fundReturnDisplay';
 
 const RISK_RED = '#DC2626';
 
@@ -23,9 +24,9 @@ function safeParsePct(raw) {
 function returnColor(raw) {
   const n = safeParsePct(raw);
   if (n === null) {
-    return AppColors.textSecondary;
+    return '#9CA3AF';
   }
-  return n >= 0 ? AppColors.success : RISK_RED;
+  return n >= 0 ? '#16A34A' : RISK_RED;
 }
 
 function formatPctSigned(raw) {
@@ -37,7 +38,7 @@ function formatPctSigned(raw) {
   return `${sign}${Math.abs(n).toFixed(2)}%`;
 }
 
-function FundLogo({logoUrl, name}) {
+function FundLogo({logoUrl, name, styles}) {
   if (logoUrl) {
     return <Image source={{uri: logoUrl}} style={styles.logo} resizeMode="contain" />;
   }
@@ -50,9 +51,14 @@ function FundLogo({logoUrl, name}) {
 }
 
 export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
+  const {colors, isDark} = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const name = fund?.name ?? '';
-  const rating = fund?.rating ?? 4;
   const meta = fund?.metaText ?? '';
+  const {period: retPeriod, value: ret1yOrBest} = pickTrailingReturn(fund);
+  const metaSubline = [meta, ret1yOrBest != null ? `${retPeriod} ${formatPctSigned(ret1yOrBest)}` : null]
+    .filter(Boolean)
+    .join(' · ');
   const returnVal =
     returnPeriodKey === '1y'
       ? fund?.return1y
@@ -65,13 +71,13 @@ export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.row}>
       <View style={styles.left}>
-        <FundLogo logoUrl={fund?.logo_url} name={name} />
+        <FundLogo logoUrl={fund?.logo_url} name={name} styles={styles} />
         <View style={styles.middle}>
           <Text style={styles.name} numberOfLines={1}>
             {name}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {meta} · ★ {rating}
+            {metaSubline || '—'}
           </Text>
         </View>
       </View>
@@ -88,26 +94,26 @@ export default function FundListItem({fund, onPress, returnPeriodKey = '3y'}) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isDark) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   left: {flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1},
-  logo: {width: 38, height: 38, borderRadius: radius.input, backgroundColor: '#F3F4F6'},
+  logo: {width: 38, height: 38, borderRadius: radius.input, backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6'},
   logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 14, fontWeight: '500', color: AppColors.primary},
+  logoLetter: {fontSize: 14, fontWeight: '500', color: colors.primary},
   middle: {flex: 1, minWidth: 0},
-  name: {fontSize: 13, fontWeight: '500', color: AppColors.textPrimary},
-  meta: {fontSize: 12, color: AppColors.textSecondary, marginTop: 4},
+  name: {fontSize: 13, fontWeight: '500', color: colors.textPrimary},
+  meta: {fontSize: 12, color: colors.textSecondary, marginTop: 4},
   right: {alignItems: 'flex-end', minWidth: 92},
   returnVal: {fontSize: 13, fontWeight: '500'},
-  period: {fontSize: 11, color: AppColors.textSecondary, marginTop: 4, fontWeight: '500'},
+  period: {fontSize: 11, color: colors.textSecondary, marginTop: 4, fontWeight: '500'},
 });
 

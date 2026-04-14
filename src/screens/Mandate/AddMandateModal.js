@@ -7,18 +7,15 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useSelector} from 'react-redux';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import {postMandateRegister} from '../../services/mandateService';
 import AppModal from '../../components/AppModal';
-
-const PRIMARY = '#1A73E8';
-const CARD_BORDER = '#E8E8E8';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {appAlert} from '../../utils/appAlert';
 
 const MANDATE_TYPES = ['eNACH', 'NACH', 'UPI Autopay'];
 const MIN_PICK_DATE = new Date(2000, 0, 1);
@@ -81,7 +78,7 @@ function extractMessage(resData) {
   return null;
 }
 
-function Row({label, value}) {
+function Row({label, value, styles}) {
   return (
     <View style={styles.invRow}>
       <Text style={styles.invLabel}>{label}</Text>
@@ -94,6 +91,8 @@ function Row({label, value}) {
 
 export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}) {
   const user = useSelector(s => s.auth.user);
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => getAddMandateModalStyles(colors, isDark), [colors, isDark]);
   const [mandateType, setMandateType] = useState('eNACH');
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -149,11 +148,11 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   const handleSubmit = useCallback(async () => {
     const amt = amount.trim();
     if (!amt || Number(amt) <= 0) {
-      Alert.alert('Add mandate', 'Please enter a valid amount.');
+      appAlert('Add mandate', 'Please enter a valid amount.');
       return;
     }
     if (endDate < startDate) {
-      Alert.alert('Add mandate', 'End date must be on or after start date.');
+      appAlert('Add mandate', 'End date must be on or after start date.');
       return;
     }
 
@@ -176,15 +175,15 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
         } else {
           const msg =
             extractMessage(res.data) ?? 'Mandate registration submitted successfully.';
-          Alert.alert('Add mandate', msg);
+          appAlert('Add mandate', msg);
         }
         onSuccess?.();
       } else {
-        Alert.alert('Add mandate', 'Request could not be completed.');
+        appAlert('Add mandate', 'Request could not be completed.');
       }
     } catch (e) {
       const msg = e?.message || e?.data?.message || 'Could not register mandate.';
-      Alert.alert('Add mandate', String(msg));
+      appAlert('Add mandate', String(msg));
     } finally {
       setSubmitting(false);
     }
@@ -219,10 +218,10 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
         showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Investor details</Text>
         <View style={styles.invCard}>
-          <Row label="Investor name" value={investorName} />
-          <Row label="UCC" value={ucc} />
-          <Row label="PAN" value={pan} />
-          <Row label="Tax status" value={tax} />
+          <Row label="Investor name" value={investorName} styles={styles} />
+          <Row label="UCC" value={ucc} styles={styles} />
+          <Row label="PAN" value={pan} styles={styles} />
+          <Row label="Tax status" value={tax} styles={styles} />
         </View>
 
         <Text style={styles.sectionTitle}>Mandate details</Text>
@@ -255,7 +254,7 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
           <TextInput
             style={styles.input}
             placeholder="Enter amount"
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.textSecondary}
             keyboardType="decimal-pad"
             value={amount}
             onChangeText={setAmount}
@@ -335,142 +334,146 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
           onPress={handleSubmit}
           activeOpacity={0.9}
           disabled={submitting}>
-          {submitting ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.btnSubmitTxt}>Submit</Text>}
+          {submitting ? <ActivityIndicator color={colors.card} /> : <Text style={styles.btnSubmitTxt}>Submit</Text>}
         </TouchableOpacity>
       </View>
     </AppModal>
   );
 }
 
-const styles = StyleSheet.create({
-  sheetScroll: {maxHeight: 520},
-  sectionTitle: {
-    fontSize: 13,
-    ...Textstyles.medium,
-    color: '#6B7280',
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  invCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-  },
-  invRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  invLabel: {fontSize: 14, color: '#6B7280', flex: 1, marginRight: 8},
-  invVal: {fontSize: 14, color: Colors.TEXT_PRIMARY, flex: 1, textAlign: 'right'},
-  fieldLabel: {...Textstyles.medium, fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 6, marginTop: 10},
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-  },
-  dropdownTxt: {fontSize: 15, color: Colors.TEXT_PRIMARY},
-  chev: {fontSize: 10, color: '#9CA3AF'},
-  typeList: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: Colors.white,
-  },
-  typeOpt: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  typeOptTxt: {fontSize: 15, color: Colors.TEXT_PRIMARY},
-  input: {
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: Colors.TEXT_PRIMARY,
-    backgroundColor: Colors.white,
-  },
-  dateRow: {flexDirection: 'row', marginHorizontal: -6, marginTop: 4},
-  dateFieldHalf: {flex: 1, minWidth: 0, paddingHorizontal: 6},
-  dateTouch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-  },
-  dateTouchTxt: {fontSize: 15, color: Colors.TEXT_PRIMARY, flex: 1},
-  calIcon: {width: 16, height: 16, marginLeft: 4},
-  inlineIosPicker: {
-    marginTop: 12,
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    overflow: 'hidden',
-  },
-  inlineIosBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  inlineIosTitle: {...Textstyles.heading, fontSize: 14, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  inlineIosDone: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: PRIMARY},
-  iosSpinnerInline: {alignSelf: 'center', height: 216, width: '100%'},
-  actions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  btnCancel: {
-    flex: 1,
-    marginRight: 6,
-    minHeight: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnCancelTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#6B7280'},
-  btnSubmit: {
-    flex: 1,
-    marginLeft: 6,
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: '#2F80ED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnSubmitDisabled: {opacity: 0.7},
-  btnSubmitTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.white},
-});
+function getAddMandateModalStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+    sheetScroll: {maxHeight: 520},
+    sectionTitle: {
+      fontSize: 13,
+      ...Textstyles.medium,
+      color: c.textSecondary,
+      marginBottom: 8,
+      marginTop: 4,
+    },
+    invCard: {
+      backgroundColor: isDark ? '#252525' : '#F3F4F6',
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    invRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+    },
+    invLabel: {fontSize: 14, color: c.textSecondary, flex: 1, marginRight: 8},
+    invVal: {fontSize: 14, color: c.textPrimary, flex: 1, textAlign: 'right'},
+    fieldLabel: {...Textstyles.medium, fontSize: 12, fontWeight: '600', color: c.textSecondary, marginBottom: 6, marginTop: 10},
+    dropdown: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      backgroundColor: c.inputBg,
+    },
+    dropdownTxt: {fontSize: 15, color: c.textPrimary},
+    chev: {fontSize: 10, color: c.textSecondary},
+    typeList: {
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      overflow: 'hidden',
+      backgroundColor: c.card,
+    },
+    typeOpt: {
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? c.border : '#F3F4F6',
+    },
+    typeOptTxt: {fontSize: 15, color: c.textPrimary},
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: c.textPrimary,
+      backgroundColor: c.inputBg,
+    },
+    dateRow: {flexDirection: 'row', marginHorizontal: -6, marginTop: 4},
+    dateFieldHalf: {flex: 1, minWidth: 0, paddingHorizontal: 6},
+    dateTouch: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      backgroundColor: c.inputBg,
+    },
+    dateTouchTxt: {fontSize: 15, color: c.textPrimary, flex: 1},
+    calIcon: {width: 16, height: 16, marginLeft: 4},
+    inlineIosPicker: {
+      marginTop: 12,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      overflow: 'hidden',
+    },
+    inlineIosBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: isDark ? '#252525' : '#F9FAFB',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+    },
+    inlineIosTitle: {...Textstyles.heading, fontSize: 14, fontWeight: '700', color: c.textPrimary},
+    inlineIosDone: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.primary},
+    iosSpinnerInline: {alignSelf: 'center', height: 216, width: '100%'},
+    actions: {
+      flexDirection: 'row',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    btnCancel: {
+      flex: 1,
+      marginRight: 6,
+      minHeight: 48,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.inputBg,
+    },
+    btnCancelTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: c.textSecondary},
+    btnSubmit: {
+      flex: 1,
+      marginLeft: 6,
+      minHeight: 48,
+      borderRadius: 12,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    btnSubmitDisabled: {opacity: 0.7},
+    btnSubmitTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: '#FFFFFF'},
+  });
+}

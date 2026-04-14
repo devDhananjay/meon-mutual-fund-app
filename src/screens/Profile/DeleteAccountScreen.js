@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +22,8 @@ import {clearAuthStorage} from '../../services/authStorage';
 import {logout} from '../../store/slices/authSlice';
 import {navigationRef} from '../../navigation/navigationRef';
 import Textstyles from '../../utils/text';
+import {appAlert} from '../../utils/appAlert';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 function pickMobile(user) {
   const m =
@@ -38,6 +39,7 @@ function pickMobile(user) {
 export default function DeleteAccountScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const {colors} = useAppTheme();
   const user = useSelector(s => s.auth.user);
 
   const defaultMobile = useMemo(() => pickMobile(user), [user]);
@@ -48,11 +50,11 @@ export default function DeleteAccountScreen() {
   const onSubmit = useCallback(() => {
     const m = mobile.trim();
     if (!/^\d{10}$/.test(m)) {
-      Alert.alert('Mobile number', 'Please enter a valid 10-digit mobile number.');
+      appAlert('Mobile number', 'Please enter a valid 10-digit mobile number.');
       return;
     }
 
-    Alert.alert(
+    appAlert(
       'Delete account',
       'This will submit a deactivation request for your account. You may be logged out after submission. Continue?',
       [
@@ -68,7 +70,7 @@ export default function DeleteAccountScreen() {
                 reason: reason.trim() || 'I no longer want to use this service',
               });
               if (res?.success) {
-                Alert.alert(
+                appAlert(
                   'Request submitted',
                   'Your account deactivation request has been received. If you are signed out, you can contact support for status.',
                   [
@@ -90,11 +92,11 @@ export default function DeleteAccountScreen() {
                   ],
                 );
               } else {
-                Alert.alert('Request failed', 'Could not submit the request. Please try again.');
+                appAlert('Request failed', 'Could not submit the request. Please try again.');
               }
             } catch (e) {
               const msg = e?.message || e?.data?.message || 'Something went wrong.';
-              Alert.alert('Error', String(msg));
+              appAlert('Error', String(msg));
             } finally {
               setSubmitting(false);
             }
@@ -105,7 +107,7 @@ export default function DeleteAccountScreen() {
   }, [dispatch, mobile, reason]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right', 'bottom']}>
       <AppHeader title="Delete account" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         style={styles.flex1}
@@ -114,45 +116,45 @@ export default function DeleteAccountScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.lead}>
+          <Text style={[styles.lead, {color: colors.textSecondary}]}>
           Submit a request to deactivate your account. This action will be processed as per our policies. Based on your user token, we will securely fetch your account details. You may be required to verify your mobile number to proceed.
           </Text>
 
-          <Text style={styles.label}>Mobile number</Text>
+          <Text style={[styles.label, {color: colors.textPrimary}]}>Mobile number</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, {borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.inputBg}]}
             value={mobile}
             onChangeText={setMobile}
             placeholder="10-digit mobile"
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
             maxLength={10}
             editable={!submitting}
           />
 
-          <Text style={styles.label}>Reason (optional)</Text>
+          <Text style={[styles.label, {color: colors.textPrimary}]}>Reason (optional)</Text>
           <TextInput
-            style={[styles.input, styles.inputMultiline]}
+            style={[styles.input, styles.inputMultiline, {borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.inputBg}]}
             value={reason}
             onChangeText={setReason}
             placeholder="Tell us why you are leaving…"
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.textSecondary}
             multiline
             editable={!submitting}
           />
 
-          <Text style={styles.disclaimer}>
+          <Text style={[styles.disclaimer, {color: colors.textSecondary}]}>
             Deactivation may affect access to investments and statements. For regulatory requirements, some records may
             be retained as permitted by law.
           </Text>
 
           <TouchableOpacity
-            style={styles.cta}
+            style={[styles.cta, {backgroundColor: colors.danger}]}
             onPress={onSubmit}
             disabled={submitting}
             activeOpacity={0.9}>
             {submitting ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={colors.card} />
             ) : (
               <Text style={styles.ctaTxt}>Submit deactivation request</Text>
             )}

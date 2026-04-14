@@ -19,7 +19,16 @@ export function pickOrderStatus(item) {
 }
 
 export function pickOrderType(item) {
-  return String(item.buy_sell_display ?? item.buy_sell_display ?? item.buy_sell_display ?? item.buy_sell_display ?? '').trim();
+  const raw =
+    item.transaction_type ??
+    item.txn_type ??
+    item.order_type ??
+    item.product_type ??
+    item.buy_sell_display ??
+    item.scheme_transaction_type ??
+    item.buy_sell ??
+    '';
+  return String(raw).trim();
 }
 
 export function pickOrderDate(item) {

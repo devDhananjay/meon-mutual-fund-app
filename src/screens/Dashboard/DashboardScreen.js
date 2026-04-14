@@ -10,7 +10,6 @@ import {
   Image,
   Platform,
   StatusBar,
-  Alert,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
@@ -28,6 +27,11 @@ import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {typeScale} from '../../theme/typography';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import {TAB_SCREEN_SAFE_TOP_EXTRA, TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
+import {appAlert} from '../../utils/appAlert';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -85,19 +89,24 @@ const SORT_MODE_LABEL = {
   Current: 'Current Invested',
 };
 
-function FundLogo({uri, name}) {
+function FundLogo({uri, name, colors, isDark}) {
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
   }
   const letter = (name || '?')[0]?.toUpperCase?.() ?? '?';
   return (
-    <View style={[styles.fundLogo, styles.fundLogoPh]}>
-      <Text style={styles.fundLogoLetter}>{letter}</Text>
+    <View
+      style={[
+        styles.fundLogo,
+        styles.fundLogoPh,
+        {backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6', borderColor: colors.border},
+      ]}>
+      <Text style={[styles.fundLogoLetter, {color: colors.primary}]}>{letter}</Text>
     </View>
   );
 }
 
-function HoldingRow({fund, sortMode, onHoldingPress}) {
+function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark}) {
   const fullName = fund?.scheme_name ?? fund?.base_scheme_name ?? '';
   const {base, suffix} = splitGrowthType(fullName);
   const logo = fund?.logo_url ?? fund?.logo ?? fund?.scheme_logo_url;
@@ -122,22 +131,22 @@ function HoldingRow({fund, sortMode, onHoldingPress}) {
 
   return (
     <TouchableOpacity
-      style={styles.holdingCard}
+      style={[styles.holdingCard, {borderBottomColor: colors.border}]}
       onPress={() => onHoldingPress(fund)}
       activeOpacity={0.7}>
       <View style={styles.holdingLeft}>
-        <FundLogo uri={logo} name={base || fullName} />
+        <FundLogo uri={logo} name={base || fullName} colors={colors} isDark={isDark} />
         <View style={styles.fundTextCol}>
-          <Text style={[Textstyles.medium, styles.fundName]} numberOfLines={2}>
+          <Text style={[Textstyles.medium, styles.fundName, {color: colors.textPrimary}]} numberOfLines={2}>
             {base || fullName || 'Fund'}
           </Text>
-          {suffix ? <Text style={[Textstyles.medium, styles.growthLabel]}>{suffix}</Text> : null}
+          {suffix ? <Text style={[Textstyles.medium, styles.growthLabel, {color: colors.textSecondary}]}>{suffix}</Text> : null}
         </View>
       </View>
 
       <View style={styles.holdingRight}>
         <Text style={[Textstyles.medium, styles.rightBig, rightBigColor]}>{rightBig}</Text>
-        {rightSmall ? <Text style={[Textstyles.medium, styles.rightSmall]}>{rightSmall}</Text> : null}
+        {rightSmall ? <Text style={[Textstyles.medium, styles.rightSmall, {color: colors.textSecondary}]}>{rightSmall}</Text> : null}
       </View>
     </TouchableOpacity>
   );
@@ -148,6 +157,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const user = useSelector(s => s.auth.user);
   const firstName = user?.full_name || user?.name || 'there';
+  const {colors, isDark} = useAppTheme();
 
   const [holdingVisible, setHoldingVisible] = useState(true);
   const [sortMode, setSortMode] = useState('Current');
@@ -207,37 +217,41 @@ export default function DashboardScreen() {
 
   const sortHeaderLabel = SORT_MODE_LABEL[sortMode] ?? 'Current Invested';
 
-  const headerPadTop = insets.top + 16;
+  const headerPadTop = insets.top + TAB_SCREEN_SAFE_TOP_EXTRA;
 
   const listHeader = useMemo(
     () => (
-      <View style={[styles.headerBlock, {paddingTop: headerPadTop}]}>
+      <View style={[styles.headerBlock, {paddingTop: headerPadTop, backgroundColor: colors.background}]}>
         <View style={styles.topRow}>
-          <Text style={[Textstyles.heading, styles.welcome]} numberOfLines={2}>
+          <Text style={[Textstyles.heading, styles.welcome, {color: colors.textPrimary}]} numberOfLines={2}>
             Welcome {firstName},
           </Text>
           <HeaderActionCluster />
         </View>
 
         <TouchableOpacity
-          style={styles.searchBar}
-          onPress={() => navigation.navigate('Explore')}
+          style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+          onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
           activeOpacity={0.8}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
-          <Text style={[Textstyles.normal, styles.searchPlaceholder]}>Search mutual funds...</Text>
+          <Text style={[Textstyles.normal, styles.searchPlaceholder, {color: colors.textSecondary}]}>
+            Search mutual funds...
+          </Text>
         </TouchableOpacity>
       </View>
     ),
-    [firstName, headerPadTop, navigation],
+    [colors.background, colors.border, colors.inputBg, colors.textPrimary, colors.textSecondary, firstName, headerPadTop, navigation],
   );
 
   const holdingsCard = useMemo(
     () => (
-      <View style={styles.holdingsCard}>
+      <View style={[styles.holdingsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
         <View style={styles.holdingsHeaderRow}>
           <View>
-            <Text style={[Textstyles.normal, styles.holdingsLabel]}>Holdings ({holdings.length})</Text>
-            <Text style={[Textstyles.medium, styles.holdingsBig]}>
+            <Text style={[Textstyles.normal, styles.holdingsLabel, {color: colors.textSecondary}]}>
+              Holdings ({holdings.length})
+            </Text>
+            <Text style={[Textstyles.medium, styles.holdingsBig, {color: colors.textPrimary}]}>
               {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
             </Text>
           </View>
@@ -245,15 +259,15 @@ export default function DashboardScreen() {
           <View style={styles.holdingsIcons}>
             <TouchableOpacity
               onPress={refetch}
-              style={styles.iconCircle}
+              style={[styles.iconCircle, {borderColor: colors.border, backgroundColor: colors.card}]}
               hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
               activeOpacity={0.75}>
               {refreshing ? (
-                <ActivityIndicator size="small" color={Colors.themeBlue} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <Image
                   source={Icons.RefreshIcon}
-                  style={styles.refreshIconImg}
+                  style={[styles.refreshIconImg, {tintColor: colors.textPrimary}]}
                   resizeMode="contain"
                 />
               )}
@@ -261,13 +275,21 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               onPress={() => setHoldingVisible(v => !v)}
-              style={styles.iconCircle}
+              style={[styles.iconCircle, {borderColor: colors.border, backgroundColor: colors.card}]}
               hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
               activeOpacity={0.75}>
               {holdingVisible ? (
-                <Image source={Icons.EyeIcon} style={styles.eyeIconImg} resizeMode="contain" />
+                <Image
+                  source={Icons.EyeIcon}
+                  style={[styles.eyeIconImg, {tintColor: colors.textPrimary}]}
+                  resizeMode="contain"
+                />
               ) : (
-                <Image source={Icons.threeDots} style={styles.eyeIconImg} resizeMode="contain" />
+                <Image
+                  source={Icons.threeDots}
+                  style={[styles.eyeIconImg, {tintColor: colors.textPrimary}]}
+                  resizeMode="contain"
+                />
               )}
             </TouchableOpacity>
           </View>
@@ -276,7 +298,7 @@ export default function DashboardScreen() {
         {holdingVisible && (
           <View style={styles.statsCol}>
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>1D Returns</Text>
+              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>1D Returns</Text>
               <Text
                 style={[
                   Textstyles.medium,
@@ -288,7 +310,7 @@ export default function DashboardScreen() {
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Total Returns</Text>
+              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Total Returns</Text>
               <Text
                 style={[
                   Textstyles.medium,
@@ -300,16 +322,18 @@ export default function DashboardScreen() {
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Invested</Text>
-              <Text style={[Textstyles.medium, styles.statValue]}>{formatInr(portfolio?.total_amount)}</Text>
+              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Invested</Text>
+              <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
+                {formatInr(portfolio?.total_amount)}
+              </Text>
             </View>
 
             <View style={styles.statRow}>
               <View style={styles.xirrLabelRow}>
-                <Text style={styles.statLabel}>XIRR</Text>
-                <Text style={styles.caretDown}>⌄</Text>
+                <Text style={[styles.statLabel, {color: colors.textSecondary}]}>XIRR</Text>
+                <Text style={[styles.caretDown, {color: colors.textSecondary}]}>⌄</Text>
               </View>
-              <Text style={[Textstyles.medium, styles.statValue]}>
+              <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
                 {portfolio?.XIRR != null ? `${Number(portfolio.XIRR).toFixed(2)}%` : '—'}
               </Text>
             </View>
@@ -318,6 +342,11 @@ export default function DashboardScreen() {
       </View>
     ),
     [
+      colors.border,
+      colors.card,
+      colors.primary,
+      colors.textPrimary,
+      colors.textSecondary,
       holdings.length,
       holdingVisible,
       portfolio,
@@ -330,14 +359,14 @@ export default function DashboardScreen() {
   const listFooter = useMemo(
     () => (
       <View style={styles.footer}>
-        <View style={styles.sipCard}>
+        <View style={[styles.sipCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <Image
             source={require('../../assets/Icons/calendarSip.png')}
             style={styles.sipEmoji}
             resizeMode="contain"
           />
           <View style={styles.sipTextCol}>
-            <Text style={[Textstyles.medium, styles.sipTitle]}>
+            <Text style={[Textstyles.medium, styles.sipTitle, {color: colors.textPrimary}]}>
               Invest every month and grow your wealth with SIP
             </Text>
             <TouchableOpacity
@@ -350,20 +379,10 @@ export default function DashboardScreen() {
         </View>
       </View>
     ),
-    [navigation],
+    [colors.border, colors.card, colors.textPrimary, navigation],
   );
 
-  if (isPending && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-          <Text style={[Textstyles.normal, styles.loadingText]}>Loading portfolio…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const showInlineLoader = isPending && !refreshing;
 
   const modalFund = holdingActionFund;
   const modalName = modalFund?.scheme_name ?? modalFund?.base_scheme_name ?? 'Fund';
@@ -371,43 +390,53 @@ export default function DashboardScreen() {
   const modalInvested = modalFund?.amount;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.offWhite} />
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       {error ? (
-        <View style={styles.errorBanner}>
+        <View style={[styles.errorBanner, {backgroundColor: isDark ? '#3B1D1D' : '#FEF2F2', borderColor: isDark ? '#7F1D1D' : '#FECACA'}]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={[styles.retryText, {color: colors.primary}]}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
       {listHeader}
 
+      {showInlineLoader ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Textstyles.normal, styles.loadingTextInline, {color: colors.textSecondary}]}>Loading portfolio…</Text>
+        </View>
+      ) : null}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.themeBlue} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}>
         {holdingsCard}
 
-        <View style={styles.stocksCard}>
-          <TouchableOpacity style={styles.listHeaderRow} activeOpacity={0.85} onPress={cycleSortMode}>
+        <View style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <TouchableOpacity
+            style={[styles.listHeaderRow, {borderBottomColor: colors.border}]}
+            activeOpacity={0.85}
+            onPress={cycleSortMode}>
             <View style={styles.sortLeft}>
-              <Text style={styles.sortIcon}>⇅</Text>
-              <Text style={styles.sortLabel}>Sort</Text>
+              <Text style={[styles.sortIcon, {color: colors.textSecondary}]}>⇅</Text>
+              <Text style={[styles.sortLabel, {color: colors.textPrimary}]}>Sort</Text>
             </View>
 
             <View style={styles.sortRight}>
-              <Text style={styles.sortValueText}>{sortHeaderLabel}</Text>
-              {sortMode === 'Current' ? <Text style={styles.sortAngle}> &lt;&gt;</Text> : null}
-              <Text style={styles.sortCaret}>⌄</Text>
+              <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
+              {sortMode === 'Current' ? <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text> : null}
+              <Text style={[styles.sortCaret, {color: colors.textSecondary}]}>⌄</Text>
             </View>
           </TouchableOpacity>
 
           {holdings.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Text style={[Textstyles.normal, styles.emptyText]}>No holdings yet</Text>
+              <Text style={[Textstyles.normal, styles.emptyText, {color: colors.textSecondary}]}>No holdings yet</Text>
             </View>
           ) : null}
 
@@ -417,23 +446,29 @@ export default function DashboardScreen() {
               fund={item}
               sortMode={sortMode}
               onHoldingPress={onHoldingPress}
+              colors={colors}
+              isDark={isDark}
             />
           ))}
 
           <View style={styles.importWrap}>
             <TouchableOpacity
-              style={styles.importBtn}
+              style={[styles.importBtn, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
               // disabled={true}
               onPress={() => {
-                Alert.alert('Coming Soon!')
+                appAlert('Coming Soon!')
                 // navigation.navigate('Explore')
               }}
               activeOpacity={0.85}>
               <View style={styles.importLeft}>
-                <View style={styles.importIconCircle}>
-                  <Text style={styles.importIconTxt}>⤴</Text>
+                <View style={[styles.importIconCircle, {backgroundColor: isDark ? '#1E293B' : '#E8F4FC', borderColor: colors.border}]}>
+                  <Image
+                    source={Icons.ImportExternalFunds}
+                    style={[styles.importIconImg, {tintColor: colors.primary}]}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={[Textstyles.medium, styles.importText]}>Import External Funds</Text>
+                <Text style={[Textstyles.medium, styles.importText, {color: colors.textPrimary}]}>Import External Funds</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -449,42 +484,54 @@ export default function DashboardScreen() {
         isBottomSheet
         maxHeight={'66%'}>
         <TouchableOpacity
-          style={styles.holdingModalHeader}
+          style={[styles.holdingModalHeader, {backgroundColor: colors.card}]}
           onPress={onModalInvestmentDetails}
           activeOpacity={0.85}>
           <FundLogo uri={modalLogo} name={modalName} />
-          <Text style={[Textstyles.medium, styles.holdingModalTitle]} numberOfLines={2}>
+          <Text style={[Textstyles.medium, styles.holdingModalTitle, {color: colors.textPrimary}]} numberOfLines={2}>
             {modalName}
           </Text>
-          <Text style={styles.holdingModalChevron}>›</Text>
+          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
         </TouchableOpacity>
 
-        <View style={styles.holdingModalDivider} />
+        <View style={[styles.holdingModalDivider, {backgroundColor: colors.border}]} />
 
         <View style={styles.holdingModalRow}>
-          <Text style={styles.holdingModalLabel}>Invested Value</Text>
-          <Text style={[Textstyles.medium, styles.holdingModalValue]}>{formatInr(modalInvested)}</Text>
+          <Text style={[styles.holdingModalLabel, {color: colors.textSecondary}]}>Invested Value</Text>
+          <Text style={[Textstyles.medium, styles.holdingModalValue, {color: colors.textPrimary}]}>
+            {formatInr(modalInvested)}
+          </Text>
         </View>
 
-        <View style={styles.holdingModalDivider} />
+        <View style={[styles.holdingModalDivider, {backgroundColor: colors.border}]} />
 
-        <TouchableOpacity style={styles.holdingModalAction} onPress={onModalRedeem} activeOpacity={0.8}>
-          <View style={styles.holdingModalActionIconWrap}>
-            <Text style={styles.holdingModalActionIconTxt}>₹</Text>
+        <TouchableOpacity style={[styles.holdingModalAction, {backgroundColor: colors.card}]} onPress={onModalRedeem} activeOpacity={0.8}>
+          <View
+            style={[
+              styles.holdingModalActionIconWrap,
+              {backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderColor: colors.border},
+            ]}>
+            <Text style={[styles.holdingModalActionIconTxt, {color: colors.textPrimary}]}>₹</Text>
           </View>
-          <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Redeem</Text>
-          <Text style={styles.holdingModalChevron}>›</Text>
+          <Text style={[Textstyles.medium, styles.holdingModalActionTxt, {color: colors.textPrimary}]}>Redeem</Text>
+          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.holdingModalAction}
+          style={[styles.holdingModalAction, {backgroundColor: colors.card}]}
           onPress={onModalInvestmentDetails}
           activeOpacity={0.8}>
-          <View style={styles.holdingModalActionIconWrap}>
-            <Text style={styles.holdingModalActionIconTxt}>☰</Text>
+          <View
+            style={[
+              styles.holdingModalActionIconWrap,
+              {backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderColor: colors.border},
+            ]}>
+            <Text style={[styles.holdingModalActionIconTxt, {color: colors.textPrimary}]}>☰</Text>
           </View>
-          <Text style={[Textstyles.medium, styles.holdingModalActionTxt]}>Investment Details</Text>
-          <Text style={styles.holdingModalChevron}>›</Text>
+          <Text style={[Textstyles.medium, styles.holdingModalActionTxt, {color: colors.textPrimary}]}>
+            Investment Details
+          </Text>
+          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
         </TouchableOpacity>
       </AppModal>
     </SafeAreaView>
@@ -503,6 +550,18 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: Colors.GREY,
     fontSize: 15,
+  },
+  loadingInline: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingTextInline: {
+    marginTop: 0,
+    color: Colors.GREY,
+    fontSize: 14,
   },
   errorBanner: {
     marginHorizontal: 16,
@@ -535,24 +594,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: TAB_SCREEN_TITLE_TO_SEARCH,
     gap: 12,
   },
   welcome: {
     flex: 1,
-    fontSize: 22,
+    fontSize: typeScale.title,
     color: Colors.TEXT_PRIMARY,
-    lineHeight: 28,
+    lineHeight: 22,
     paddingRight: 4,
   },
   searchBar: {
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
-    borderRadius: 12,
-    paddingVertical: 12,
-    minHeight: 50,
-    paddingHorizontal: 14,
+    borderRadius: SEARCH_FIELD.borderRadius,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -563,10 +622,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     // elevation: 2,
   },
-  searchIconImg: {width: 16, height: 16, opacity: 0.9},
+  searchIconImg: {width: SEARCH_FIELD.iconSize, height: SEARCH_FIELD.iconSize, opacity: 0.9},
   searchPlaceholder: {
     color: Colors.GREY,
-    fontSize: 15,
+    fontSize: SEARCH_FIELD.inputFontSize,
   },
   holdingsCard: {
     backgroundColor: Colors.white,
@@ -598,11 +657,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.white,
   },
-  iconCircleTxt: {fontSize: 30, color: Colors.TEXT_PRIMARY, lineHeight: 22},
+  iconCircleTxt: {fontSize: typeScale.amountInput, color: Colors.TEXT_PRIMARY, lineHeight: 22},
   refreshIconImg: {width: 20, height: 20},
   eyeIconImg: {width: 22, height: 22},
   holdingsLabel: {fontSize: 14, color: Colors.GREY},
-  holdingsBig: {fontSize: 28, color: Colors.TEXT_PRIMARY, marginTop: 2},
+  holdingsBig: {fontSize: typeScale.amountInput, color: Colors.TEXT_PRIMARY, marginTop: 2},
   statsCol: {marginTop: 10},
   statRow: {
     flexDirection: 'row',
@@ -700,7 +759,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   holdingModalTitle: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 20},
-  holdingModalChevron: {fontSize: 22, color: Colors.GREY, fontWeight: '300'},
+  holdingModalChevron: {fontSize: typeScale.chevron, color: Colors.GREY, fontWeight: '300'},
   holdingModalDivider: {height: 1, backgroundColor: Colors.BORDER_GREY, marginHorizontal: 16},
   holdingModalRow: {
     flexDirection: 'row',
@@ -723,6 +782,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -766,7 +827,7 @@ const styles = StyleSheet.create({
   importIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     backgroundColor: '#E8F4FC',
     borderWidth: 1,
     borderColor: '#D6F0FF',
@@ -774,9 +835,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  importIconTxt: {fontSize: 16},
+  importIconImg: {width: 22, height: 22},
   importText: {fontSize: 15, color: Colors.TEXT_PRIMARY, marginRight: 12},
-  chevron: {fontSize: 22, color: Colors.GREY},
+  chevron: {fontSize: typeScale.chevron, color: Colors.GREY},
   sipCard: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
@@ -792,7 +853,7 @@ const styles = StyleSheet.create({
   sipTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: '#21C76E',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,

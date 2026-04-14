@@ -1,13 +1,13 @@
 import React, {useMemo, useState} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
-import AppColors from '../../../theme/colors';
 import {radius} from '../../../theme/radius';
 import AppModal from '../../../components/AppModal';
 import Textstyles from '../../../utils/text';
-
-const PRIMARY_BLUE = AppColors.primary;
+import {useAppTheme} from '../../../theme/useAppTheme';
 
 function Chip({label, selected, onPress}) {
+  const {colors, isDark} = useAppTheme();
+  const styles = getStyles(colors, isDark);
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -32,6 +32,8 @@ export default function FilterBar({
   onSelectRisk,
   containerStyle,
 }) {
+  const {colors, isDark} = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const [returnsOpen, setReturnsOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [draftCategory, setDraftCategory] = useState(selectedCategory);
@@ -164,12 +166,12 @@ export default function FilterBar({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isDark) => StyleSheet.create({
   wrap: {
-    backgroundColor: AppColors.card,
+    backgroundColor: colors.card,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginHorizontal: 16,
@@ -178,11 +180,11 @@ const styles = StyleSheet.create({
 
   headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   headerActions: {flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end'},
-  countTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: AppColors.textPrimary},
+  countTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.textPrimary},
   sortValueBtn: {
     minHeight: 34,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     flexDirection: 'row',
@@ -190,42 +192,42 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     maxWidth: 116,
   },
-  sortValueTxt: {...Textstyles.medium, fontSize: 12, fontWeight: '500', color: AppColors.textPrimary, flexShrink: 1},
-  sortChevron: {fontSize: 11, color: AppColors.textSecondary, marginLeft: 6},
+  sortValueTxt: {...Textstyles.medium, fontSize: 12, fontWeight: '500', color: colors.textPrimary, flexShrink: 1},
+  sortChevron: {fontSize: 11, color: colors.textSecondary, marginLeft: 6},
   filterPillBtn: {
     minHeight: 34,
     borderWidth: 1,
-    borderColor: AppColors.border,
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     justifyContent: 'center',
     marginLeft: 8,
     maxWidth: 144,
   },
-  filterPillTxt: {...Textstyles.normal, fontSize: 12, color: AppColors.textPrimary},
-  filterMetaTxt: {...Textstyles.normal, fontSize: 12, color: AppColors.textSecondary, marginTop: 10},
+  filterPillTxt: {...Textstyles.normal, fontSize: 12, color: colors.textPrimary},
+  filterMetaTxt: {...Textstyles.normal, fontSize: 12, color: colors.textSecondary, marginTop: 10},
 
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#EBECED',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.inputBg,
     marginRight: 8,
     marginBottom: 8,
   },
-  chipSelected: {borderColor: PRIMARY_BLUE, backgroundColor: '#EAF2FF'},
-  chipTxt: {...Textstyles.medium, fontSize: 12, color: '#374151', fontWeight: '500'},
-  chipTxtSelected: {color: PRIMARY_BLUE},
+  chipSelected: {borderColor: colors.primary, backgroundColor: isDark ? '#1B2A3D' : '#EAF2FF'},
+  chipTxt: {...Textstyles.medium, fontSize: 12, color: colors.textPrimary, fontWeight: '500'},
+  chipTxtSelected: {color: colors.primary},
 
   modalRow: {paddingVertical: 12, paddingHorizontal: 8, borderRadius: 10},
-  modalRowActive: {backgroundColor: '#EAF2FF'},
-  modalRowTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: AppColors.textPrimary},
-  modalRowTxtActive: {color: PRIMARY_BLUE},
+  modalRowActive: {backgroundColor: isDark ? '#1B2A3D' : '#EAF2FF'},
+  modalRowTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.textPrimary},
+  modalRowTxtActive: {color: colors.primary},
   filterSheetHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  clearTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: PRIMARY_BLUE},
-  sheetSectionLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: '#6B7280', marginTop: 12},
+  clearTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.primary},
+  sheetSectionLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: colors.textSecondary, marginTop: 12},
   chipWrap: {flexDirection: 'row', flexWrap: 'wrap', marginTop: 8},
 });
 

@@ -1,11 +1,11 @@
 export const AuthColors = {
-  primary: '#2F80ED',
+  primary: '#21C76E',
   bg: '#F4F6FA',
   surface: '#FFFFFF',
   text: '#111827',
   subText: '#6B7280',
   border: '#D6DBE5',
-  borderFocus: '#2F80ED',
+  borderFocus: '#21C76E',
   success: '#22C55E',
   error: '#DC2626',
   disabled: '#BFC7D6',

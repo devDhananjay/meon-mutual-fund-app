@@ -9,14 +9,12 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
 import {
@@ -42,11 +40,10 @@ import {
 } from './orderHelpers';
 import StatusTimeline from '../../components/StatusTimeline';
 import AppModal from '../../components/AppModal';
+import AppBackButton from '../../components/AppBackButton';
 import {radius} from '../../theme/radius';
-
-const PAGE_BG = '#F8FAFC';
-const CARD_BORDER = '#E5E7EB';
-const THEME_BLUE = '#2F80ED';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {appAlert} from '../../utils/appAlert';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -195,6 +192,8 @@ function buildTimelineSteps(order) {
 export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => getOrderDetailStyles(colors, isDark), [colors, isDark]);
   const user = useSelector(s => s.auth.user);
   const routeOrder = route.params?.order;
   const [resolvedOrder, setResolvedOrder] = useState(routeOrder || null);
@@ -276,6 +275,14 @@ export default function OrderDetailScreen() {
     });
   }, [navigation, order, title]);
 
+  const onNeedHelp = useCallback(() => {
+    appAlert('Need help?', 'Choose how you would like to get assistance.', [
+      {text: "FAQ's", onPress: () => navigation.navigate('SupportArticle', {id: 'faq'})},
+      {text: 'Help & Support', onPress: () => navigation.navigate('SupportArticle', {id: 'help'})},
+      {text: 'Cancel', style: 'cancel'},
+    ]);
+  }, [navigation]);
+
   const logo = order?.logo_url ?? order?.logo;
   // Web parity:
   // - authenticate endpoint expects internal `order_id`
@@ -345,7 +352,7 @@ export default function OrderDetailScreen() {
       return;
     }
     if (!mode) {
-      Alert.alert('Payment', 'Please select a payment mode.');
+      appAlert('Payment', 'Please select a payment mode.');
       return;
     }
     try {
@@ -380,7 +387,7 @@ export default function OrderDetailScreen() {
 
       // If API says pending, show error/pending message and DO NOT show "payment link has been generated".
       if (apiStatus === 'pending') {
-        Alert.alert('Payment', responseString || 'Payment is pending. Please try again.');
+        appAlert('Payment', responseString || 'Payment is pending. Please try again.');
         setPaymentBoxStatus('PAYMENT_REQUIRED');
         setPaymentModeModalVisible(false);
         setPaymentModeStep('method');
@@ -394,7 +401,7 @@ export default function OrderDetailScreen() {
       }
       // If gateway URL isn't returned, still show the API message (UPI request, mapping issues, etc).
       if (!url && responseString) {
-        Alert.alert('Payment', responseString);
+        appAlert('Payment', responseString);
       }
       setPaymentBoxStatus('PAYMENT_CONFIRMATION_REQUIRED');
       setPaymentModeModalVisible(false);
@@ -428,10 +435,10 @@ export default function OrderDetailScreen() {
             : 'PAYMENT_REQUIRED';
         setPaymentBoxStatus(nextStatus);
       } else {
-        Alert.alert('Authentication failed', 'Payment authentication URL not found.');
+        appAlert('Authentication failed', 'Payment authentication URL not found.');
       }
     } catch (e) {
-      Alert.alert('Authentication failed', String(e?.message || 'Could not authenticate order.'));
+      appAlert('Authentication failed', String(e?.message || 'Could not authenticate order.'));
     } finally {
       setPaymentLoading(false);
     }
@@ -495,10 +502,10 @@ export default function OrderDetailScreen() {
     try {
       setTimelineActionLoading(true);
       await createCancelOrder(order);
-      Alert.alert('Order cancelled', 'Your order has been cancelled.');
+      appAlert('Order cancelled', 'Your order has been cancelled.');
       navigation.navigate('MyOrders');
     } catch (e) {
-      Alert.alert('Cancel failed', String(e?.message || 'Could not cancel order.'));
+      appAlert('Cancel failed', String(e?.message || 'Could not cancel order.'));
     } finally {
       setTimelineActionLoading(false);
     }
@@ -519,7 +526,7 @@ export default function OrderDetailScreen() {
       await refreshResolvedOrder();
       setOrderContinue(true);
     } catch (e) {
-      Alert.alert('Continue failed', String(e?.message || 'Could not proceed.'));
+      appAlert('Continue failed', String(e?.message || 'Could not proceed.'));
     } finally {
       setTimelineActionLoading(false);
     }
@@ -536,12 +543,13 @@ export default function OrderDetailScreen() {
 
   if (!order) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-            <Text style={styles.backChevron}>‹</Text>
-            <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-          </TouchableOpacity>
+          <View style={[styles.topBarSide, styles.topBarSideLeft]}>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+          </View>
+          <Text style={styles.navTitle}>Order Details</Text>
+          <View style={[styles.topBarSide, styles.topBarSideRight]} />
         </View>
         <View style={styles.missing}>
           <Text style={styles.missingTxt}>No order data.</Text>
@@ -560,16 +568,17 @@ export default function OrderDetailScreen() {
           : `Order ${status}`;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-          <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-        </TouchableOpacity>
+        <View style={[styles.topBarSide, styles.topBarSideLeft]}>
+          <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+        </View>
         <Text style={styles.navTitle}>Order Details</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={onPullRefresh} activeOpacity={0.8}>
-          <Text style={styles.refreshBtnTxt}>{pullRefreshing ? '...' : 'Refresh'}</Text>
-        </TouchableOpacity>
+        <View style={[styles.topBarSide, styles.topBarSideRight]}>
+          <TouchableOpacity style={styles.refreshBtn} onPress={onPullRefresh} activeOpacity={0.8}>
+            <Text style={styles.refreshBtnTxt}>{pullRefreshing ? '...' : 'Refresh'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -579,7 +588,7 @@ export default function OrderDetailScreen() {
           <RefreshControl
             refreshing={pullRefreshing}
             onRefresh={onPullRefresh}
-            tintColor={THEME_BLUE}
+            tintColor={colors.primary}
           />
         }>
         <View style={styles.summaryCard}>
@@ -602,7 +611,8 @@ export default function OrderDetailScreen() {
                 </View>
               ) : (
                 <View style={[styles.statusCircle, styles.statusCirclePending]}>
-                  <Text style={styles.clockTxt}>🕐</Text>
+                  {/* <Text style={styles.clockTxt}>🕐</Text> */}
+                  <Image source={Icons.inProgress} style={styles.clockIconImg} resizeMode="contain" />
                 </View>
               )}
             </View>
@@ -704,7 +714,10 @@ export default function OrderDetailScreen() {
                             setPaymentModeStep('method');
                             setSelectedPaymentMode(null);
                           }}>
-                          <Text style={styles.modalBackTxt}>‹ Back to Payment</Text>
+                          <View style={styles.modalBackRow}>
+                            <Image source={Icons.BackIcon} style={styles.modalBackIcon} resizeMode="contain" />
+                            <Text style={styles.modalBackTxt}>Back to Payment</Text>
+                          </View>
                         </TouchableOpacity>
                       </View>
 
@@ -783,21 +796,21 @@ export default function OrderDetailScreen() {
                         style={[styles.modalContinuePrimaryBtn, (paymentLoading || paymentModeBusy) && {opacity: 0.7}]}
                         onPress={async () => {
                           if (!selectedPaymentMode) {
-                            Alert.alert('Payment', 'Please choose a payment method.');
+                            appAlert('Payment', 'Please choose a payment method.');
                             return;
                           }
                           if (selectedPaymentMode === 'UPI') {
                             const v = String(upiVpa || '').trim();
                             const upiRegex = /^[a-zA-Z0-9._-]{2,64}@[a-zA-Z]{2,64}$/;
                             if (!upiRegex.test(v)) {
-                              Alert.alert('UPI', 'Please enter a valid UPI VPA (example: name@bank).');
+                              appAlert('UPI', 'Please enter a valid UPI VPA (example: name@bank).');
                               return;
                             }
                           }
                           if (selectedPaymentMode === 'NEFT') {
                             const v = String(neftUtr || '').trim();
                             if (!v) {
-                              Alert.alert('NEFT', 'Please enter UTR / Reference.');
+                              appAlert('NEFT', 'Please enter UTR / Reference.');
                               return;
                             }
                           }
@@ -806,7 +819,7 @@ export default function OrderDetailScreen() {
                         }}
                         disabled={paymentLoading || paymentModeBusy}>
                         {paymentModeBusy ? (
-                          <ActivityIndicator size="small" color={Colors.white} />
+                          <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : selectedPaymentMode === 'DIRECT' ? (
                           <Text style={styles.modalContinuePrimaryTxt}>Pay Now</Text>
                         ) : (
@@ -820,7 +833,10 @@ export default function OrderDetailScreen() {
                     <>
                       <View style={styles.modalBackRow}>
                         <TouchableOpacity onPress={() => setPaymentModeStep('method')}>
-                          <Text style={styles.modalBackTxt}>‹ Back to Payment</Text>
+                          <View style={styles.modalBackRow}>
+                            <Image source={Icons.BackIcon} style={styles.modalBackIcon} resizeMode="contain" />
+                            <Text style={styles.modalBackTxt}>Back to Payment</Text>
+                          </View>
                         </TouchableOpacity>
                       </View>
                       <View style={styles.paymentModeCard}>
@@ -841,13 +857,13 @@ export default function OrderDetailScreen() {
                           const v = String(upiVpa || '').trim();
                           const upiRegex = /^[a-zA-Z0-9._-]{2,64}@[a-zA-Z]{2,64}$/;
                           if (!upiRegex.test(v)) {
-                            Alert.alert('UPI', 'Please enter a valid UPI VPA (example: name@bank).');
+                            appAlert('UPI', 'Please enter a valid UPI VPA (example: name@bank).');
                             return;
                           }
                           await onPayNowWithMode('UPI');
                         }}
                         disabled={paymentLoading || paymentModeBusy}>
-                        {paymentModeBusy ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.modalContinuePrimaryTxt}>Continue</Text>}
+                        {paymentModeBusy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalContinuePrimaryTxt}>Continue</Text>}
                       </TouchableOpacity>
                     </>
                   ) : null}
@@ -856,7 +872,10 @@ export default function OrderDetailScreen() {
                     <>
                       <View style={styles.modalBackRow}>
                         <TouchableOpacity onPress={() => setPaymentModeStep('method')}>
-                          <Text style={styles.modalBackTxt}>‹ Back to Payment</Text>
+                          <View style={styles.modalBackRow}>
+                            <Image source={Icons.BackIcon} style={styles.modalBackIcon} resizeMode="contain" />
+                            <Text style={styles.modalBackTxt}>Back to Payment</Text>
+                          </View>
                         </TouchableOpacity>
                       </View>
                       <View style={styles.paymentModeCard}>
@@ -877,13 +896,13 @@ export default function OrderDetailScreen() {
                         onPress={async () => {
                           const v = String(neftUtr || '').trim();
                           if (!v) {
-                            Alert.alert('NEFT', 'Please enter UTR/Reference.');
+                            appAlert('NEFT', 'Please enter UTR/Reference.');
                             return;
                           }
                           await onPayNowWithMode('NEFT', v);
                         }}
                         disabled={paymentLoading || paymentModeBusy}>
-                        {paymentModeBusy ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.modalContinuePrimaryTxt}>Continue</Text>}
+                        {paymentModeBusy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalContinuePrimaryTxt}>Continue</Text>}
                       </TouchableOpacity>
                     </>
                   ) : null}
@@ -961,7 +980,7 @@ export default function OrderDetailScreen() {
           ) : null}
         </View>
 
-        <TouchableOpacity style={styles.helpRow} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.helpRow} activeOpacity={0.7} onPress={onNeedHelp}>
           <View style={styles.helpIconWrap}>
             <Text style={styles.helpIconTxt}>?</Text>
           </View>
@@ -973,46 +992,50 @@ export default function OrderDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: PAGE_BG},
+function getOrderDetailStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+  safe: {flex: 1, backgroundColor: c.background},
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    minHeight: 44,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: CARD_BORDER,
-    backgroundColor: PAGE_BG,
+    borderBottomColor: c.border,
+    backgroundColor: c.background,
   },
-  backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2},
-  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  navTitle: {flex: 1, ...Textstyles.heading, fontSize: 18, color: Colors.TEXT_PRIMARY, textAlign: 'center'},
+  topBarSide: {width: 88, height: 44, justifyContent: 'center'},
+  topBarSideLeft: {alignItems: 'flex-start'},
+  topBarSideRight: {alignItems: 'flex-end'},
+  navTitle: {flex: 1, ...Textstyles.heading, fontSize: 18, color: c.textPrimary, textAlign: 'center'},
   topRightSpacer: {width: 72},
   refreshBtn: {
     minWidth: 72,
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingVertical: 4,
+    paddingLeft: 4,
   },
   refreshBtnTxt: {
-    color: THEME_BLUE,
+    color: c.textPrimary,
     fontSize: 14,
     ...Textstyles.medium,
   },
   scroll: {padding: 16, paddingBottom: 40},
   summaryCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: radius.cardLarge,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 16,
     marginBottom: 12,
   },
   summaryTop: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
   summaryLeft: {flex: 1, marginRight: 12},
-  summaryHead: {fontSize: 14, color: '#6B7280', marginBottom: 6},
-  summaryAmt: {...Textstyles.medium, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
+  summaryHead: {fontSize: 14, color: c.textSecondary, marginBottom: 6},
+  summaryAmt: {...Textstyles.medium, fontSize: 28, color: c.textPrimary, fontWeight: '500'},
   typePill: {
     alignSelf: 'flex-start',
     marginTop: 10,
@@ -1021,7 +1044,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#E8F0FE',
   },
-  typePillTxt: {...Textstyles.medium, fontSize: 13, color: THEME_BLUE, fontWeight: '500'},
+  typePillTxt: {...Textstyles.medium, fontSize: 13, color: c.primary, fontWeight: '500'},
   summaryIconWrap: {justifyContent: 'center'},
   statusCircle: {
     width: 48,
@@ -1032,6 +1055,7 @@ const styles = StyleSheet.create({
   },
   statusCircleOk: {backgroundColor: '#DCFCE7'},
   statusCircleFail: {backgroundColor: '#FEE2E2'},
+  clockIconImg: {width: 22, height: 22},
   statusCirclePending: {backgroundColor: '#FEF3C7'},
   statusIconTxt: {...Textstyles.medium, fontSize: 22, color: '#15803D', fontWeight: '500'},
   statusIconImg: {width: 22, height: 22},
@@ -1039,10 +1063,10 @@ const styles = StyleSheet.create({
   fundCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 12,
     marginBottom: 12,
   },
@@ -1054,13 +1078,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
-  fundName: {flex: 1, ...Textstyles.medium, fontSize: 15, fontWeight: '600', color: '#111827'},
-  chev: {...Textstyles.normal, fontSize: 22, color: '#9CA3AF', fontWeight: '300'},
+  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.primary},
+  fundName: {flex: 1, ...Textstyles.medium, fontSize: 15, fontWeight: '600', color: c.textPrimary},
+  chev: {...Textstyles.normal, fontSize: 22, color: c.textSecondary, fontWeight: '300'},
   dateRow: {flexDirection: 'row', marginBottom: 12},
   dateHalf: {flex: 1, paddingRight: 8},
-  dateLabel: {fontSize: 12, color: '#9CA3AF', marginBottom: 4},
-  dateVal: {...Textstyles.medium, fontSize: 14, fontWeight: '600', color: '#111827'},
+  dateLabel: {fontSize: 12, color: c.textSecondary, marginBottom: 4},
+  dateVal: {...Textstyles.medium, fontSize: 14, fontWeight: '600', color: c.textPrimary},
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1080,7 +1104,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  continueTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
+  continueTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
   tlActionWrap: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
@@ -1096,12 +1120,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? c.border : '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     marginRight: 10,
   },
-  cancelTxt: {...Textstyles.medium, fontSize: 14, color: '#374151', fontWeight: '500'},
+  cancelTxt: {...Textstyles.medium, fontSize: 14, color: c.textPrimary, fontWeight: '500'},
   payNowBtn: {
     backgroundColor: '#22C55E',
     borderRadius: 10,
@@ -1109,27 +1133,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  payNowTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payNowTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
   statusLoadingRow: {
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginBottom: 10,
   },
-  statusLoadingTxt: {fontSize: 12, color: '#6B7280'},
-  sectionTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  statusLoadingTxt: {fontSize: 12, color: c.textSecondary},
+  sectionTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: c.textPrimary, marginBottom: 10},
   timelineCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 16,
     marginBottom: 16,
   },
   paymentBoxCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 16,
     marginBottom: 16,
   },
@@ -1140,7 +1164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  authBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
+  authBoxTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
   payBoxBtn: {
     backgroundColor: '#1E81F2',
     borderRadius: 10,
@@ -1148,7 +1172,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  payBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payBoxTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
   payBoxBtnDisabled: {
     backgroundColor: '#93C5FD',
     borderRadius: 10,
@@ -1157,7 +1181,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     opacity: 0.7,
   },
-  payBoxBtnDisabledTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
+  payBoxBtnDisabledTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
   mailSentBox: {
     backgroundColor: '#ECFFF5',
     borderRadius: 10,
@@ -1182,21 +1206,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  completeBoxTxt: {...Textstyles.medium, fontSize: 15, color: Colors.white, fontWeight: '500'},
-  paymentHintTxt: {fontSize: 13, color: '#6B7280', lineHeight: 18},
+  completeBoxTxt: {...Textstyles.medium, fontSize: 15, color: '#FFFFFF', fontWeight: '500'},
+  paymentHintTxt: {fontSize: 13, color: c.textSecondary, lineHeight: 18},
   // Payment mode modal (website parity)
   modalHeaderRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2},
-  modalHeaderArrow: {...Textstyles.medium, fontSize: 22, color: '#111827', fontWeight: '500'},
-  modalSubTitle: {...Textstyles.medium, fontSize: 13, color: '#6B7280', marginBottom: 14, fontWeight: '600'},
+  modalHeaderArrow: {...Textstyles.medium, fontSize: 22, color: c.textPrimary, fontWeight: '500'},
+  modalSubTitle: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, marginBottom: 14, fontWeight: '600'},
   modalOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     marginBottom: 10,
   },
   modalOptionRowActive: {
@@ -1204,9 +1228,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F7FF',
   },
   modalOptionIcon: {fontSize: 22, width: 34, textAlign: 'center'},
-  modalOptionMain: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#111827', marginBottom: 2},
-  modalOptionSub: {...Textstyles.medium, fontSize: 13, color: '#6B7280', fontWeight: '600'},
-  modalOptionChevron: {...Textstyles.medium, fontSize: 20, color: '#111827', fontWeight: '500', marginLeft: 8},
+  modalOptionMain: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: c.textPrimary, marginBottom: 2},
+  modalOptionSub: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '600'},
+  modalOptionChevron: {...Textstyles.medium, fontSize: 20, color: c.textPrimary, fontWeight: '500', marginLeft: 8},
   modalContinuePrimaryBtn: {
     backgroundColor: '#1E81F2',
     borderRadius: 14,
@@ -1214,8 +1238,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  modalContinuePrimaryTxt: {...Textstyles.medium, fontSize: 16, color: Colors.white, fontWeight: '500'},
-  modalBackRow: {marginBottom: 10},
+  modalContinuePrimaryTxt: {...Textstyles.medium, fontSize: 16, color: '#FFFFFF', fontWeight: '500'},
+  modalBackRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 10},
+  modalBackIcon: {width: 18, height: 18, marginRight: 6, tintColor: c.textPrimary},
   modalBackTxt: {...Textstyles.medium, fontSize: 15, color: '#1E81F2', fontWeight: '500'},
   modalCloseBtn: {
     position: 'absolute',
@@ -1229,25 +1254,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCloseTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: '#111827'},
+  modalCloseTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.textPrimary},
   paymentModeCard: {
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     marginBottom: 12,
   },
-  paymentModeTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6},
-  paymentModeHint: {...Textstyles.medium, fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 8},
+  paymentModeTitle: {...Textstyles.heading, fontSize: 16, fontWeight: '700', color: c.textPrimary, marginBottom: 6},
+  paymentModeHint: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '500', marginBottom: 8},
   utrInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
     fontSize: 14,
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
   },
   modalOverlay: {
     flex: 1,
@@ -1257,7 +1282,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   modalSheet: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderBottomLeftRadius: 0,
@@ -1269,12 +1294,12 @@ const styles = StyleSheet.create({
   modalSheetInner: {
     paddingTop: 8,
   },
-  modalTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 12},
+  modalTitle: {...Textstyles.heading, fontSize: 15, fontWeight: '700', color: c.textPrimary, marginBottom: 12},
   modalSection: {marginTop: 12, marginBottom: 6},
-  modalHintTxt: {...Textstyles.medium, fontSize: 12, color: '#6B7280', marginBottom: 8, fontWeight: '600'},
+  modalHintTxt: {...Textstyles.medium, fontSize: 12, color: c.textSecondary, marginBottom: 8, fontWeight: '600'},
   upiInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -1283,23 +1308,23 @@ const styles = StyleSheet.create({
   },
   modalOptionBtn: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.border,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
     alignItems: 'center',
     marginBottom: 10,
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
   },
   modalOptionBtnActive: {
     borderColor: '#1E81F2',
     backgroundColor: '#EAF3FF',
   },
-  modalOptionTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: '#111827'},
+  modalOptionTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: c.textPrimary},
   modalActions: {flexDirection: 'row', marginTop: 10},
   modalSecondaryBtn: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? c.border : '#F3F4F6',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1313,12 +1338,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  modalPrimaryTxt: {fontSize: 14, fontWeight: '500', color: Colors.white},
+  modalPrimaryTxt: {fontSize: 14, fontWeight: '500', color: '#FFFFFF'},
   kvCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 4,
     marginBottom: 16,
   },
@@ -1326,30 +1351,31 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    backgroundColor: isDark ? c.border : '#F3F4F6',
   },
-  kvLabel: {fontSize: 12, color: '#9CA3AF', marginBottom: 4},
-  kvVal: {fontSize: 15, fontWeight: '600', color: '#111827'},
+  kvLabel: {fontSize: 12, color: c.textSecondary, marginBottom: 4},
+  kvVal: {fontSize: 15, fontWeight: '600', color: c.textPrimary},
   helpRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 14,
   },
   helpIconWrap: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: isDark ? '#2C2C2C' : '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
-  helpIconTxt: {fontSize: 14, fontWeight: '500', color: '#6B7280'},
-  helpTxt: {flex: 1, fontSize: 15, color: THEME_BLUE},
+  helpIconTxt: {fontSize: 14, fontWeight: '500', color: c.textSecondary},
+  helpTxt: {flex: 1, fontSize: 15, color: c.primary},
   missing: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  missingTxt: {color: Colors.GREY},
+  missingTxt: {color: c.textSecondary},
 });
+}

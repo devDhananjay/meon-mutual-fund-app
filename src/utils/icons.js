@@ -28,10 +28,16 @@ const Icons = {
   deleteIcon: require('../assets/Icons/deleteIcon.png'),
 
   // Small header/action icons
-  RefreshIcon: require('../assets/Icons/RefreshIcon.png'),
+  RefreshIcon: require('../assets/Icons/refreshButtons.png'),
+  RefreshButtons: require('../assets/Icons/refreshButtons.png'),
+  BookmarkFilled: require('../assets/Icons/bookmarkFilled.png'),
+  /** Outline / not-saved — same asset as profile watchlist icon */
+  BookmarkOutline: require('../assets/Icons/MyWatchlist-cbadcf3b-f7fb-4327-a265-2fbf30be9387.png'),
+  ImportExternalFunds: require('../assets/Icons/importExternalFunds.png'),
   EyeIcon: require('../assets/Icons/EyeIcon.png'),
   threeDots: require('../assets/Icons/threeDots.png'),
   SearchIcon: require('../assets/searchIcon-7836305f-f243-4b06-aa4d-1c0aa2060610.png'),
+  inProgress: require('../assets/Icons/inProgress.png'),
 
   // Profile screen icons
   MyOrdersIcon: require('../assets/Icons/MyOrders-f83910e4-9906-41cc-91b7-2ea1381b2ae1.png'),

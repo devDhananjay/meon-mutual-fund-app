@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   Dimensions,
   TextInput,
 } from 'react-native';
@@ -35,10 +34,19 @@ import {
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
 import {navigateToCart, navigateToInvestment} from '../../navigation/navigationRef';
 import NavLineChart from '../../components/FundDetail/NavLineChart';
+import AppBackButton from '../../components/AppBackButton';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {
+  pickMaxSipInvestmentOrNull,
+  pickMinSipInvestment,
+  pickMinSipInvestmentOrNull,
+} from '../../utils/schemeLimits';
+import {typeScale} from '../../theme/typography';
+import {appAlert} from '../../utils/appAlert';
 
 function formatDate(iso) {
   if (!iso) {
@@ -85,7 +93,7 @@ function buildDonutHTML({labels, values, colors}) {
   const safeValues = JSON.stringify(Array.isArray(values) ? values : []);
   const safeColors = JSON.stringify(Array.isArray(colors) ? colors : []);
   return `<!doctype html>
-<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
 <style>html,body,#c{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden}</style>
 </head><body><div id="c"></div>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -97,14 +105,54 @@ function buildDonutHTML({labels, values, colors}) {
       var colors=${safeColors};
       if(!series || !series.length){ document.body.innerHTML=''; return; }
       var chart=new ApexCharts(document.querySelector('#c'),{
-        chart:{type:'donut',height:'100%',width:'100%',background:'transparent',toolbar:{show:false}},
+        chart:{
+          type:'donut',
+          height:'100%',
+          width:'100%',
+          background:'transparent',
+          toolbar:{show:false},
+          animations:{enabled:false},
+          events:{
+            dataPointSelection:function(event,chartContext,config){
+              var i=config.dataPointIndex;
+              if(typeof i==='number'&&window.ReactNativeWebView){
+                window.ReactNativeWebView.postMessage(JSON.stringify({t:'slice',i:i}));
+              }
+            }
+          }
+        },
         series:series,
         labels:labels,
         stroke:{width:0},
         dataLabels:{enabled:false},
         legend:{show:false},
         colors:colors && colors.length ? colors : undefined,
-        plotOptions:{pie:{donut:{size:'62%'}}}
+        tooltip:{
+          enabled:true,
+          intersect:true,
+          shared:false,
+          followCursor:false,
+          fillSeriesColor:false,
+          y:{
+            formatter:function(val,opts){
+              var idx=opts.dataPointIndex!=null?opts.dataPointIndex:opts.seriesIndex;
+              var lbl=(labels && labels[idx]!==undefined)?labels[idx]:'';
+              var n=val!=null?Number(val):NaN;
+              var pct=(!isNaN(n))?n.toFixed(2)+'%':'';
+              return (lbl?lbl+': ':'')+pct;
+            }
+          }
+        },
+        plotOptions:{
+          pie:{
+            expandOnClick:true,
+            donut:{size:'62%'}
+          }
+        },
+        states:{
+          hover:{filter:{type:'darken',value:0.12}},
+          active:{filter:{type:'darken',value:0.08}}
+        }
       });
       chart.render();
     }catch(e){}
@@ -114,7 +162,9 @@ function buildDonutHTML({labels, values, colors}) {
 
 const DONUT_COLORS = ['#8BEA45', '#2F7EDB', '#F5A300', '#19C37D', '#8B5CF6', '#EF4444', '#14B8A6', '#A3A3A3'];
 
-function HoldingAnalysisBlock({title, dataMap}) {
+function HoldingAnalysisBlock({title, dataMap, styles}) {
+  const [selectedIdx, setSelectedIdx] = useState(null);
+
   const entries = useMemo(() => {
     if (!dataMap || typeof dataMap !== 'object') {
       return [];
@@ -124,9 +174,38 @@ function HoldingAnalysisBlock({title, dataMap}) {
       .filter(x => Number.isFinite(x.value) && x.value > 0);
   }, [dataMap]);
 
+  const entriesKey = useMemo(
+    () => entries.map(e => `${e.label}:${e.value}`).join('|'),
+    [entries],
+  );
+
+  useEffect(() => {
+    setSelectedIdx(null);
+  }, [entriesKey]);
+
   const labels = entries.map(e => e.label);
   const values = entries.map(e => e.value);
   const colors = entries.map((_, i) => DONUT_COLORS[i % DONUT_COLORS.length]);
+
+  const donutHtml = useMemo(
+    () => buildDonutHTML({labels, values, colors}),
+    [labels, values, colors],
+  );
+
+  const onDonutMessage = useCallback(event => {
+    try {
+      const raw = event?.nativeEvent?.data;
+      if (!raw || typeof raw !== 'string') {
+        return;
+      }
+      const p = JSON.parse(raw);
+      if (p?.t === 'slice' && typeof p.i === 'number') {
+        setSelectedIdx(p.i);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   if (!entries.length) {
     return null;
@@ -138,18 +217,23 @@ function HoldingAnalysisBlock({title, dataMap}) {
       <View style={styles.analysisRow}>
         <View style={styles.analysisLegendWrap}>
           {entries.map((item, idx) => (
-            <View key={`${item.label}-${idx}`} style={styles.analysisLegendItem}>
+            <TouchableOpacity
+              key={`${item.label}-${idx}`}
+              activeOpacity={0.75}
+              onPress={() => setSelectedIdx(idx)}
+              style={[styles.analysisLegendItem, selectedIdx === idx ? styles.analysisLegendItemOn : null]}>
               <View style={[styles.legendDot, {backgroundColor: colors[idx]}]} />
               <Text style={styles.analysisLegendText}>
                 {item.label} <Text style={styles.analysisLegendValue}>{item.value.toFixed(2)}%</Text>
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
         <View style={styles.analysisChartWrap}>
           <WebView
+            key={entriesKey}
             originWhitelist={['*']}
-            source={{html: buildDonutHTML({labels, values, colors})}}
+            source={{html: donutHtml}}
             style={styles.analysisWebView}
             scrollEnabled={false}
             showsVerticalScrollIndicator={false}
@@ -157,9 +241,17 @@ function HoldingAnalysisBlock({title, dataMap}) {
             javaScriptEnabled
             domStorageEnabled
             nestedScrollEnabled
+            onMessage={onDonutMessage}
           />
         </View>
       </View>
+      {selectedIdx != null && entries[selectedIdx] ? (
+        <Text style={styles.analysisSelectionHint}>
+          Selected: {entries[selectedIdx].label} · {entries[selectedIdx].value.toFixed(2)}%
+        </Text>
+      ) : (
+        <Text style={styles.analysisSelectionHintMuted}>Tap a slice or a row to highlight.</Text>
+      )}
     </View>
   );
 }
@@ -248,6 +340,8 @@ export default function FundDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const dispatch = useDispatch();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => getFundDetailStyles(colors, isDark), [colors, isDark]);
   const cartCount = useSelector(selectCartItemCount);
   const user = useSelector(s => s.auth.user);
 
@@ -386,7 +480,8 @@ export default function FundDetailScreen() {
   }, [mandateModalVisible, mandateLoading, mandates.length]);
 
   const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
-  const minSip = Number(fundInfo?.holdings?.min_sip_investment) || 500;
+  const minSip = pickMinSipInvestment(fundInfo);
+  const rawMinSipDisplay = pickMinSipInvestmentOrNull(fundInfo);
   const minOrderAmount = orderType === 'SIP' ? minSip : minLumpsum;
 
   const returnStats = fundInfo?.holdings?.return_stats?.[0] ?? null;
@@ -404,10 +499,11 @@ export default function FundDetailScreen() {
   const minInvestmentValues = useMemo(
     () => ({
       min1: fundInfo?.min_purchase_amount ?? null,
-      minSip: fundInfo?.holdings?.min_sip_investment ?? null,
+      minSip: pickMinSipInvestmentOrNull(fundInfo),
+      maxSip: pickMaxSipInvestmentOrNull(fundInfo),
       minAdditional: fundInfo?.additional_purchase_amount ?? null,
     }),
-    [fundInfo?.additional_purchase_amount, fundInfo?.holdings?.min_sip_investment, fundInfo?.min_purchase_amount],
+    [fundInfo],
   );
   const holdingAnalysisSections = useMemo(() => {
     if (!holdingAnalysis || typeof holdingAnalysis !== 'object') {
@@ -442,16 +538,6 @@ export default function FundDetailScreen() {
   );
 
   useEffect(() => {
-    setOrderAmount(prev => {
-      const n = Number(String(prev).replace(/[^0-9.]/g, ''));
-      if (!prev || !Number.isFinite(n) || n < minOrderAmount) {
-        return String(minOrderAmount);
-      }
-      return prev;
-    });
-  }, [minOrderAmount, schemeCode]);
-
-  useEffect(() => {
     if (!selectedMandate && mandates.length > 0) {
       setSelectedMandate(mandates[0]);
     }
@@ -470,17 +556,17 @@ export default function FundDetailScreen() {
         });
         if (res?.success) {
           setIsFav(true);
-          Alert.alert('Watchlist', 'Added to watchlist');
+          appAlert('Watchlist', 'Added to watchlist');
         }
       } else {
         const res = await removeFromWishlist(fundInfo.scheme_code);
         if (res?.success) {
           setIsFav(false);
-          Alert.alert('Watchlist', 'Removed from watchlist');
+          appAlert('Watchlist', 'Removed from watchlist');
         }
       }
     } catch {
-      Alert.alert('Error', 'Could not update watchlist');
+      appAlert('Error', 'Could not update watchlist');
     }
   }, [fundInfo, isFav]);
 
@@ -491,12 +577,12 @@ export default function FundDetailScreen() {
 
   const onAddToCart = useCallback(() => {
     if (!fundInfo?.scheme_code) {
-      Alert.alert('Error', 'Fund data not loaded');
+      appAlert('Error', 'Fund data not loaded');
       return;
     }
     const amount = Math.max(minOrderAmount, parseOrderAmount());
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      Alert.alert('Select mandate', 'Please choose a mandate for SIP.');
+      appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
     dispatch(
@@ -512,7 +598,7 @@ export default function FundDetailScreen() {
         logo_url: logoUrl,
       }),
     );
-    Alert.alert('Cart', `${displayName} added to cart`);
+    appAlert('Cart', `${displayName} added to cart`);
   }, [
     dispatch,
     displayName,
@@ -531,12 +617,12 @@ export default function FundDetailScreen() {
 
   const onPlaceOrder = useCallback(async () => {
     if (!fundInfo?.scheme_code) {
-      Alert.alert('Order', 'Fund details not available.');
+      appAlert('Order', 'Fund details not available.');
       return;
     }
     const amount = Math.max(minOrderAmount, parseOrderAmount());
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      Alert.alert('Select mandate', 'Please choose a mandate for SIP.');
+      appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
     try {
@@ -562,7 +648,7 @@ export default function FundDetailScreen() {
         setPendingOrderId(orderId);
         setPendingOrderAmount(amount);
         setReadyForPayment(false);
-        Alert.alert('Order placed', 'Please tap "Authenticate & Continue" to complete payment.');
+        appAlert('Order placed', 'Please tap "Authenticate & Continue" to complete payment.');
       } else {
         const fallbackAuthUrl = extractOrderAuthUrl(res?.data);
         if (fallbackAuthUrl) {
@@ -571,7 +657,7 @@ export default function FundDetailScreen() {
             title: 'Authenticate order',
           });
         } else {
-          Alert.alert(
+          appAlert(
             'Order placed',
             'Your order is submitted. You can track it in My Orders.',
             [
@@ -582,7 +668,7 @@ export default function FundDetailScreen() {
         }
       }
     } catch (e) {
-      Alert.alert('Order failed', String(e?.message || 'Could not place order.'));
+      appAlert('Order failed', String(e?.message || 'Could not place order.'));
     } finally {
       setPlacingOrder(false);
     }
@@ -628,7 +714,7 @@ export default function FundDetailScreen() {
           title: 'Authenticate order',
         });
       } else {
-        Alert.alert('Authenticate', 'Could not get payment gateway URL.');
+        appAlert('Authenticate', 'Could not get payment gateway URL.');
       }
     } catch (e) {
       const msg = String(e?.message || '');
@@ -644,7 +730,7 @@ export default function FundDetailScreen() {
         setReadyForPayment(true);
         return;
       }
-      Alert.alert('Authenticate failed', msg || 'Could not start authentication.');
+      appAlert('Authenticate failed', msg || 'Could not start authentication.');
     } finally {
       setAuthLoading(false);
     }
@@ -655,7 +741,7 @@ export default function FundDetailScreen() {
     const totalAmount = Number(pendingOrderAmount ?? parseOrderAmount() ?? 0);
     const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
     if (!orderNumber || !clientCode || !totalAmount) {
-      Alert.alert('Pay now', 'Payment details are incomplete.');
+      appAlert('Pay now', 'Payment details are incomplete.');
       return;
     }
     try {
@@ -673,10 +759,10 @@ export default function FundDetailScreen() {
           title: 'Complete payment',
         });
       } else {
-        Alert.alert('Pay now', 'Payment gateway URL not found.');
+        appAlert('Pay now', 'Payment gateway URL not found.');
       }
     } catch (e) {
-      Alert.alert('Payment failed', String(e?.message || 'Could not start payment.'));
+      appAlert('Payment failed', String(e?.message || 'Could not start payment.'));
     } finally {
       setPaymentLoading(false);
     }
@@ -714,12 +800,14 @@ export default function FundDetailScreen() {
   const header = useMemo(
     () => (
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Text style={styles.back}>‹</Text>
-        </TouchableOpacity>
+        <AppBackButton onPress={() => navigation.goBack()} hitSlop={12} />
         <View style={styles.topActions}>
-          <TouchableOpacity onPress={onWishlist} hitSlop={12}>
-            <Text style={styles.iconBtn}>{isFav ? '★' : '☆'}</Text>
+          <TouchableOpacity onPress={onWishlist} hitSlop={12} style={styles.bookmarkHit}>
+            <Image
+              source={isFav ? Icons.BookmarkFilled : Icons.BookmarkOutline}
+              style={styles.bookmarkIcon}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
           <TouchableOpacity onPress={openCart} style={[styles.cartWrap, styles.cartBtn]} hitSlop={12}>
             <Image source={Icons.CartIcon} style={styles.cartIconImg} resizeMode="contain" />
@@ -732,12 +820,12 @@ export default function FundDetailScreen() {
         </View>
       </View>
     ),
-    [navigation, onWishlist, openCart, isFav, cartCount],
+    [navigation, onWishlist, openCart, isFav, cartCount, styles],
   );
 
   if (!schemeCode) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]}>
         {header}
         <Text style={styles.err}>Missing scheme code</Text>
       </SafeAreaView>
@@ -746,10 +834,10 @@ export default function FundDetailScreen() {
 
   if (loading && !folioData) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]}>
         {header}
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingTxt}>Loading fund…</Text>
         </View>
       </SafeAreaView>
@@ -758,7 +846,7 @@ export default function FundDetailScreen() {
 
   if (error || !fundInfo?.scheme_code) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]}>
         {header}
         <View style={styles.center}>
           <Text style={styles.err}>{error || 'Could not load fund'}</Text>
@@ -771,7 +859,7 @@ export default function FundDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       {header}
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -780,7 +868,7 @@ export default function FundDetailScreen() {
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.themeBlue} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }>
         <View style={styles.card}>
           <View style={styles.titleRow}>
@@ -840,9 +928,7 @@ export default function FundDetailScreen() {
             <View style={styles.cell}>
               <Text style={styles.cellLabel}>Min SIP</Text>
               <Text style={[Textstyles.medium, styles.cellVal]}>
-                {fundInfo?.holdings?.min_sip_investment != null
-                  ? safeInr(fundInfo.holdings.min_sip_investment)
-                  : '—'}
+                {rawMinSipDisplay != null ? safeInr(rawMinSipDisplay) : '—'}
               </Text>
             </View>
             <View style={styles.cell}>
@@ -863,13 +949,13 @@ export default function FundDetailScreen() {
             value={sliderAmount}
             onValueChange={onSliderValueChange}
             onSlidingComplete={onSliderComplete}
-            minimumTrackTintColor={Colors.themeBlue}
+            minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={Colors.LIGHT_GREY}
-            thumbTintColor={Colors.themeBlue}
+            thumbTintColor={colors.primary}
           />
           <Text style={[Textstyles.medium, styles.tableHead]}>Over the past</Text>
           {tableLoading ? (
-            <ActivityIndicator style={{marginVertical: 16}} color={Colors.themeBlue} />
+            <ActivityIndicator style={{marginVertical: 16}} color={colors.primary} />
           ) : returnRows.length === 0 ? (
             <Text style={styles.emptyStateText}>Not enough history to calculate returns right now.</Text>
           ) : (
@@ -907,16 +993,16 @@ export default function FundDetailScreen() {
               <ScrollView style={styles.holdingsScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                 {holdingsList.map((h, idx) => (
                   <View key={idx} style={styles.hTableRow}>
-                    <Text style={[styles.hCellName, {flex: 2.2}]} numberOfLines={1}>
+                    <Text style={[styles.hCellName, {flex: 2.2}]} numberOfLines={2}>
                       {h.company_name || '—'}
                     </Text>
-                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={1}>
+                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={2}>
                       {h.sector_name || '—'}
                     </Text>
-                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={1}>
+                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={2}>
                       {h.instrument_name || '—'}
                     </Text>
-                    <Text style={[styles.hCellRight, {flex: 0.9}]} numberOfLines={1}>
+                    <Text style={[styles.hCellRight, {flex: 0.9}]} numberOfLines={2}>
                       {h.corpus_per != null && !Number.isNaN(Number(h.corpus_per))
                         ? `${Number(h.corpus_per).toFixed(2)}%`
                         : '—'}
@@ -982,6 +1068,7 @@ export default function FundDetailScreen() {
                 key={section.key}
                 title={section.title}
                 dataMap={section.dataMap}
+                styles={styles}
               />
             ))}
           </View>
@@ -1027,7 +1114,10 @@ export default function FundDetailScreen() {
           </View>
         ) : null}
 
-        {(minInvestmentValues?.min1 || minInvestmentValues?.minSip || minInvestmentValues?.minAdditional) ? (
+        {(minInvestmentValues?.min1 ||
+          minInvestmentValues?.minSip != null ||
+          minInvestmentValues?.maxSip != null ||
+          minInvestmentValues?.minAdditional) ? (
           <View style={styles.card}>
             <Text style={[Textstyles.heading, styles.sectionTitle]}>Minimum Investment Amounts</Text>
             <View style={styles.kvWrap}>
@@ -1039,6 +1129,12 @@ export default function FundDetailScreen() {
                 <Text style={styles.kvLabel}>Min. for SIP</Text>
                 <Text style={styles.kvValue}>{minInvestmentValues.minSip != null ? safeInr(minInvestmentValues.minSip) : '—'}</Text>
               </View>
+              {minInvestmentValues.maxSip != null ? (
+                <View style={styles.kvRow}>
+                  <Text style={styles.kvLabel}>Max. for SIP</Text>
+                  <Text style={styles.kvValue}>{safeInr(minInvestmentValues.maxSip)}</Text>
+                </View>
+              ) : null}
               <View style={styles.kvRow}>
                 <Text style={styles.kvLabel}>Min. for 2nd Investment onwards</Text>
                 <Text style={styles.kvValue}>{minInvestmentValues.minAdditional != null ? safeInr(minInvestmentValues.minAdditional) : '—'}</Text>
@@ -1208,7 +1304,7 @@ export default function FundDetailScreen() {
           title="Select mandate"
           isBottomSheet
           maxHeight={'72%'}>
-          {mandateLoading ? <ActivityIndicator color={Colors.themeBlue} style={styles.modalLoader} /> : null}
+          {mandateLoading ? <ActivityIndicator color={colors.primary} style={styles.modalLoader} /> : null}
           {!mandateLoading && mandates.length === 0 ? (
             <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
           ) : null}
@@ -1255,23 +1351,26 @@ export default function FundDetailScreen() {
 
 const w = Dimensions.get('window').width;
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#f9f9f9'},
+function getFundDetailStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+  safe: {flex: 1, backgroundColor: c.background},
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: Colors.white,
+    paddingVertical: 8,
+    minHeight: 44,
+    backgroundColor: c.card,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
-  back: {...Textstyles.normal, fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '300'},
   topActions: {flexDirection: 'row', alignItems: 'center'},
-  cartBtn: {marginLeft: 20},
-  iconBtn: {fontSize: 22},
-  cartIconImg: {width: 22, height: 22},
+  cartBtn: {marginLeft: 12},
+  bookmarkHit: {width: 34, height: 34, alignItems: 'center', justifyContent: 'center'},
+  bookmarkIcon: {width: 22, height: 22, tintColor: c.primary},
+  cartIconImg: {width: 22, height: 22, tintColor: isDark ? '#FFFFFF' : '#000000'},
   cartWrap: {position: 'relative'},
   badge: {
     position: 'absolute',
@@ -1288,25 +1387,25 @@ const styles = StyleSheet.create({
   badgeTxt: {...Textstyles.medium, color: '#fff', fontSize: 10, fontWeight: '500'},
   scroll: {paddingBottom: 110},
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
   },
   titleRow: {flexDirection: 'row', alignItems: 'flex-start'},
   logo: {width: 48, height: 48, borderRadius: 8, marginRight: 12},
   logoPh: {
-    backgroundColor: Colors.offWhite,
+    backgroundColor: (isDark ? '#2C2C2C' : '#F3F4F6'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
   },
-  logoL: {...Textstyles.medium, fontSize: 20, fontWeight: '500', color: Colors.themeBlue},
-  title: {...Textstyles.medium, flex: 1, fontSize: 18, color: Colors.TEXT_PRIMARY, lineHeight: 24},
+  logoL: {...Textstyles.medium, fontSize: typeScale.bodyLg, fontWeight: '500', color: c.primary},
+  title: {...Textstyles.medium, flex: 1, fontSize: typeScale.bodyMd, color: c.textPrimary, lineHeight: 22},
   tags: {flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, marginBottom: 8},
   tag: {
     paddingHorizontal: 10,
@@ -1325,77 +1424,100 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
   },
   cell: {width: w > 400 ? '50%' : '100%', paddingHorizontal: 8, marginBottom: 16},
-  cellLabel: {...Textstyles.normal, fontSize: 13, color: Colors.GREY, marginBottom: 4},
-  cellVal: {...Textstyles.medium, fontSize: 17, color: Colors.TEXT_PRIMARY},
-  sectionTitle: {...Textstyles.heading, fontSize: 17, marginBottom: 10, color: Colors.TEXT_PRIMARY},
-  calcAmt: {...Textstyles.heading, fontSize: 22, color: Colors.TEXT_PRIMARY, marginBottom: 8},
+  cellLabel: {...Textstyles.normal, fontSize: 13, color: c.textSecondary, marginBottom: 4},
+  cellVal: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.textPrimary},
+  sectionTitle: {...Textstyles.heading, fontSize: typeScale.bodyMd, marginBottom: 10, color: c.textPrimary},
+  calcAmt: {...Textstyles.heading, fontSize: typeScale.title, color: c.textPrimary, marginBottom: 8},
   sliderWrap: {
     width: '100%',
     marginBottom: 8,
     zIndex: 2,
   },
-  tableHead: {...Textstyles.medium, fontSize: 15, color: Colors.GREY, marginBottom: 8, marginTop: 8},
+  tableHead: {...Textstyles.medium, fontSize: 15, color: c.textSecondary, marginBottom: 8, marginTop: 8},
   tableRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingVertical: 10,
     gap: 4,
   },
-  tableRowBorder: {borderTopWidth: 1, borderTopColor: Colors.BORDER_GREY},
-  tCell: {...Textstyles.normal, fontSize: 12, color: Colors.TEXT_PRIMARY, width: '23%', minWidth: 70},
+  tableRowBorder: {borderTopWidth: 1, borderTopColor: c.border},
+  tCell: {...Textstyles.normal, fontSize: 12, color: c.textPrimary, width: '23%', minWidth: 70},
   tRight: {textAlign: 'right', flex: 1},
   pos: {color: '#16a34a'},
   neg: {color: '#dc2626'},
-  emptyStateText: {...Textstyles.normal, fontSize: 13, color: Colors.GREY, marginTop: 4, marginBottom: 8},
+  emptyStateText: {...Textstyles.normal, fontSize: 13, color: c.textSecondary, marginTop: 4, marginBottom: 8},
   holdingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
   holdingsScroll: {
-    maxHeight: 300, // match web table height constraint
+    maxHeight: 420,
   },
   innerTableCard: {
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
   },
   hTableHeadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? '#252525' : '#F9FAFB',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
-  hTableHeadCell: {...Textstyles.medium, fontSize: 13, color: Colors.GREY, fontWeight: '600'},
-  hCellName: {...Textstyles.medium, fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '600'},
-  hCellCenter: {...Textstyles.medium, fontSize: 13, color: Colors.TEXT_PRIMARY, textAlign: 'center', fontWeight: '600'},
-  hCellRight: {...Textstyles.medium, fontSize: 13, color: Colors.TEXT_PRIMARY, textAlign: 'right', fontWeight: '600'},
+  hTableHeadCell: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '600'},
+  hCellName: {
+    ...Textstyles.medium,
+    fontSize: 13,
+    color: c.textPrimary,
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  hCellCenter: {
+    ...Textstyles.medium,
+    fontSize: 13,
+    color: c.textPrimary,
+    textAlign: 'center',
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  hCellRight: {
+    ...Textstyles.medium,
+    fontSize: 13,
+    color: c.textPrimary,
+    textAlign: 'right',
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
+  },
   hTableRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
   returnsHeadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? '#252525' : '#F9FAFB',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
   returnsScroll: {
-    maxHeight: 300,
+    maxHeight: 420,
   },
   returnsRow: {
     flexDirection: 'row',
@@ -1403,13 +1525,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
-  returnsNameCell: {...Textstyles.heading, fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
-  returnsValCell: {...Textstyles.heading, fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
+  returnsNameCell: {...Textstyles.heading, fontSize: 13, color: c.textPrimary, fontWeight: '700'},
+  returnsValCell: {...Textstyles.heading, fontSize: 13, color: c.textPrimary, fontWeight: '700'},
   kvWrap: {
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
     borderRadius: 10,
     overflow: 'hidden',
   },
@@ -1420,17 +1542,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderBottomColor: c.border,
   },
   kvLabel: {
     flex: 1,
     color: '#6B7280',
-    fontSize: 16,
+    fontSize: typeScale.body,
     paddingRight: 10,
   },
   kvValue: {
-    color: Colors.TEXT_PRIMARY,
-    fontSize: 16,
+    color: c.textPrimary,
+    fontSize: typeScale.bodyMd,
     ...Textstyles.heading,
     fontWeight: '700',
   },
@@ -1439,8 +1561,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   analysisTitle: {
-    fontSize: 18,
-    color: Colors.TEXT_PRIMARY,
+    fontSize: typeScale.title,
+    color: c.textPrimary,
     ...Textstyles.heading,
     fontWeight: '700',
     marginBottom: 10,
@@ -1457,6 +1579,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  analysisLegendItemOn: {
+    borderLeftWidth: 3,
+    borderLeftColor: c.primary,
+    paddingLeft: 8,
+    marginLeft: -4,
+    backgroundColor: isDark ? 'rgba(96,165,250,0.1)' : '#EFF6FF',
+  },
+  analysisSelectionHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: c.textPrimary,
+    ...Textstyles.medium,
+  },
+  analysisSelectionHintMuted: {
+    marginTop: 8,
+    fontSize: 12,
+    color: c.textSecondary,
   },
   legendDot: {
     width: 10,
@@ -1471,7 +1613,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   analysisLegendValue: {
-    color: Colors.TEXT_PRIMARY,
+    color: c.textPrimary,
     ...Textstyles.heading,
     fontWeight: '700',
   },
@@ -1485,90 +1627,92 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   hName: {flex: 1, fontSize: 14, paddingRight: 8},
-  hPct: {fontSize: 14, fontWeight: '600', color: Colors.TEXT_PRIMARY},
+  hPct: {fontSize: 14, fontWeight: '600', color: c.textPrimary},
   detailRow: {paddingVertical: 10},
-  detailRowBorder: {borderTopWidth: 1, borderTopColor: Colors.BORDER_GREY},
-  detailLabel: {fontSize: 13, color: '#6B7280', marginBottom: 4},
-  detailValue: {fontSize: 14, color: Colors.TEXT_PRIMARY},
+  detailRowBorder: {borderTopWidth: 1, borderTopColor: c.border},
+  detailLabel: {fontSize: 13, color: c.textSecondary, marginBottom: 4},
+  detailValue: {fontSize: 14, color: c.textPrimary},
   orderCard: {padding: 0, overflow: 'hidden'},
   orderTabs: {
     flexDirection: 'row',
     borderRadius: 40,
-    backgroundColor: '#E8EAED',
+    backgroundColor: isDark ? '#2C2C2C' : '#E8EAED',
     padding: 4,
     marginBottom: 4,
     overflow: 'hidden',
   },
   orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 40},
-  orderTabBtnActive: {backgroundColor: '#E3F0FF'},
-  orderTabTxt: {fontSize: 18, color: '#6B7280', fontWeight: '500'},
-  orderTabTxtActive: {color: Colors.themeBlue},
+  orderTabBtnActive: {backgroundColor: isDark ? 'rgba(96,165,250,0.15)' : '#E3F0FF'},
+  orderTabTxt: {fontSize: typeScale.bodyMd, color: c.textSecondary, fontWeight: '500'},
+  orderTabTxtActive: {color: c.primary},
   amountInputWrap: {
     marginHorizontal: 14,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 12,
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
+    backgroundColor: c.inputBg,
   },
-  amountCurrency: {fontSize: 32, color: '#6B7280', marginRight: 12},
-  amountInput: {flex: 1, fontSize: 36, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
+  amountCurrency: {fontSize: typeScale.amountCurrency, color: c.textSecondary, marginRight: 12},
+  amountInput: {flex: 1, fontSize: typeScale.amountInput, color: c.textPrimary, paddingVertical: 0},
   quickAmountRow: {flexDirection: 'row', justifyContent: 'space-around', marginTop: 14, marginHorizontal: 14},
   quickAmountChip: {
     borderWidth: 1,
-    borderColor: Colors.themeBlue,
+    borderColor: c.primary,
     borderRadius: 10,
     paddingVertical: 10,
     minWidth: 86,
     alignItems: 'center',
   },
-  quickAmountChipTxt: {fontSize: 18, color: Colors.themeBlue, fontWeight: '500'},
+  quickAmountChipTxt: {fontSize: typeScale.body, color: c.primary, fontWeight: '500'},
   sipFieldsRow: {marginHorizontal: 14, marginTop: 14},
   sipFieldCol: {flex: 1},
-  sipFieldLabel: {fontSize: 14, color: '#4B5563', marginBottom: 8},
+  sipFieldLabel: {fontSize: 14, color: c.textSecondary, marginBottom: 8},
   sipOptionRow: {flexDirection: 'row', gap: 8},
   inlineChip: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.inputBg,
   },
-  inlineChipOn: {backgroundColor: '#EAF4FF', borderColor: Colors.themeBlue},
-  inlineChipTxt: {fontSize: 14, color: '#374151', fontWeight: '600'},
-  inlineChipTxtOn: {color: Colors.themeBlue},
+  inlineChipOn: {backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#EAF4FF', borderColor: c.primary},
+  inlineChipTxt: {fontSize: 14, color: c.textPrimary, fontWeight: '600'},
+  inlineChipTxtOn: {color: c.primary},
   sipPickerField: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: c.inputBg,
   },
-  sipPickerValue: {fontSize: 18, color: Colors.TEXT_PRIMARY},
-  sipPickerArrow: {fontSize: 18, color: '#6B7280'},
+  sipPickerValue: {fontSize: typeScale.bodyMd, color: c.textPrimary},
+  sipPickerArrow: {fontSize: typeScale.bodyMd, color: c.textSecondary},
   mandateSelectCard: {
     marginHorizontal: 14,
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
+    borderColor: c.border,
     minHeight: 78,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  mandateTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, fontWeight: '700'},
-  mandateSub: {fontSize: 14, color: '#6B7280', marginTop: 4},
-  mandateArrow: {fontSize: 28, color: '#9CA3AF', marginLeft: 8},
-  minAmtHint: {marginHorizontal: 14, marginTop: 12, color: '#6B7280', fontSize: 13},
+  mandateTitle: {fontSize: typeScale.bodyMd, color: c.textPrimary, fontWeight: '700'},
+  mandateSub: {fontSize: 14, color: c.textSecondary, marginTop: 4},
+  mandateArrow: {fontSize: typeScale.chevron + 4, color: c.textSecondary, marginLeft: 8},
+  minAmtHint: {marginHorizontal: 14, marginTop: 12, color: c.textSecondary, fontSize: 13},
   orderActions: {flexDirection: 'row', gap: 10, marginHorizontal: 14, marginTop: 14, marginBottom: 14},
   addedToCartBtn: {
     flex: 1,
@@ -1589,19 +1733,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buyNowTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
+  buyNowTxt: {fontSize: 16, color: '#FFFFFF', fontWeight: '500'},
   authContinueBtn: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: c.primary,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  authContinueTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
+  authContinueTxt: {fontSize: 16, color: '#FFFFFF', fontWeight: '500'},
   authSummaryWrap: {padding: 16},
   authSummaryLabel: {fontSize: 13, color: '#6B7280', marginBottom: 6},
-  authSummaryAmount: {fontSize: 28, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginBottom: 16},
+  authSummaryAmount: {fontSize: typeScale.amountInput, color: c.textPrimary, fontWeight: '500', marginBottom: 16},
   payNowPrimaryBtn: {
     marginTop: 12,
     borderRadius: 12,
@@ -1610,40 +1754,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payNowPrimaryTxt: {fontSize: 16, color: Colors.white, fontWeight: '500'},
+  payNowPrimaryTxt: {fontSize: 16, color: '#FFFFFF', fontWeight: '500'},
   viewCart: {marginHorizontal: 16, marginTop: 12, paddingVertical: 12, alignItems: 'center'},
-  viewCartTxt: {color: Colors.themeBlue, fontSize: 16},
+  viewCartTxt: {color: c.primary, fontSize: 16},
   modalRoot: {flex: 1, justifyContent: 'flex-end'},
   modalDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
   modalSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
     maxHeight: '70%',
   },
-  modalTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY, marginBottom: 10},
+  modalTitle: {fontSize: 16, fontWeight: '700', color: c.textPrimary, marginBottom: 10},
   modalLoader: {marginVertical: 12},
   modalEmpty: {fontSize: 13, color: '#6B7280', marginVertical: 10},
   modalRow: {paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, marginBottom: 6},
   modalRowActive: {backgroundColor: '#EAF4FF'},
-  modalRowTxt: {fontSize: 14, color: Colors.TEXT_PRIMARY},
-  modalRowTxtActive: {color: Colors.themeBlue, fontWeight: '500'},
+  modalRowTxt: {fontSize: 14, color: c.textPrimary},
+  modalRowTxtActive: {color: c.primary, fontWeight: '500'},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingTxt: {marginTop: 12, color: Colors.GREY},
+  loadingTxt: {marginTop: 12, color: c.textSecondary},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
   retry: {marginTop: 12, padding: 12},
-  retryTxt: {color: Colors.themeBlue, fontWeight: '600'},
+  retryTxt: {color: c.primary, fontWeight: '600'},
   stickyInvestWrap: {
     position: 'absolute',
-    left: 40,
-    right: 40,
+    left: 16,
+    right: 16,
     bottom: 16,
+    alignItems: 'center',
   },
   stickyInvestBtn: {
-    minHeight: 50,
+    width: '100%',
+    minHeight: 52,
     borderRadius: 12,
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: '#21C76E',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1652,5 +1798,6 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 3},
     // elevation: 4,
   },
-  stickyInvestTxt: {fontSize: 18, color: Colors.white},
+  stickyInvestTxt: {fontSize: typeScale.bodyLg, color: '#FFFFFF'},
 });
+}

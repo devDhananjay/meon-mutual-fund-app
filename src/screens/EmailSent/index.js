@@ -7,15 +7,17 @@ import AuthBrand from '../../components/auth/AuthBrand';
 import CustomButton from '../../components/auth/CustomButton';
 import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 export default function EmailSent() {
   const navigation = useNavigation();
   const route = useRoute();
+  const {colors} = useAppTheme();
   const identifier = route.params?.identifier || 'your account';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <View style={styles.content}>
         <View style={styles.brandWrap}>
           <AuthBrand compact />
@@ -30,8 +32,8 @@ export default function EmailSent() {
           </View>
         </View>
 
-        <Text style={styles.title}>Email Sent!</Text>
-        <Text style={styles.message}>
+        <Text style={[styles.title, {color: colors.textPrimary}]}>Email Sent!</Text>
+        <Text style={[styles.message, {color: colors.textSecondary}]}>
           If an account exists for {identifier}, password reset instructions have been sent.
         </Text>
 
@@ -39,7 +41,7 @@ export default function EmailSent() {
           <CustomButton title="Back to Sign In" onPress={() => navigation.navigate('Login')} />
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')} activeOpacity={0.8}>
-          <Text style={styles.resetNowLink}>Reset password now</Text>
+          <Text style={[styles.resetNowLink, {color: colors.primary}]}>Reset password now</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

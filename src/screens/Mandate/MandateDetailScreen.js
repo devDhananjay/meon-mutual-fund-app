@@ -2,17 +2,14 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import {pickStatus} from './mandateFieldUtils';
 import {buildClientDataRows, buildBseDataRows, formatDetailTimestamp} from './mandateDetailLayout';
 import {authenticateMandate} from './mandateAuthFlow';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
 
-const PAGE_BG = '#F0F2F5';
-const CARD_BORDER = '#E8E8E8';
-const PRIMARY = '#1A73E8';
-
-function StatusBadge({label}) {
+function StatusBadge({label, styles, isDark}) {
   const raw = label || '—';
   const key = raw.replace(/\s+/g, '_').toUpperCase();
   let bg = '#F3F4F6';
@@ -43,7 +40,7 @@ function StatusBadge({label}) {
   );
 }
 
-function TabBar({active, onChange}) {
+function TabBar({active, onChange, styles}) {
   return (
     <View style={styles.tabBar}>
       <TouchableOpacity
@@ -62,7 +59,7 @@ function TabBar({active, onChange}) {
   );
 }
 
-function DetailGrid({rows}) {
+function DetailGrid({rows, styles}) {
   return (
     <View style={styles.gridCard}>
       {rows.map((row, ri) => (
@@ -89,6 +86,8 @@ function DetailGrid({rows}) {
 export default function MandateDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => getMandateDetailStyles(colors, isDark), [colors, isDark]);
   const mandate = route.params?.mandate;
 
   const [tab, setTab] = useState('client');
@@ -118,12 +117,13 @@ export default function MandateDetailScreen() {
 
   if (!mandate || typeof mandate !== 'object') {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-            <Text style={styles.backChevron}>‹</Text>
-            <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-          </TouchableOpacity>
+          <View style={[styles.topBarSide, styles.topBarSideLeft]}>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+          </View>
+          <View style={styles.topBarFill} />
+          <View style={[styles.topBarSide, styles.topBarSideRight]} />
         </View>
         <View style={styles.missingBox}>
           <Text style={[Textstyles.medium, styles.missingTxt]}>No mandate data.</Text>
@@ -133,35 +133,32 @@ export default function MandateDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-          <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-        </TouchableOpacity>
+        <View style={[styles.topBarSide, styles.topBarSideLeft]}>
+          <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+        </View>
         <Text style={styles.headerTitle}>Mandate Details</Text>
-        <TouchableOpacity
-          style={styles.authLink}
-          onPress={onAuth}
-          disabled={authBusy}
-          hitSlop={8}>
-          {authBusy ? (
-            <ActivityIndicator size="small" color={PRIMARY} />
-          ) : (
-            <Text style={styles.authLinkTxt}>Authenticate</Text>
-          )}
-        </TouchableOpacity>
+        <View style={[styles.topBarSide, styles.topBarSideRight]}>
+          <TouchableOpacity style={styles.authLink} onPress={onAuth} disabled={authBusy} hitSlop={8}>
+            {authBusy ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={[styles.authLinkTxt, {color: colors.primary}]}>Authenticate</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <TabBar active={tab} onChange={setTab} />
+        <TabBar active={tab} onChange={setTab} styles={styles} />
 
         <View style={styles.subHead}>
           <Text style={styles.subHeadTitle}>{tabTitle}</Text>
-          <StatusBadge label={status} />
+          <StatusBadge label={status} styles={styles} isDark={isDark} />
         </View>
 
-        {tab === 'client' ? <DetailGrid rows={clientRows} /> : <DetailGrid rows={bseRows} />}
+        {tab === 'client' ? <DetailGrid rows={clientRows} styles={styles} /> : <DetailGrid rows={bseRows} styles={styles} />}
 
         <View style={styles.footer}>
           <Text style={styles.footerLine}>Created at: {created}</Text>
@@ -172,68 +169,73 @@ export default function MandateDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: PAGE_BG},
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: CARD_BORDER,
-    backgroundColor: PAGE_BG,
-  },
-  backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4},
-  backChevron: {fontSize: 28, color: PRIMARY, marginRight: 2, marginTop: -2, fontWeight: '400'},
-  backLabel: {fontSize: 16, color: PRIMARY, fontWeight: '600'},
-  headerTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.TEXT_PRIMARY,
-    textAlign: 'center',
-    marginHorizontal: 4,
-  },
-  authLink: {minWidth: 88, alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 4},
-  authLinkTxt: {fontSize: 15, fontWeight: '500', color: PRIMARY},
-  scroll: {flex: 1},
-  scrollContent: {paddingHorizontal: 16, paddingBottom: 32},
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#E8F0FE',
-    borderRadius: 40,
-    padding: 4,
-    marginTop: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  tab: {flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 40},
-  tabOn: {backgroundColor: PRIMARY},
-  tabTxt: {fontSize: 14, fontWeight: '600', color: '#5F6368'},
-  tabTxtOn: {color: Colors.white},
-  subHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  subHeadTitle: {fontSize: 16, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  badge: {paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8},
-  badgeTxt: {fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
-  gridCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    padding: 12,
-    marginBottom: 16,
-  },
-  gridRow: {flexDirection: 'row', marginHorizontal: -6, marginBottom: 12},
-  gridHalf: {flex: 1, paddingHorizontal: 6, minWidth: 0},
-  cellLabel: {fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4},
-  cellVal: {fontSize: 14, color: '#111827'},
-  footer: {marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB'},
-  footerLine: {fontSize: 12, color: '#9CA3AF', marginBottom: 4},
-  missingBox: {flex: 1, justifyContent: 'center', padding: 24},
-  missingTxt: {textAlign: 'center', color: Colors.GREY},
-});
+function getMandateDetailStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      minHeight: 44,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+      backgroundColor: c.background,
+    },
+    topBarSide: {width: 88, height: 44, justifyContent: 'center'},
+    topBarSideLeft: {alignItems: 'flex-start'},
+    topBarSideRight: {alignItems: 'flex-end'},
+    topBarFill: {flex: 1},
+    headerTitle: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '700',
+      color: c.textPrimary,
+      textAlign: 'center',
+      marginHorizontal: 4,
+    },
+    authLink: {alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 4},
+    authLinkTxt: {fontSize: 15, fontWeight: '500', color: c.primary},
+    scroll: {flex: 1},
+    scrollContent: {paddingHorizontal: 16, paddingBottom: 32},
+    tabBar: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#2C2C2C' : '#E8F0FE',
+      borderRadius: 40,
+      padding: 4,
+      marginTop: 12,
+      marginBottom: 12,
+      overflow: 'hidden',
+    },
+    tab: {flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 40},
+    tabOn: {backgroundColor: c.primary},
+    tabTxt: {fontSize: 14, fontWeight: '600', color: c.textSecondary},
+    tabTxtOn: {color: '#FFFFFF'},
+    subHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    subHeadTitle: {fontSize: 16, fontWeight: '700', color: c.textPrimary},
+    badge: {paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8},
+    badgeTxt: {fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
+    gridCard: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 12,
+      marginBottom: 16,
+    },
+    gridRow: {flexDirection: 'row', marginHorizontal: -6, marginBottom: 12},
+    gridHalf: {flex: 1, paddingHorizontal: 6, minWidth: 0},
+    cellLabel: {fontSize: 11, color: c.textSecondary, textTransform: 'uppercase', marginBottom: 4},
+    cellVal: {fontSize: 14, color: c.textPrimary},
+    footer: {marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border},
+    footerLine: {fontSize: 12, color: c.textSecondary, marginBottom: 4},
+    missingBox: {flex: 1, justifyContent: 'center', padding: 24},
+    missingTxt: {textAlign: 'center', color: c.textSecondary},
+  });
+}

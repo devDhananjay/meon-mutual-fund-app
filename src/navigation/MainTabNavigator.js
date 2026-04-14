@@ -1,16 +1,18 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Text, View, StyleSheet, Image} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import ExplorePixelPerfectScreen from '../screens/Explore/ExplorePixelPerfectScreen';
 import MyFoliosScreen from '../screens/MyFolios/MyFoliosScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import {Colors} from '../utils/AppConstant';
 import Icons from '../utils/icons';
+import {useAppTheme} from '../theme/useAppTheme';
 
 const Tab = createBottomTabNavigator();
 
-function tabIcon(tabKey) {
+function tabIcon(tabKey, isDark, colors) {
   return function TabBarIcon({focused}) {
     const source =
       tabKey === 'Dashboard'
@@ -30,28 +32,37 @@ function tabIcon(tabKey) {
               : Icons.TabProfileGrey;
     return (
       <View style={styles.tabIconWrap}>
-        <Image source={source} style={styles.tabIconImg} resizeMode="contain" />
-        {focused ? <View style={styles.tabIndicator} /> : <View style={styles.tabIndicatorOff} />}
+        <Image
+          source={source}
+          style={[styles.tabIconImg, !focused && isDark ? {tintColor: colors.textSecondary} : null]}
+          resizeMode="contain"
+        />
+        {focused ? <View style={[styles.tabIndicator, {backgroundColor: colors.primary}]} /> : <View style={styles.tabIndicatorOff} />}
       </View>
     );
   };
 }
 
 export default function MainTabNavigator() {
-  const ACTIVE_BLUE = Colors.themeBlue;
+  const {isDark, colors} = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const ACTIVE_BLUE = colors.primary;
+  /** Push tab bar above Android 3-button / gesture nav & iOS home indicator */
+  const tabBarBottomPad = Math.max(insets.bottom, 10);
+  const tabBarTopPad = 8;
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: ACTIVE_BLUE,
-        tabBarInactiveTintColor: Colors.GREY,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {fontSize: 11, fontWeight: '600'},
         tabBarStyle: {
-          borderTopColor: Colors.BORDER_GREY,
-          backgroundColor: Colors.offWhite,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 66,
+          borderTopColor: colors.border,
+          backgroundColor: colors.tabBg,
+          paddingBottom: tabBarBottomPad,
+          paddingTop: tabBarTopPad,
+          minHeight: 52 + tabBarTopPad + tabBarBottomPad,
           shadowColor: '#000',
           shadowOffset: {width: 0, height: -2},
           shadowOpacity: 0.08,
@@ -64,7 +75,7 @@ export default function MainTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: tabIcon('Dashboard'),
+          tabBarIcon: tabIcon('Dashboard', isDark, colors),
         }}
       />
       <Tab.Screen
@@ -72,7 +83,7 @@ export default function MainTabNavigator() {
         component={ExplorePixelPerfectScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: tabIcon('Explore'),
+          tabBarIcon: tabIcon('Explore', isDark, colors),
         }}
       />
       <Tab.Screen
@@ -80,7 +91,7 @@ export default function MainTabNavigator() {
         component={MyFoliosScreen}
         options={{
           tabBarLabel: 'My Folios',
-          tabBarIcon: tabIcon('MyFolios'),
+          tabBarIcon: tabIcon('MyFolios', isDark, colors),
         }}
       />
       <Tab.Screen
@@ -88,7 +99,7 @@ export default function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: tabIcon('Profile'),
+          tabBarIcon: tabIcon('Profile', isDark, colors),
         }}
       />
     </Tab.Navigator>

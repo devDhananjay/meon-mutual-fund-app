@@ -9,13 +9,11 @@ import {
   RefreshControl,
   TextInput,
   Image,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {useOrdersData} from '../../hooks/useOrdersData';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
 import {
@@ -33,11 +31,227 @@ import {
   normalizeStatusKey,
 } from './orderHelpers';
 import AppModal from '../../components/AppModal';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
+import {typeScale} from '../../theme/typography';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import {appAlert} from '../../utils/appAlert';
 
-const PAGE_BG = '#F0F2F5';
-const CARD_BORDER = '#E8E8E8';
-const THEME_BLUE = '#1A73E8';
 const EMPTY_ORDERS = [];
+
+function createMyOrdersStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    headerBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+      backgroundColor: c.background,
+      minHeight: 44,
+    },
+    headerSlot: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+    headerTitle: {
+      flex: 1,
+      fontSize: typeScale.title,
+      ...Textstyles.heading,
+      color: c.textPrimary,
+      textAlign: 'center',
+    },
+    filterIconWrap: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
+    filterIcon: {width: 22, height: 22},
+    filterBar: {height: 3, backgroundColor: c.primary, borderRadius: 1, marginBottom: 4},
+    filterBarWide: {width: 18, alignSelf: 'flex-end'},
+    filterBarNarrow: {width: 14, alignSelf: 'flex-end'},
+    loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
+    loadingInline: {paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
+    loadingTxt: {marginTop: 12, color: c.textSecondary},
+    loadingTxtInline: {marginTop: 0, color: c.textSecondary},
+    pageHead: {paddingHorizontal: 0, paddingTop: 8},
+    searchCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.inputBg,
+      borderRadius: SEARCH_FIELD.borderRadius,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+      paddingVertical: SEARCH_FIELD.paddingVertical,
+      minHeight: SEARCH_FIELD.minHeight,
+      marginBottom: 8,
+      shadowColor: isDark ? 'transparent' : '#000',
+      shadowOffset: {width: 0, height: 1},
+      shadowOpacity: isDark ? 0 : 0.06,
+      shadowRadius: 3,
+    },
+    searchIconImg: {
+      width: SEARCH_FIELD.iconSize,
+      height: SEARCH_FIELD.iconSize,
+      marginRight: SEARCH_FIELD.iconMarginRight,
+      ...(isDark ? {tintColor: c.textSecondary} : {}),
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: SEARCH_FIELD.inputFontSize,
+      color: c.textPrimary,
+      paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+    },
+    countLine: {fontSize: 12, color: c.textSecondary, marginBottom: 8, paddingHorizontal: 4},
+    listContent: {paddingBottom: 32, paddingHorizontal: 16},
+    orderCard: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 14,
+      marginBottom: 12,
+      shadowColor: isDark ? 'transparent' : '#000',
+      shadowOffset: {width: 0, height: 1},
+      shadowOpacity: isDark ? 0 : 0.06,
+      shadowRadius: 4,
+    },
+    cardTop: {flexDirection: 'row', alignItems: 'center'},
+    fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 12},
+    fundLogoPh: {
+      backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? c.border : '#BFDBFE',
+    },
+    fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.primary},
+    fundName: {flex: 1, fontSize: 15, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary, lineHeight: 20},
+    cardChev: {...Textstyles.normal, fontSize: typeScale.chevron, color: c.textSecondary, fontWeight: '300', marginLeft: 2},
+    cardGrid: {
+      flexDirection: 'row',
+      marginTop: 14,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
+    cellLabel: {fontSize: 10, color: c.textSecondary, textTransform: 'uppercase', marginBottom: 6},
+    cellType: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary},
+    cellAmt: {fontSize: 14, ...Textstyles.medium, fontWeight: '500', color: c.textPrimary, marginTop: 2},
+    cellVal: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary},
+    statusPill: {
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 8,
+      alignSelf: 'flex-start',
+      maxWidth: '100%',
+    },
+    statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500'},
+    payNowBtn: {
+      marginTop: 12,
+      backgroundColor: c.success,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    payNowTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 14, fontWeight: '500'},
+    errorBanner: {
+      marginHorizontal: 16,
+      marginTop: 8,
+      marginBottom: 8,
+      padding: 12,
+      backgroundColor: isDark ? 'rgba(248,113,113,0.12)' : '#FEF2F2',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(248,113,113,0.35)' : '#FECACA',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    errorText: {flex: 1, color: c.danger, fontSize: 14},
+    retry: {...Textstyles.medium, color: c.primary, fontWeight: '600'},
+    emptyCard: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 28,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+      marginTop: 8,
+    },
+    emptyTitle: {fontSize: 16, color: c.textPrimary, marginBottom: 8},
+    emptySub: {fontSize: 14, color: c.textSecondary, textAlign: 'center', marginBottom: 16},
+    cta: {
+      backgroundColor: c.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 10,
+    },
+    ctaTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 15},
+    filterModalRoot: {flex: 1, justifyContent: 'flex-end'},
+    filterDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
+    filterSheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingBottom: 28,
+      paddingHorizontal: 16,
+    },
+    filterGrabber: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    filterHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    filterTitle: {...Textstyles.heading, fontSize: typeScale.title, fontWeight: '700', color: c.textPrimary},
+    clearFilterTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: c.primary},
+    filterSectionLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: c.textSecondary, marginBottom: 10},
+    chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.inputBg,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    chipOn: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    chipTxt: {...Textstyles.medium, fontSize: 12, color: c.textSecondary, fontWeight: '600'},
+    chipTxtOn: {color: '#FFFFFF'},
+    filterActions: {flexDirection: 'row', marginTop: 8},
+    filterBtnCancel: {
+      flex: 1,
+      marginRight: 8,
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: c.primary,
+      alignItems: 'center',
+    },
+    filterBtnCancelTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, fontWeight: '500', color: c.primary},
+    filterBtnApply: {
+      flex: 1,
+      marginLeft: 8,
+      paddingVertical: 14,
+      borderRadius: 10,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+    },
+    filterBtnApplyTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, fontWeight: '500', color: '#FFFFFF'},
+  });
+}
 
 const STATUS_OPTIONS = [
   {key: 'all', label: 'All'},
@@ -61,6 +275,62 @@ function mapTypeFilterToApi(typeFilter) {
   }
   const map = {sip: 'SIP', redeem: 'REDEEM', lumpsum: 'LUMPSUM'};
   return map[typeFilter] ?? String(typeFilter).toUpperCase();
+}
+
+/** Client-side guard when the list API ignores filter params. */
+function orderMatchesStatusFilter(item, statusFilter) {
+  if (statusFilter === 'all') {
+    return true;
+  }
+  const status = pickOrderStatus(item);
+  const key = normalizeStatusKey(status);
+  const hay = normalizeStatusKey(
+    [status, item?.order_status, item?.payment_status, item?.state, item?.auth_status].filter(Boolean).join(' '),
+  );
+  const blob = `${key} ${hay}`;
+  if (statusFilter === 'IN_PROGRESS') {
+    return (
+      blob.includes('IN_PROGRESS') ||
+      blob.includes('PROGRESS') ||
+      blob.includes('PENDING') ||
+      blob.includes('PROCESS') ||
+      blob.includes('AUTH') ||
+      blob.includes('NEW')
+    );
+  }
+  if (statusFilter === 'FAILED') {
+    return blob.includes('FAIL') || blob.includes('REJECT');
+  }
+  if (statusFilter === 'COMPLETED') {
+    return (
+      blob.includes('COMPLETE') ||
+      blob.includes('SUCCESS') ||
+      blob.includes('EXECUTED') ||
+      blob.includes('SETTLED') ||
+      blob.includes('PAID')
+    );
+  }
+  if (statusFilter === 'CANCELLED') {
+    return blob.includes('CANCEL');
+  }
+  return key.includes(statusFilter);
+}
+
+function orderMatchesTypeFilter(item, typeFilter) {
+  if (typeFilter === 'all') {
+    return true;
+  }
+  const label = formatOrderTypeLabel(pickOrderType(item));
+  if (typeFilter === 'sip') {
+    return label === 'SIP';
+  }
+  if (typeFilter === 'redeem') {
+    return label === 'Redeem';
+  }
+  if (typeFilter === 'lumpsum') {
+    return label === 'One-time';
+  }
+  return true;
 }
 
 function formatInr(value) {
@@ -89,21 +359,21 @@ function formatDate(raw) {
   }
 }
 
-function StatusBadge({label}) {
+function StatusBadge({label, styles, isDark}) {
   const raw = label || '—';
   const key = normalizeStatusKey(raw);
-  let bg = '#F3F4F6';
-  let fg = '#374151';
+  let bg = isDark ? '#2C2C2C' : '#F3F4F6';
+  let fg = isDark ? '#E5E7EB' : '#374151';
 
   if (key.includes('FAIL') || key.includes('REJECT')) {
-    bg = '#FEE2E2';
-    fg = '#DC2626';
+    bg = isDark ? 'rgba(248,113,113,0.2)' : '#FEE2E2';
+    fg = isDark ? '#FCA5A5' : '#DC2626';
   } else if (key.includes('SUCCESS') || key.includes('COMPLETE') || key.includes('EXECUTED')) {
-    bg = '#DCFCE7';
-    fg = '#15803D';
+    bg = isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7';
+    fg = isDark ? '#86EFAC' : '#15803D';
   } else if (key.includes('PROGRESS') || key.includes('PENDING') || key.includes('PROCESS')) {
-    bg = '#FEF3C7';
-    fg = '#D97706';
+    bg = isDark ? 'rgba(251,191,36,0.15)' : '#FEF3C7';
+    fg = isDark ? '#FCD34D' : '#D97706';
   }
 
   return (
@@ -115,7 +385,7 @@ function StatusBadge({label}) {
   );
 }
 
-function FundLogo({name, uri}) {
+function FundLogo({name, uri, styles}) {
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
   }
@@ -127,10 +397,10 @@ function FundLogo({name, uri}) {
   );
 }
 
-function FilterSlidersIcon() {
+function FilterSlidersIcon({styles, tintColor}) {
   return (
-    <View style={styles.filterIcon}>
-      <Image resizeMode='contain' source={Icons.FilterBlack} style={styles.filterIcon} />
+    <View style={styles.filterIconWrap}>
+      <Image resizeMode="contain" source={Icons.FilterBlack} style={[styles.filterIcon, tintColor ? {tintColor} : null]} />
     </View>
   );
 }
@@ -189,7 +459,7 @@ function canShowPayNow(item) {
   );
 }
 
-function OrderCard({item, onPressOrder, onPayNow, payingOrderId}) {
+function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}) {
   const name = pickOrderTitle(item);
   const typeLabel = formatOrderTypeLabel(pickOrderType(item));
   const amount = formatInr(pickOrderAmountRaw(item));
@@ -202,7 +472,7 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId}) {
   return (
     <TouchableOpacity style={styles.orderCard} onPress={() => onPressOrder(item)} activeOpacity={0.75}>
       <View style={styles.cardTop}>
-        <FundLogo name={name} uri={logo} />
+        <FundLogo name={name} uri={logo} styles={styles} />
         <Text style={styles.fundName} numberOfLines={2}>
           {name}
         </Text>
@@ -220,7 +490,7 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId}) {
         </View>
         <View style={styles.cardCell}>
           <Text style={styles.cellLabel}>Status</Text>
-          <StatusBadge label={status} />
+          <StatusBadge label={status} styles={styles} isDark={isDark} />
         </View>
       </View>
       {canPayNow ? (
@@ -247,6 +517,7 @@ function FilterSheet({
   onChangeDraftType,
   onApply,
   onClear,
+  styles,
 }) {
   return (
     <AppModal
@@ -295,6 +566,8 @@ function FilterSheet({
 
 export default function MyOrdersScreen() {
   const navigation = useNavigation();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => createMyOrdersStyles(colors, isDark), [colors, isDark]);
   const showBack = navigation.canGoBack();
   const user = useSelector(s => s.auth.user);
 
@@ -325,8 +598,15 @@ export default function MyOrdersScreen() {
   );
 
   const {data, isPending, error, refreshing, refetch} = useOrdersData(listParams);
-  const orders = data?.results ?? EMPTY_ORDERS;
-  const totalCount = data?.count ?? orders.length;
+  const rawOrders = data?.results ?? EMPTY_ORDERS;
+  const orders = useMemo(
+    () =>
+      rawOrders.filter(
+        o => orderMatchesStatusFilter(o, statusFilter) && orderMatchesTypeFilter(o, typeFilter),
+      ),
+    [rawOrders, statusFilter, typeFilter],
+  );
+  const totalCount = data?.count ?? rawOrders.length;
 
   const openFilter = useCallback(() => {
     setDraftStatus(statusFilter);
@@ -337,6 +617,9 @@ export default function MyOrdersScreen() {
   const clearFilters = useCallback(() => {
     setDraftStatus('all');
     setDraftType('all');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setFilterOpen(false);
   }, []);
 
   const applyFilters = useCallback(() => {
@@ -382,7 +665,7 @@ export default function MyOrdersScreen() {
       const totalAmount = Number(String(pickOrderAmountRaw(item)).replace(/,/g, '')) || 0;
       const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
       if (!orderNumber || !clientCode || !totalAmount) {
-        Alert.alert('Pay Now', 'Required payment fields missing for this order.');
+        appAlert('Pay Now', 'Required payment fields missing for this order.');
         return;
       }
       try {
@@ -410,7 +693,7 @@ export default function MyOrdersScreen() {
         if (url) {
           navigation.navigate('MandateAuthWebview', {uri: url, title: 'Complete payment'});
         } else {
-          Alert.alert('Pay Now', 'Payment URL not found for this order.');
+          appAlert('Pay Now', 'Payment URL not found for this order.');
         }
       } finally {
         setPayingOrderId(null);
@@ -421,9 +704,16 @@ export default function MyOrdersScreen() {
 
   const renderItem = useCallback(
     ({item}) => (
-      <OrderCard item={item} onPressOrder={onPressOrder} onPayNow={onPayNow} payingOrderId={payingOrderId} />
+      <OrderCard
+        item={item}
+        onPressOrder={onPressOrder}
+        onPayNow={onPayNow}
+        payingOrderId={payingOrderId}
+        styles={styles}
+        isDark={isDark}
+      />
     ),
-    [onPressOrder, onPayNow, payingOrderId],
+    [onPressOrder, onPayNow, payingOrderId, styles, isDark],
   );
 
   const listHeader = useMemo(
@@ -434,7 +724,7 @@ export default function MyOrdersScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search orders..."
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.muted}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
@@ -449,7 +739,7 @@ export default function MyOrdersScreen() {
         </Text>
       </View>
     ),
-    [search, orders.length, totalCount],
+    [search, orders.length, totalCount, styles, colors.muted],
   );
 
   const goExplore = useCallback(() => {
@@ -459,41 +749,37 @@ export default function MyOrdersScreen() {
   const headerBar = (
     <View style={styles.headerBar}>
       {showBack ? (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-          <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSlot}>
+          <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+        </View>
       ) : (
-        <View style={styles.headerSide} />
+        <View style={styles.headerSlot} />
       )}
       <Text style={styles.headerTitle}>My Orders</Text>
-      <TouchableOpacity style={styles.headerSide} onPress={openFilter} hitSlop={12} accessibilityLabel="Filter orders">
-        <FilterSlidersIcon />
+      <TouchableOpacity style={styles.headerSlot} onPress={openFilter} hitSlop={12} accessibilityLabel="Filter orders">
+        <FilterSlidersIcon styles={styles} tintColor={colors.textPrimary} />
       </TouchableOpacity>
     </View>
   );
 
-  if (isPending && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        {headerBar}
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={THEME_BLUE} />
-          <Text style={[Textstyles.normal, styles.loadingTxt]}>Loading orders…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const showInlineLoader = isPending && !refreshing;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       {headerBar}
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} hitSlop={8}>
-            <Text style={styles.retry}>Retry</Text>
+            <Text style={[styles.retry, {color: colors.primary}]}>Retry</Text>
           </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {showInlineLoader ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Textstyles.normal, styles.loadingTxtInline, {color: colors.textSecondary}]}>Loading orders…</Text>
         </View>
       ) : null}
 
@@ -504,7 +790,7 @@ export default function MyOrdersScreen() {
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={THEME_BLUE} />
+          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           <View style={styles.emptyCard}>
@@ -531,208 +817,8 @@ export default function MyOrdersScreen() {
         onChangeDraftType={setDraftType}
         onApply={applyFilters}
         onClear={clearFilters}
+        styles={styles}
       />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: PAGE_BG},
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: CARD_BORDER,
-    backgroundColor: PAGE_BG,
-  },
-  headerSide: {width: 56, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 4},
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    ...Textstyles.heading,
-    color: Colors.TEXT_PRIMARY,
-    textAlign: 'center',
-  },
-  backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, width: 72},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: THEME_BLUE, marginRight: 2, marginTop: -2},
-  backLabel: {...Textstyles.medium, fontSize: 16, color: THEME_BLUE, fontWeight: '600'},
-  filterIcon: {width: 24, height: 24, alignSelf: 'flex-end', justifyContent: 'center', paddingVertical: 4},
-  filterBar: {height: 3, backgroundColor: THEME_BLUE, borderRadius: 1, marginBottom: 4},
-  filterBarWide: {width: 18, alignSelf: 'flex-end'},
-  filterBarNarrow: {width: 14, alignSelf: 'flex-end'},
-  loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingTxt: {marginTop: 12, color: Colors.GREY},
-  pageHead: {paddingHorizontal: 16, paddingTop: 8},
-  searchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    // elevation: 2,
-  },
-  searchIconImg: {width: 16, height: 16, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
-  countLine: {fontSize: 12, color: '#6B7280', marginBottom: 8, paddingHorizontal: 4},
-  listContent: {paddingBottom: 32, paddingHorizontal: 16},
-  orderCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    // elevation: 2,
-  },
-  cardTop: {flexDirection: 'row', alignItems: 'center'},
-  fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 12},
-  fundLogoPh: {
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
-  fundName: {flex: 1, fontSize: 15, ...Textstyles.medium, fontWeight: '600', color: '#111827', lineHeight: 20},
-  cardChev: {...Textstyles.normal, fontSize: 22, color: '#9CA3AF', fontWeight: '300', marginLeft: 2},
-  cardGrid: {
-    flexDirection: 'row',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
-  cellLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 6},
-  cellType: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#111827'},
-  cellAmt: {fontSize: 14, ...Textstyles.medium, fontWeight: '500', color: '#111827', marginTop: 2},
-  cellVal: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#111827'},
-  statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-  },
-  statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500'},
-  payNowBtn: {
-    marginTop: 12,
-    backgroundColor: '#22C55E',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  payNowTxt: {...Textstyles.medium, color: Colors.white, fontSize: 14, fontWeight: '500'},
-  errorBanner: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    padding: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {...Textstyles.medium, color: THEME_BLUE, fontWeight: '600'},
-  emptyCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    marginTop: 8,
-  },
-  emptyTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, marginBottom: 8},
-  emptySub: {fontSize: 14, color: Colors.GREY, textAlign: 'center', marginBottom: 16},
-  cta: {
-    backgroundColor: THEME_BLUE,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-  },
-  ctaTxt: {...Textstyles.medium, color: Colors.white, fontSize: 15},
-  filterModalRoot: {flex: 1, justifyContent: 'flex-end'},
-  filterDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
-  filterSheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 28,
-    paddingHorizontal: 16,
-  },
-  filterGrabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  filterHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  filterTitle: {...Textstyles.heading, fontSize: 18, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  clearFilterTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: THEME_BLUE},
-  filterSectionLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: Colors.white,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  chipOn: {
-    backgroundColor: THEME_BLUE,
-    borderColor: THEME_BLUE,
-  },
-  chipTxt: {...Textstyles.medium, fontSize: 12, color: '#4B5563', fontWeight: '600'},
-  chipTxtOn: {color: Colors.white},
-  filterActions: {flexDirection: 'row', marginTop: 8},
-  filterBtnCancel: {
-    flex: 1,
-    marginRight: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: THEME_BLUE,
-    alignItems: 'center',
-  },
-  filterBtnCancelTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: THEME_BLUE},
-  filterBtnApply: {
-    flex: 1,
-    marginLeft: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: THEME_BLUE,
-    alignItems: 'center',
-  },
-  filterBtnApplyTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.white},
-});

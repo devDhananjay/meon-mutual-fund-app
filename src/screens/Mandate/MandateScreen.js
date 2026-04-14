@@ -13,7 +13,6 @@ import {
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useMandateData} from '../../hooks/useMandateData';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
 import {
@@ -27,13 +26,9 @@ import {
 } from './mandateFieldUtils';
 import AddMandateModal from './AddMandateModal';
 import AppModal from '../../components/AppModal';
-
-const PAGE_BG = '#F0F2F5';
-const CARD_BORDER = '#E8E8E8';
-const PRIMARY = '#1A73E8';
-const EMPTY_ITEMS = [];
-
-const THEME_BLUE = '#1A73E8';
+import {useAppTheme} from '../../theme/useAppTheme';
+import AppBackButton from '../../components/AppBackButton';
+import {SEARCH_FIELD} from '../../theme/searchField';
 
 const STATUS_OPTIONS = [
   {key: 'all', label: 'All Status'},
@@ -42,6 +37,8 @@ const STATUS_OPTIONS = [
   {key: 'EXPIRED', label: 'EXPIRED'},
 ];
 
+const EMPTY_ITEMS = [];
+
 function mapStatusFilterToApi(statusKey) {
   if (!statusKey || statusKey === 'all') {
     return '';
@@ -49,31 +46,21 @@ function mapStatusFilterToApi(statusKey) {
   return String(statusKey);
 }
 
-function StatusBadge({label}) {
+function StatusBadge({label, styles, isDark}) {
   const raw = label || '—';
   const key = raw.replace(/\s+/g, '_').toUpperCase();
-  let bg = '#F3F4F6';
-  let fg = '#374151';
-
-  if (key.includes('EXPIR')) {
-    bg = '#FEE2E2';
-    fg = '#DC2626';
-  } else if (key.includes('FAIL') || key.includes('REJECT') || key.includes('CANCEL')) {
-    bg = '#FEE2E2';
-    fg = '#DC2626';
-  } else if (
-    key.includes('SUCCESS') ||
-    key.includes('ACTIVE') ||
-    key.includes('APPROVED') ||
-    key.includes('COMPLETE')
-  ) {
-    bg = '#DCFCE7';
-    fg = '#15803D';
+  let bg = isDark ? '#2C2C2C' : '#F3F4F6';
+  let fg = isDark ? '#E5E7EB' : '#374151';
+  if (key.includes('EXPIR') || key.includes('FAIL') || key.includes('REJECT') || key.includes('CANCEL')) {
+    bg = isDark ? 'rgba(248,113,113,0.2)' : '#FEE2E2';
+    fg = isDark ? '#FCA5A5' : '#DC2626';
+  } else if (key.includes('SUCCESS') || key.includes('ACTIVE') || key.includes('APPROVED') || key.includes('COMPLETE')) {
+    bg = isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7';
+    fg = isDark ? '#86EFAC' : '#15803D';
   } else if (key.includes('PROGRESS') || key.includes('PENDING') || key.includes('PROCESS')) {
-    bg = '#FEF3C7';
-    fg = '#D97706';
+    bg = isDark ? 'rgba(251,191,36,0.15)' : '#FEF3C7';
+    fg = isDark ? '#FCD34D' : '#D97706';
   }
-
   return (
     <View style={[styles.statusPill, {backgroundColor: bg}]}>
       <Text style={[styles.statusPillTxt, {color: fg}]} numberOfLines={1}>
@@ -83,7 +70,7 @@ function StatusBadge({label}) {
   );
 }
 
-function MandateCard({item, onViewDetails}) {
+function MandateCard({item, onViewDetails, styles, isDark}) {
   const mid = pickMandateListId(item);
   const bank = pickBank(item);
   const start = pickStartDateDD(item);
@@ -97,7 +84,7 @@ function MandateCard({item, onViewDetails}) {
         <Text style={styles.mandateId} numberOfLines={1}>
           {mid}
         </Text>
-        <StatusBadge label={status} />
+        <StatusBadge label={status} styles={styles} isDark={isDark} />
       </View>
 
       <View style={styles.cardGrid}>
@@ -131,7 +118,7 @@ function MandateCard({item, onViewDetails}) {
   );
 }
 
-function MandateFilterSheet({visible, draftStatus, onChangeDraftStatus, onClose, onApply}) {
+function MandateFilterSheet({visible, draftStatus, onChangeDraftStatus, onClose, onApply, styles}) {
   return (
     <AppModal
       visible={visible}
@@ -160,6 +147,8 @@ function MandateFilterSheet({visible, draftStatus, onChangeDraftStatus, onClose,
 export default function MandateScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => createMandateStyles(colors, isDark), [colors, isDark]);
   const showBack = navigation.canGoBack();
 
   const [statusFilter, setStatusFilter] = useState('all');
@@ -215,8 +204,8 @@ export default function MandateScreen() {
   );
 
   const renderItem = useCallback(
-    ({item}) => <MandateCard item={item} onViewDetails={onViewDetails} />,
-    [onViewDetails],
+    ({item}) => <MandateCard item={item} onViewDetails={onViewDetails} styles={styles} isDark={isDark} />,
+    [onViewDetails, styles, isDark],
   );
 
   const listHeader = useMemo(
@@ -227,7 +216,7 @@ export default function MandateScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search mandates…"
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.muted}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
@@ -242,7 +231,7 @@ export default function MandateScreen() {
         </Text>
       </View>
     ),
-    [search, filtered.length, totalCount],
+    [search, filtered.length, totalCount, styles, colors.muted],
   );
 
   const fabBottom = 16 + insets.bottom;
@@ -250,48 +239,48 @@ export default function MandateScreen() {
   const headerBar = (
     <View style={styles.headerRow}>
       {showBack ? (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
-          <Text style={styles.backChevron}>‹</Text>
-          <Text style={[Textstyles.medium, styles.backLabel]}>Back</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSlot}>
+          <AppBackButton onPress={() => navigation.goBack()} hitSlop={10} />
+        </View>
       ) : (
-        <View style={styles.backPlaceholder} />
+        <View style={styles.headerSlot} />
       )}
       <Text style={styles.navTitle}>Mandate</Text>
       <TouchableOpacity
-        style={styles.headerSide}
+        style={styles.headerSlot}
         onPress={() => {
           setDraftStatus(statusFilter);
           setFilterOpen(true);
         }}
         hitSlop={12}
         accessibilityLabel="Filter mandates">
-        <Image source={Icons.FilterBlack} style={styles.headerFilterIcon} />
+        <Image
+          source={Icons.FilterBlack}
+          style={[styles.headerFilterIcon, {tintColor: colors.textPrimary}]}
+          resizeMode="contain"
+        />
       </TouchableOpacity>
     </View>
   );
 
-  if (isPending && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        {headerBar}
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={[Textstyles.normal, styles.loadingTxt]}>Loading mandates…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const showInlineLoader = isPending && !refreshing;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       {headerBar}
       {error ? (
-        <View style={styles.errorBanner}>
+        <View style={[styles.errorBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} hitSlop={8}>
-            <Text style={styles.retry}>Retry</Text>
+            <Text style={[styles.retry, {color: colors.primary}]}>Retry</Text>
           </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {showInlineLoader ? (
+        <View style={styles.loadingInline}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Textstyles.normal, styles.loadingTxtInline, {color: colors.textSecondary}]}>Loading mandates…</Text>
         </View>
       ) : null}
 
@@ -302,12 +291,12 @@ export default function MandateScreen() {
         ListHeaderComponent={listHeader}
         contentContainerStyle={[styles.listContent, {paddingBottom: 88 + insets.bottom}]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={PRIMARY} />
+          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={[Textstyles.medium, styles.emptyTitle]}>No mandates found</Text>
-            <Text style={[Textstyles.normal, styles.emptySub]}>
+          <View style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Text style={[Textstyles.medium, styles.emptyTitle, {color: colors.textPrimary}]}>No mandates found</Text>
+            <Text style={[Textstyles.normal, styles.emptySub, {color: colors.textSecondary}]}>
               {search.trim()
                 ? 'Try a different search.'
                 : 'When you add a mandate, it will appear here.'}
@@ -318,7 +307,7 @@ export default function MandateScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.fab, {bottom: fabBottom}]}
+        style={[styles.fab, {bottom: fabBottom, backgroundColor: colors.primary}]}
         onPress={() => setAddOpen(true)}
         activeOpacity={0.9}
         accessibilityLabel="Add mandate">
@@ -333,6 +322,7 @@ export default function MandateScreen() {
       />
 
       <MandateFilterSheet
+        styles={styles}
         visible={filterOpen}
         draftStatus={draftStatus}
         onChangeDraftStatus={setDraftStatus}
@@ -346,40 +336,41 @@ export default function MandateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: PAGE_BG},
+function createMandateStyles(colors, isDark) {
+  const c = colors;
+  return StyleSheet.create({
+  safe: {flex: 1, backgroundColor: c.background},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: CARD_BORDER,
-    backgroundColor: PAGE_BG,
+    borderBottomColor: c.border,
+    backgroundColor: c.background,
   },
-  backBtn: {flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 4},
-  backChevron: {...Textstyles.normal, fontSize: 28, color: PRIMARY, marginRight: 2, marginTop: -2},
-  backLabel: {...Textstyles.medium, fontSize: 16, color: PRIMARY, fontWeight: '600'},
-  backPlaceholder: {width: 72},
+  headerSlot: {width: 44, height: 44, alignItems: 'center', justifyContent: 'center'},
   navTitle: {
     flex: 1,
     fontSize: 20,
     ...Textstyles.heading,
-    color: Colors.TEXT_PRIMARY,
+    color: c.textPrimary,
     textAlign: 'center',
   },
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingTxt: {marginTop: 12, color: Colors.GREY},
-  pageHead: {paddingHorizontal: 16, paddingTop: 8},
+  loadingTxt: {marginTop: 12, color: c.textSecondary},
+  pageHead: {paddingHorizontal: 0, paddingTop: 8},
   searchCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: 12,
+    backgroundColor: c.card,
+    borderRadius: SEARCH_FIELD.borderRadius,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: c.border,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
     marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
@@ -387,15 +378,24 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     // elevation: 2,
   },
-  searchIconImg: {width: 16, height: 16, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 4},
-  countLine: {fontSize: 12, color: '#6B7280', marginBottom: 8, paddingHorizontal: 4},
+  searchIconImg: {
+    width: SEARCH_FIELD.iconSize,
+    height: SEARCH_FIELD.iconSize,
+    marginRight: SEARCH_FIELD.iconMarginRight,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    color: c.textPrimary,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+  },
+  countLine: {fontSize: 12, color: c.textSecondary, marginBottom: 8, paddingHorizontal: 4},
   listContent: {paddingHorizontal: 16, paddingTop: 4},
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     // elevation: 2,
   },
   cardTop: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
-  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: Colors.TEXT_PRIMARY, flex: 1, marginRight: 8},
+  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.textPrimary, flex: 1, marginRight: 8},
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -413,10 +413,10 @@ const styles = StyleSheet.create({
     maxWidth: '48%',
   },
   statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
-  cardGrid: {flexDirection: 'row', marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6'},
+  cardGrid: {flexDirection: 'row', marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: isDark ? c.border : '#F3F4F6'},
   cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
-  cardLabel: {fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 4},
-  cardVal: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: '#111827'},
+  cardLabel: {fontSize: 10, color: c.textSecondary, textTransform: 'uppercase', marginBottom: 4},
+  cardVal: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: c.textPrimary},
   cardBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -424,10 +424,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: isDark ? c.border : '#F3F4F6',
   },
-  amountTxt: {...Textstyles.medium, fontSize: 20, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  viewDetails: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: PRIMARY},
+  amountTxt: {...Textstyles.medium, fontSize: 20, fontWeight: '500', color: c.textPrimary},
+  viewDetails: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: c.primary},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -442,25 +442,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   errorText: {flex: 1, color: '#B91C1C', fontSize: 14},
-  retry: {...Textstyles.medium, color: PRIMARY, fontWeight: '600'},
+  retry: {...Textstyles.medium, color: c.primary, fontWeight: '600'},
   emptyCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: c.border,
     marginTop: 8,
   },
-  emptyTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, marginBottom: 8},
-  emptySub: {fontSize: 14, color: Colors.GREY, textAlign: 'center'},
+  emptyTitle: {fontSize: 16, color: c.textPrimary, marginBottom: 8},
+  emptySub: {fontSize: 14, color: c.textSecondary, textAlign: 'center'},
   fab: {
     position: 'absolute',
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: PRIMARY,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -469,15 +469,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     // elevation: 6,
   },
-  fabPlus: {...Textstyles.normal, fontSize: 32, color: Colors.white, fontWeight: '300', marginTop: -2},
+  fabPlus: {...Textstyles.normal, fontSize: 32, color: '#FFFFFF', fontWeight: '300', marginTop: -2},
 
-  headerSide: {width: 72, alignItems: 'flex-end', justifyContent: 'center'},
-  headerFilterIcon: {width: 18, height: 18, marginRight: 6},
+  headerFilterIcon: {width: 22, height: 22},
 
   filterModalRoot: {flex: 1, justifyContent: 'flex-end'},
   filterDim: {...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)'},
   filterSheet: {
-    backgroundColor: Colors.white,
+    backgroundColor: c.card,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: 28,
@@ -493,25 +492,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filterHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10},
-  filterTitle: {fontSize: 18, ...Textstyles.heading, fontWeight: '700', color: Colors.TEXT_PRIMARY},
-  filterSectionLabel: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: '#6B7280', marginBottom: 10},
+  filterTitle: {fontSize: 18, ...Textstyles.heading, fontWeight: '700', color: c.textPrimary},
+  filterSectionLabel: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textSecondary, marginBottom: 10},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: Colors.white,
+    borderColor: c.border,
+    backgroundColor: c.card,
     marginRight: 8,
     marginBottom: 8,
   },
   chipOn: {
-    backgroundColor: THEME_BLUE,
-    borderColor: THEME_BLUE,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   chipTxt: {fontSize: 12, ...Textstyles.medium, color: '#4B5563', fontWeight: '600'},
-  chipTxtOn: {color: Colors.white},
+  chipTxtOn: {color: '#FFFFFF'},
   filterActions: {flexDirection: 'row', marginTop: 8},
   filterBtnCancel: {
     flex: 1,
@@ -519,17 +518,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: THEME_BLUE,
+    borderColor: c.primary,
     alignItems: 'center',
   },
-  filterBtnCancelTxt: {fontSize: 16, ...Textstyles.medium, fontWeight: '600', color: THEME_BLUE},
+  filterBtnCancelTxt: {fontSize: 16, ...Textstyles.medium, fontWeight: '600', color: c.primary},
   filterBtnApply: {
     flex: 1,
     marginLeft: 8,
     paddingVertical: 14,
     borderRadius: 10,
-    backgroundColor: THEME_BLUE,
+    backgroundColor: c.primary,
     alignItems: 'center',
   },
-  filterBtnApplyTxt: {fontSize: 16, ...Textstyles.heading, fontWeight: '700', color: Colors.white},
+  filterBtnApplyTxt: {fontSize: 16, ...Textstyles.heading, fontWeight: '700', color: '#FFFFFF'},
 });
+}

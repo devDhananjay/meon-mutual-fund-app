@@ -1,5 +1,5 @@
-import React, {useEffect, useRef} from 'react';
-import {View, StatusBar, StyleSheet, Animated} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {View, StatusBar, StyleSheet, Animated, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch} from 'react-redux';
@@ -7,10 +7,36 @@ import {AuthColors} from '../../constants/authTheme';
 import AuthBrand from '../../components/auth/AuthBrand';
 import {restoreSession} from '../../store/slices/authSlice';
 import {loadStoredSession} from '../../services/authStorage';
+import {fetchAuthProfile} from '../../services/authService';
+import {persistAuth} from '../../services/authStorage';
+import {useAppTheme} from '../../theme/useAppTheme';
+import {baseUrl} from '../../utils/AppConstant';
+
+const API_ORIGIN = 'https://mutualfunds.meon.co.in';
+
+function toAbsoluteLogoUrl(rawLogo) {
+  if (!rawLogo) {
+    return null;
+  }
+  const value = String(rawLogo).trim();
+  if (!value) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  // API returns relative logo paths like `/v1/media/...`.
+  if (value.startsWith('/')) {
+    return `${API_ORIGIN}${value}`;
+  }
+  return `${baseUrl.replace(/\/$/, '')}/${value}`;
+}
 
 export default function Splash() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const {colors} = useAppTheme();
+  const [companyLogoUrl, setCompanyLogoUrl] = useState(null);
   const done = useRef(false);
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -28,6 +54,11 @@ export default function Splash() {
       const session = await loadStoredSession();
       done.current = true;
       if (session) {
+        const storedLogoUrl = toAbsoluteLogoUrl(session.user?.company_logo);
+        if (!cancelled && storedLogoUrl) {
+          setCompanyLogoUrl(storedLogoUrl);
+        }
+        // Restore token to Redux first so apiClient sends Authorization on profile fetch.
         dispatch(
           restoreSession({
             accessToken: session.accessToken,
@@ -35,6 +66,35 @@ export default function Splash() {
             user: session.user,
           }),
         );
+
+        let mergedUser = session.user;
+        try {
+          const profileRes = await fetchAuthProfile();
+          const profile = profileRes?.data?.data;
+          if (profile && typeof profile === 'object') {
+            mergedUser = {...session.user, ...profile};
+            await persistAuth({
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+              user: mergedUser,
+            });
+          }
+        } catch {
+          // If profile fetch fails, continue with stored user.
+        }
+        const logoUrl = toAbsoluteLogoUrl(mergedUser?.company_logo);
+        if (!cancelled) {
+          setCompanyLogoUrl(logoUrl);
+        }
+        if (mergedUser !== session.user) {
+          dispatch(
+            restoreSession({
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+              user: mergedUser,
+            }),
+          );
+        }
         navigation.replace('MainTabs');
       } else {
         navigation.replace('Login');
@@ -56,12 +116,16 @@ export default function Splash() {
   }, [fade]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       <Animated.View style={[styles.logoWrap, {opacity: fade}]}>
-        <AuthBrand />
+        {companyLogoUrl ? (
+          <Image source={{uri: companyLogoUrl}} style={styles.companyLogo} resizeMode="contain" />
+        ) : (
+          <AuthBrand />
+        )}
       </Animated.View>
-      <View style={styles.bottomLine} />
+      <View style={[styles.bottomLine, {backgroundColor: colors.border}]} />
     </SafeAreaView>
   );
 }
@@ -74,6 +138,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoWrap: {marginBottom: 10},
+  companyLogo: {
+    width: 200,
+    height: 100,
+  },
   bottomLine: {
     position: 'absolute',
     bottom: 20,

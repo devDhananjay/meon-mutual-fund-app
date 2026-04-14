@@ -1,11 +1,10 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
-import AppColors from '../../../theme/colors';
 import {radius} from '../../../theme/radius';
 import {shadows} from '../../../theme/shadows';
-import { Colors, Textstyles } from '../../../utils';
-
-const RISK_RED = '#EF4444';
+import {Textstyles} from '../../../utils';
+import {useAppTheme} from '../../../theme/useAppTheme';
+import {pickTrailingReturn} from './fundReturnDisplay';
 
 function formatPct(raw) {
   const n = Number(raw);
@@ -19,28 +18,37 @@ function formatPct(raw) {
 function returnColor(raw) {
   const n = Number(raw);
   if (Number.isNaN(n)) {
-    return AppColors.textSecondary;
+    return '#9CA3AF';
   }
-  return n >= 0 ? AppColors.success : AppColors.danger;
+  return n >= 0 ? '#16A34A' : '#DC2626';
 }
 
-function FundLogo({logoUrl, name, size}) {
+function riskColor(label, colors) {
+  const t = String(label || '').toLowerCase();
+  if (t.includes('high')) {
+    return '#DC2626';
+  }
+  return colors.textSecondary;
+}
+
+function FundLogo({logoUrl, name, size, s}) {
   if (logoUrl) {
-    return <Image source={{uri: logoUrl}} style={[styles.logo, {width: size, height: size}]} resizeMode="contain" />;
+    return <Image source={{uri: logoUrl}} style={[s.logo, {width: size, height: size}]} resizeMode="contain" />;
   }
   const letter = (name || '?')[0]?.toUpperCase?.() ?? '?';
   return (
-    <View style={[styles.logo, styles.logoPlaceholder, {width: size, height: size}]}>
-      <Text style={styles.logoLetter}>{letter}</Text>
+    <View style={[s.logo, s.logoPlaceholder, {width: size, height: size}]}>
+      <Text style={s.logoLetter}>{letter}</Text>
     </View>
   );
 }
 
 export default function FundCard({fund, variant = 'popular', onPress}) {
+  const {colors, isDark} = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const name = fund?.name ?? '';
-  const rating = fund?.rating ?? 4;
-  const riskLabel = fund?.riskLabel ?? 'High Risk';
-  const returnVal = fund?.return1y ?? fund?.return1yr ?? fund?.return1 ?? 0;
+  const riskLabel = fund?.riskLabel ?? '—';
+  const {period, value} = pickTrailingReturn(fund);
 
   const isRecent = variant === 'recent';
 
@@ -50,77 +58,70 @@ export default function FundCard({fund, variant = 'popular', onPress}) {
       onPress={onPress}
       style={[styles.card, isRecent && styles.cardRecent]}>
       <View style={styles.topRow}>
-        <FundLogo logoUrl={fund?.logo_url} name={name} size={isRecent ? 32 : 40} />
+        <FundLogo logoUrl={fund?.logo_url} name={name} size={isRecent ? 32 : 40} s={styles} />
         <View style={styles.nameCol}>
           <Text style={styles.fundName} numberOfLines={2}>
             {name}
           </Text>
         </View>
-        <View style={styles.returnCol}>
-          <Text style={styles.period}>1 Yr.</Text>
-          <Text style={[styles.returnVal, {color: returnColor(returnVal)}]}>
-            {formatPct(returnVal)}
-          </Text>
-        </View>
       </View>
 
-      <View style={styles.bottomRow}>
-        <View style={styles.ratingRow}>
-          <Text style={styles.star}>★</Text>
-          <Text style={styles.ratingTxt}>{rating}</Text>
+      <View style={styles.metricsRow}>
+      <View style={styles.returnCol}>
+          <Text style={styles.period}>{period}</Text>
+          <Text style={[styles.returnVal, {color: returnColor(value)}]}>{value != null ? formatPct(value) : '—'}</Text>
         </View>
-        <View style={[styles.riskBadge, {backgroundColor: RISK_RED}]}>
-          <Text style={styles.riskTxt} numberOfLines={1}>
-            {riskLabel}
-          </Text>
-        </View>
+        <Text style={[styles.riskTxt, {color: riskColor(riskLabel, colors)}]} numberOfLines={1}>
+          {riskLabel}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: AppColors.border,
-    padding: 12,
-    ...shadows.card,
-  },
-  cardRecent: {
-    width: 220,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logo: {borderRadius: 10, backgroundColor: '#F3F4F6'},
-  logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
-  logoLetter: {fontSize: 13, fontWeight: '500', color: AppColors.primary},
-  nameCol: {flex: 1, minWidth: 0},
-  fundName: {fontSize: 12, fontWeight: '500', color: AppColors.textPrimary, lineHeight: 16},
-  returnCol: {alignItems: 'flex-end'},
-  period: {fontSize: 10, color: AppColors.textSecondary, fontWeight: '500'},
-  returnVal: {fontSize: 13, fontWeight: '500', marginTop: 2},
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  ratingRow: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  star: {color: '#9CA3AF', fontSize: 11},
-  ratingTxt: {color: '#9CA3AF', fontSize: 11, fontWeight: '500'},
-  riskBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    maxWidth: 120,
-  },
-  riskTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 10, fontWeight: '500'},
-});
-
+const getStyles = (colors, isDark) =>
+  StyleSheet.create({
+    card: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: colors.card,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 12,
+      ...shadows.card,
+    },
+    cardRecent: {
+      width: 220,
+    },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    logo: {borderRadius: 10, backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6'},
+    logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
+    logoLetter: {fontSize: 13, fontWeight: '500', color: colors.primary},
+    nameCol: {flex: 1, minWidth: 0},
+    fundName: {fontSize: 12, fontWeight: '500', color: colors.textPrimary, lineHeight: 16},
+    metricsRow: {
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      minHeight: 34,
+    },
+    returnCol: {alignItems: 'flex-start', flexShrink: 0},
+    period: {fontSize: 10, color: colors.textSecondary, fontWeight: '500'},
+    returnVal: {fontSize: 13, fontWeight: '600', marginTop: 2},
+    riskTxt: {
+      ...Textstyles.medium,
+      fontSize: 11,
+      fontWeight: '500',
+      textAlign: 'right',
+      flex: 1,
+      minWidth: 0,
+      marginRight: 8,
+    },
+  });

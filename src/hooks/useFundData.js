@@ -25,7 +25,19 @@ export function useFundData(schemeCode) {
         return;
       }
       const body = res.data;
-      const schemeData = body?.scheme_data;
+      const raw = body?.scheme_data;
+      const schemeData =
+        raw && typeof raw === 'object'
+          ? {
+              ...raw,
+              ...(body?.min_sip_investment != null && raw.min_sip_investment == null
+                ? {min_sip_investment: body.min_sip_investment}
+                : {}),
+              ...(body?.max_sip_investment != null && raw.max_sip_investment == null
+                ? {max_sip_investment: body.max_sip_investment}
+                : {}),
+            }
+          : raw ?? null;
       const schemeId = schemeData?.scheme_id;
       const code = schemeData?.scheme_code ?? schemeCode;
 

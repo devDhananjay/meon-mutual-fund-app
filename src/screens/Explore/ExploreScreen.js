@@ -9,13 +9,16 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useAllFunds} from '../../hooks/useAllFunds';
 import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {typeScale} from '../../theme/typography';
+import {SEARCH_FIELD} from '../../theme/searchField';
+import {TAB_SCREEN_SAFE_TOP_EXTRA, TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 import Icons from '../../utils/icons';
 
 const CATEGORIES = [
@@ -88,6 +91,8 @@ function Chip({label, selected, onPress}) {
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const headerPadTop = insets.top + TAB_SCREEN_SAFE_TOP_EXTRA;
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -224,25 +229,16 @@ export default function ExploreScreen() {
   }, [navigation]);
 
   const initialLoading = isLoading && !data;
-  if (initialLoading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={Colors.themeBlue} />
-          <Text style={[Textstyles.normal, styles.loadingText]}>Loading…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Explore</Text>
-        </View>
+        <View style={[styles.headerBlock, {paddingTop: headerPadTop}]}>
+          <View style={styles.titleRow}>
+            <Text style={styles.pageTitle}>Explore</Text>
+          </View>
 
-        <View style={styles.searchBar}>
+          <View style={styles.searchBar}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
@@ -259,7 +255,15 @@ export default function ExploreScreen() {
               <Text style={styles.clearText}>✕</Text>
             </TouchableOpacity>
           ) : null}
+          </View>
         </View>
+
+        {initialLoading ? (
+          <View style={[styles.loadingInline, {paddingTop: 0}]}>
+            <ActivityIndicator size="small" color={Colors.themeBlue} />
+            <Text style={[Textstyles.normal, styles.loadingTextInline]}>Loading…</Text>
+          </View>
+        ) : null}
 
         {error ? (
           <View style={styles.errorBanner}>
@@ -298,27 +302,34 @@ export default function ExploreScreen() {
               style={styles.popCard}
               activeOpacity={0.75}
               onPress={() => onOpenFund(f)}>
-              <View style={styles.popTopRow}>
-                <View style={styles.popTop}>
-                  {f.logo_url ? (
-                    <Image source={{uri: f.logo_url}} style={styles.popLogo} resizeMode="contain" />
-                  ) : (
-                    <View style={[styles.popLogo, styles.logoPlaceholder]}>
-                      <Text style={styles.logoLetter}>{(f.name || '?')[0]}</Text>
-                    </View>
-                  )}
-                  <View style={styles.popTextCol}>
-                    <Text style={styles.popName} numberOfLines={2}>
-                      {f.name}
-                    </Text>
-                    {f.category ? (
-                      <Text style={styles.popCategory} numberOfLines={1}>
-                        {String(f.category).toLowerCase()}
-                      </Text>
-                    ) : null}
+              <View style={styles.popTop}>
+                {f.logo_url ? (
+                  <Image source={{uri: f.logo_url}} style={styles.popLogo} resizeMode="contain" />
+                ) : (
+                  <View style={[styles.popLogo, styles.logoPlaceholder]}>
+                    <Text style={styles.logoLetter}>{(f.name || '?')[0]}</Text>
                   </View>
+                )}
+                <View style={styles.popTextCol}>
+                  <Text style={styles.popName} numberOfLines={2}>
+                    {f.name}
+                  </Text>
+                  {f.category ? (
+                    <Text style={styles.popCategory} numberOfLines={1}>
+                      {String(f.category).toLowerCase()}
+                    </Text>
+                  ) : null}
                 </View>
+              </View>
 
+              <View style={styles.popMetricsRow}>
+                {f.risk_label ? (
+                  <Text style={styles.riskPlain} numberOfLines={1}>
+                    {String(f.risk_label).replace(/Risk/i, '').trim()} Risk
+                  </Text>
+                ) : (
+                  <View style={styles.popMetricsSpacer} />
+                )}
                 <View style={styles.popReturnCol}>
                   <Text style={styles.popPeriodLabel}>1Y</Text>
                   <Text style={[styles.popReturnVal, {color: returnColor(f.return1yr)}]}>
@@ -326,22 +337,6 @@ export default function ExploreScreen() {
                   </Text>
                 </View>
               </View>
-              {f.groww_rating != null ? (
-                <View style={styles.popRatingRow}>
-                  <Text style={styles.popStar}>★</Text>
-                  <Text style={styles.popRatingVal}>
-                    {(() => {
-                      const n = Number(f.groww_rating);
-                      return Number.isNaN(n) ? '—' : n;
-                    })()}
-                  </Text>
-                </View>
-              ) : null}
-              {f.risk_label ? (
-                <View style={styles.riskPill}>
-                  <Text style={styles.riskTxt}>{String(f.risk_label).replace(/Risk/i, '').trim()} Risk</Text>
-                </View>
-              ) : null}
             </TouchableOpacity>
           ))}
         </View>
@@ -370,20 +365,21 @@ export default function ExploreScreen() {
                   <Text style={styles.recentName} numberOfLines={2}>
                     {f.name}
                   </Text>
-                  {f.risk_label ? (
-                    <View style={styles.recentRiskRow}>
-                      <Text style={styles.recentRiskTxt}>
+                  <View style={styles.recentMetricsRow}>
+                    {f.risk_label ? (
+                      <Text style={styles.recentRiskTxt} numberOfLines={1}>
                         {String(f.risk_label).replace(/Risk/i, '').trim()} Risk
                       </Text>
+                    ) : (
+                      <View style={styles.recentMetricsSpacer} />
+                    )}
+                    <View style={styles.recentReturnCol}>
+                      <Text style={styles.recentPeriod}>1Y</Text>
+                      <Text style={[styles.recentReturn, {color: returnColor(f.return1yr)}]}>
+                        {formatSignedPct(f.return1yr)}
+                      </Text>
                     </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.recentRight}>
-                  <Text style={[styles.recentReturn, {color: returnColor(f.return1yr)}]}>
-                    {formatSignedPct(f.return1yr)}
-                  </Text>
-                  <Text style={styles.recentPeriod}>1Y</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))
@@ -474,8 +470,8 @@ export default function ExploreScreen() {
                         {String(f.category || '').toLowerCase()}
                       </Text>
                       <View style={styles.fundRowStarLine}>
-                        <Text style={styles.starTxt}>★</Text>
-                        <Text style={styles.starVal}>{ratingText}</Text>
+                        <Text style={[styles.starVal, {color: returnColor(raw)}]}>{formatSignedPct(raw)}</Text>
+                        <Text style={styles.starPeriod}>{listPeriodLabel}</Text>
                       </View>
                     </View>
                   </View>
@@ -503,10 +499,18 @@ const styles = StyleSheet.create({
   scrollContent: {paddingBottom: 28},
 
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingText: {marginTop: 12, color: Colors.GREY, fontSize: 15},
+  loadingInline: {paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
+  loadingText: {marginTop: 12, color: Colors.GREY, fontSize: SEARCH_FIELD.inputFontSize},
+  loadingTextInline: {marginTop: 0, color: Colors.GREY, fontSize: 14},
 
-  header: {paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8},
-  pageTitle: {...Textstyles.heading, fontSize: 22, color: Colors.TEXT_PRIMARY},
+  headerBlock: {
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+  },
+  titleRow: {
+    marginBottom: TAB_SCREEN_TITLE_TO_SEARCH,
+  },
+  pageTitle: {...Textstyles.heading, fontSize: typeScale.title, color: Colors.TEXT_PRIMARY},
 
   searchBar: {
     flexDirection: 'row',
@@ -514,15 +518,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.BORDER_GREY,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    minHeight: 50,
+    borderRadius: SEARCH_FIELD.borderRadius,
+    marginHorizontal: 0,
+    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+    paddingVertical: SEARCH_FIELD.paddingVertical,
+    minHeight: SEARCH_FIELD.minHeight,
     marginBottom: 14,
   },
-  searchIconImg: {width: 16, height: 16, marginRight: 8},
-  searchInput: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, paddingVertical: 0},
+  searchIconImg: {
+    width: SEARCH_FIELD.iconSize,
+    height: SEARCH_FIELD.iconSize,
+    marginRight: SEARCH_FIELD.iconMarginRight,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: SEARCH_FIELD.inputFontSize,
+    color: Colors.TEXT_PRIMARY,
+    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+  },
   clearSearch: {padding: 4},
   clearText: {fontSize: 16, color: Colors.GREY},
 
@@ -559,7 +572,7 @@ const styles = StyleSheet.create({
   heroTextCol: {flex: 1},
   heroTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
   heroButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#21C76E',
     alignSelf: 'flex-start',
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -594,8 +607,16 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   popTop: {flexDirection: 'row', alignItems: 'center'},
-  popTopRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  popReturnCol: {alignItems: 'flex-end'},
+  popMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    gap: 8,
+    minHeight: 36,
+  },
+  popMetricsSpacer: {flex: 1, minWidth: 0},
+  popReturnCol: {alignItems: 'flex-end', flexShrink: 0},
   popLogo: {width: 36, height: 36, borderRadius: 10, marginRight: 10},
   logoPlaceholder: {
     backgroundColor: Colors.offWhite,
@@ -611,19 +632,15 @@ const styles = StyleSheet.create({
   popPeriodLabel: {...Textstyles.medium, fontSize: 11, color: Colors.GREY, fontWeight: '500', marginBottom: 4},
   popReturnVal: {...Textstyles.medium, fontSize: 14, fontWeight: '500'},
 
-  riskPill: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+  riskPlain: {
+    ...Textstyles.medium,
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.GREY,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
-  riskTxt: {...Textstyles.medium, fontSize: 12, fontWeight: '500', color: Colors.GREY},
-
-  popRatingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6},
-  popStar: {color: '#9CA3AF', fontSize: 12},
-  popRatingVal: {...Textstyles.medium, color: '#9CA3AF', fontSize: 12, fontWeight: '500'},
 
   recentRow: {flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 18},
   recentCard: {
@@ -634,17 +651,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.BORDER_GREY,
     padding: 12,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
   },
-  recentLogo: {width: 34, height: 34, borderRadius: 10},
-  recentTextCol: {flex: 1, paddingLeft: 0},
+  recentLogo: {width: 34, height: 34, borderRadius: 10, marginTop: 2},
+  recentTextCol: {flex: 1, paddingLeft: 0, minWidth: 0},
   recentName: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: Colors.TEXT_PRIMARY, lineHeight: 18, flexShrink: 1},
-  recentRiskRow: {marginTop: 6},
-  recentRiskTxt: {...Textstyles.medium, fontSize: 12, color: Colors.GREY, fontWeight: '500'},
-  recentRight: {alignItems: 'flex-end', minWidth: 72},
+  recentMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    gap: 8,
+    minHeight: 36,
+  },
+  recentMetricsSpacer: {flex: 1, minWidth: 0},
+  recentRiskTxt: {...Textstyles.medium, fontSize: 12, color: Colors.GREY, fontWeight: '500', flex: 1, minWidth: 0, marginRight: 8},
+  recentReturnCol: {alignItems: 'flex-end', flexShrink: 0},
   recentReturn: {...Textstyles.medium, fontSize: 13, fontWeight: '500'},
-  recentPeriod: {fontSize: 11, color: Colors.GREY, marginTop: 4},
+  recentPeriod: {fontSize: 11, color: Colors.GREY, marginBottom: 2},
   recentEmpty: {
     flex: 1,
     backgroundColor: Colors.white,
@@ -658,9 +683,9 @@ const styles = StyleSheet.create({
   recentEmptyTxt: {fontSize: 13, color: Colors.GREY, textAlign: 'center'},
   bottomSpacer: {height: 24},
 
-  allFundsBlock: {paddingBottom: 18},
+  allFundsBlock: {paddingBottom: 18, paddingHorizontal: 16},
   allFundsHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingTop: 6,
     paddingBottom: 10,
     flexDirection: 'row',
@@ -685,12 +710,12 @@ const styles = StyleSheet.create({
   },
 
   fundsListCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    overflow: 'hidden',
-    marginHorizontal: 16,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    overflow: 'visible',
+    marginHorizontal: 0,
   },
 
   fundRow: {
@@ -699,8 +724,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.BORDER_GREY,
+    borderWidth: 1,
+    borderColor: Colors.BORDER_GREY,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    marginBottom: 10,
   },
   fundRowLeft: {flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 10},
   fundRowLogo: {width: 38, height: 38, borderRadius: 10, marginRight: 10},
@@ -717,7 +745,7 @@ const styles = StyleSheet.create({
 
   filterBlock: {paddingHorizontal: 0, marginTop: 10, marginBottom: 12},
   filterLabel: {fontSize: 13, color: Colors.GREY, marginLeft: 6, marginBottom: 8, marginTop: 6},
-  chipScroll: {marginBottom: 12, paddingHorizontal: 16, maxHeight: 40},
+  chipScroll: {marginBottom: 12, paddingHorizontal: 0, maxHeight: 40},
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 10,

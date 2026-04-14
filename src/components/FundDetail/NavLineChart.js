@@ -1,15 +1,15 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   ActivityIndicator,
   TouchableOpacity,
+  useWindowDimensions,
+  Dimensions,
 } from 'react-native';
-import WebView from 'react-native-webview';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 const RANGE_KEYS = ['1M', '2M', '3M', '6M', '1Y'];
 
@@ -22,83 +22,179 @@ const RANGE_MAP = {
 };
 
 const CHART_H = 220;
+const Y_AXIS_W = 46;
+const X_AXIS_H = 34;
+const PLOT_PAD = {left: 4, right: 8, top: 8, bottom: 6};
+const LINE_WIDTH = 2.5;
+const END_DOT = 6;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/**
- * Pure RN — no WebView (RNCWebViewModule) and no react-native-svg.
- * Bar sparkline matches NAV trend without native chart deps.
- */
-function NativeNavSparkline({values, lineColor, width}) {
-  const pad = 10;
-  const innerW = Math.max(1, width - pad * 2);
-  const innerH = CHART_H - pad * 2;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-
-  return (
-    <View style={[styles.nativeChart, {width, height: CHART_H, paddingHorizontal: pad, paddingTop: pad}]}>
-      <View style={[styles.barRow, {width: innerW, height: innerH}]}>
-        {values.map((v, i) => {
-          const pct = (v - min) / span;
-          const barH = Math.max(3, pct * innerH);
-          return (
-            <View key={i} style={styles.barCell}>
-              <View style={[styles.bar, {height: barH, backgroundColor: lineColor}]} />
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
+function pickNavValue(d) {
+  const v = d?.nav_value ?? d?.nav ?? d?.NAV;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
 }
 
-function NativeNavLineChart({values, lineColor, width}) {
-  const pad = 10;
-  const innerW = Math.max(1, width - pad * 2);
-  const innerH = CHART_H - pad * 2;
+function niceStep(rough) {
+  if (!Number.isFinite(rough) || rough <= 0) {
+    return 0.01;
+  }
+  const p10 = 10 ** Math.floor(Math.log10(rough));
+  const err = rough / p10;
+  const m = err <= 1 ? 1 : err <= 2 ? 2 : err <= 5 ? 5 : 10;
+  return m * p10;
+}
 
-  const n = values.length;
-  if (n < 2) return null;
+/** Y-axis ticks + padded domain (similar to web chart). */
+function computeYTicks(minV, maxV) {
+  const pad = Math.max((maxV - minV) * 0.05, 0.005);
+  const lo = minV - pad;
+  const hi = maxV + pad;
+  const span = hi - lo;
+  const step = niceStep(span / 4);
+  const start = Math.ceil(lo / step) * step;
+  const ticks = [];
+  for (let v = start; v <= hi + 1e-9; v += step) {
+    ticks.push(Number(v.toFixed(6)));
+    if (ticks.length > 8) {
+      break;
+    }
+  }
+  if (ticks.length < 2) {
+    return {ticks: [lo, hi], lo, hi};
+  }
+  return {ticks, lo, hi};
+}
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
+function formatYLabel(v) {
+  return `₹${Number(v).toFixed(2)}`;
+}
 
-  const xStep = innerW / (n - 1);
+function formatDayMonth(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${dd} ${MONTHS[d.getMonth()]}`;
+}
 
-  const points = values.map((v, i) => {
-    const pct = (v - min) / span;
-    return {
-      x: pad + i * xStep,
-      y: pad + (1 - pct) * innerH,
-    };
+/** Web-style: month change → "Apr '26" (bold); same month → "04 Apr". */
+function formatXAxisItem(dateMs, prevMs) {
+  const d = new Date(dateMs);
+  if (!Number.isFinite(prevMs)) {
+    return {text: formatDayMonth(d), isMonthBoundary: false};
+  }
+  const prev = new Date(prevMs);
+  const boundary =
+    d.getMonth() !== prev.getMonth() || d.getFullYear() !== prev.getFullYear();
+  if (boundary) {
+    const yy = String(d.getFullYear()).slice(-2);
+    return {text: `${MONTHS[d.getMonth()]} '${yy}`, isMonthBoundary: true};
+  }
+  return {text: formatDayMonth(d), isMonthBoundary: false};
+}
+
+function pickXAxisIndices(pointCount, maxTicks) {
+  if (pointCount < 2) {
+    return [];
+  }
+  if (pointCount <= maxTicks) {
+    return [...Array(pointCount).keys()];
+  }
+  const idxs = [];
+  for (let i = 0; i < maxTicks; i++) {
+    idxs.push(Math.round((i / (maxTicks - 1)) * (pointCount - 1)));
+  }
+  return [...new Set(idxs)].sort((a, b) => a - b);
+}
+
+/** Catmull–Rom spline → dense polyline (smooth curve like Apex). */
+function catmullRom2D(points, samplesPerSeg = 12) {
+  if (points.length < 2) {
+    return points;
+  }
+  const out = [];
+  const get = i => {
+    if (i < 0) {
+      return points[0];
+    }
+    if (i >= points.length) {
+      return points[points.length - 1];
+    }
+    return points[i];
+  };
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = get(i - 1);
+    const p1 = get(i);
+    const p2 = get(i + 1);
+    const p3 = get(i + 2);
+    for (let j = 0; j < samplesPerSeg; j++) {
+      const t = j / samplesPerSeg;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const x =
+        0.5 *
+        (2 * p1.x +
+          (-p0.x + p2.x) * t +
+          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+      const y =
+        0.5 *
+        (2 * p1.y +
+          (-p0.y + p2.y) * t +
+          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+      out.push({x, y});
+    }
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
+function NavChartPlot({smoothPoints, yTicks, lo, hi, plotW, plotH, lineColor, gridColor}) {
+  if (smoothPoints.length < 2) {
+    return null;
+  }
+
+  const innerH = plotH - PLOT_PAD.top - PLOT_PAD.bottom;
+  const gridYs = yTicks.map(v => {
+    const t = (v - lo) / (hi - lo || 1);
+    return PLOT_PAD.top + (1 - t) * innerH;
   });
 
-  const THICKNESS = 2;
-
   return (
-    <View style={styles.nativeLineRoot}>
-      {points.slice(0, -1).map((p1, i) => {
-        const p2 = points[i + 1];
+    <View style={[styles.plotArea, {width: plotW, height: plotH}]}>
+      {gridYs.map((gy, gi) => (
+        <View
+          key={`grid-${gi}`}
+          style={[
+            styles.gridLine,
+            {
+              top: gy,
+              borderColor: gridColor,
+            },
+          ]}
+        />
+      ))}
+      {smoothPoints.slice(0, -1).map((p1, i) => {
+        const p2 = smoothPoints[i + 1];
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const len = Math.sqrt(dx * dx + dy * dy);
-        if (!Number.isFinite(len) || len <= 0.1) return null;
-
+        if (!Number.isFinite(len) || len <= 0.01) {
+          return null;
+        }
+        const drawLen = len + 1;
         const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
         const midX = (p1.x + p2.x) / 2;
         const midY = (p1.y + p2.y) / 2;
-
         return (
           <View
-            key={`seg-${i}`}
+            key={`ln-${i}`}
             style={[
-              styles.nativeLineSegment,
+              styles.lineSeg,
               {
-                left: midX - len / 2,
-                top: midY - THICKNESS / 2,
-                width: len,
-                height: THICKNESS,
+                left: midX - drawLen / 2,
+                top: midY - LINE_WIDTH / 2,
+                width: drawLen,
+                height: LINE_WIDTH,
                 backgroundColor: lineColor,
                 transform: [{rotateZ: `${angleDeg}deg`}],
               },
@@ -106,70 +202,56 @@ function NativeNavLineChart({values, lineColor, width}) {
           />
         );
       })}
-      <View
-        style={[
-          styles.nativeLineDot,
-          {
-            left: points[points.length - 1].x - 3,
-            top: points[points.length - 1].y - 3,
-            backgroundColor: lineColor,
-          },
-        ]}
-      />
+      {smoothPoints.length > 0 ? (
+        <View
+          style={[
+            styles.endDot,
+            {
+              left: smoothPoints[smoothPoints.length - 1].x - END_DOT / 2,
+              top: smoothPoints[smoothPoints.length - 1].y - END_DOT / 2,
+              backgroundColor: lineColor,
+            },
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
 
-function buildApexLineChartHTML({labels, series, lineColor}) {
-  const labelsJson = JSON.stringify(labels);
-  const seriesJson = JSON.stringify(series);
-
-  // Uses the same approach as Meon-CRM (ApexCharts in WebView + HTML string)
-  return `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <style>
-      html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
-      #line-chart { width: 100%; height: ${CHART_H}px; }
-    </style>
-  </head>
-  <body>
-    <div id="line-chart"></div>
-    <script>
-      (function () {
-        var options = {
-          chart: { type: 'line', height: ${CHART_H}, toolbar: { show: false }, zoom: { enabled: false } },
-          series: ${seriesJson},
-          colors: ['${lineColor}'],
-          stroke: { curve: 'smooth', width: 2 },
-          dataLabels: { enabled: false },
-          fill: {
-            type: 'gradient',
-            gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.0, stops: [0, 90, 100] }
-          },
-          grid: { borderColor: '#F3F4F6' },
-          xaxis: { categories: ${labelsJson}, labels: { show: false } },
-          yaxis: { labels: { show: false } },
-          legend: { show: false },
-          tooltip: { enabled: true }
-        };
-        var chart = new ApexCharts(document.querySelector("#line-chart"), options);
-        chart.render();
-      })();
-    </script>
-  </body>
-</html>
-`;
-}
-
 export default function NavLineChart({graphData = [], graphLoading, timeFrame, onTimeFrameChange}) {
+  const {colors, isDark} = useAppTheme();
+  const {width: windowWidth} = useWindowDimensions();
   const range = timeFrame || '1M';
 
+  const screenW = windowWidth > 0 ? windowWidth : Dimensions.get('window').width;
+
+  const themed = useMemo(
+    () =>
+      StyleSheet.create({
+        rangeLabel: {fontSize: 14, color: colors.textSecondary},
+        loadingTxt: {marginTop: 8, color: colors.textSecondary, fontSize: 14},
+        chip: {
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.card,
+          marginHorizontal: 4,
+          marginVertical: 4,
+        },
+        chipOn: {
+          borderColor: colors.primary,
+          backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#E0F2FE',
+        },
+        chipTxt: {fontSize: 13, color: colors.textPrimary},
+        chipTxtOn: {color: colors.primary, ...Textstyles.medium, fontWeight: '600'},
+      }),
+    [colors, isDark],
+  );
+
   const toMs = d => {
-    const raw = d?.date || d?.nav_date || d?.timestamp;
+    const raw = d?.date || d?.nav_date || d?.timestamp || d?.portfolio_date;
     if (typeof raw === 'number') {
       return raw < 1e12 ? raw * 1000 : raw;
     }
@@ -185,12 +267,13 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     return graphData.slice(-days);
   }, [graphData, range]);
 
-  // Plot strictly oldest -> latest so trend direction matches web.
   const chartData = useMemo(() => {
-    if (!filteredData.length) return [];
+    if (!filteredData.length) {
+      return [];
+    }
     return [...filteredData]
-      .map(d => ({...d, __ms: toMs(d)}))
-      .filter(d => Number.isFinite(d.__ms))
+      .map(d => ({...d, __ms: toMs(d), __nav: pickNavValue(d)}))
+      .filter(d => Number.isFinite(d.__ms) && Number.isFinite(d.__nav))
       .sort((a, b) => a.__ms - b.__ms);
   }, [filteredData]);
 
@@ -199,8 +282,8 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     if (fd.length < 2) {
       return {absoluteReturn: 0, percentReturn: 0, isGain: true};
     }
-    const oldest = Number(fd[0].nav_value);
-    const latest = Number(fd[fd.length - 1].nav_value);
+    const oldest = Number(fd[0].__nav);
+    const latest = Number(fd[fd.length - 1].__nav);
     const abs = latest - oldest;
     const pct = oldest ? (abs / oldest) * 100 : 0;
     return {
@@ -210,50 +293,59 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     };
   }, [chartData]);
 
-  const chartWidth = Math.min(Dimensions.get('window').width - 32, 400);
+  const chartWidth = useMemo(
+    () => Math.min(Math.max(280, screenW - 32), 400),
+    [screenW],
+  );
+
   const lineColor = isGain ? '#16a34a' : '#dc2626';
+  const gridColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+  const yLabelColor = colors.textSecondary;
 
-  const {values, chartKey} = useMemo(() => {
-    if (!chartData.length) {
-      return {values: [0], chartKey: 'empty'};
+  const plotW = Math.max(1, chartWidth - Y_AXIS_W);
+  const plotH = CHART_H;
+
+  const chartModel = useMemo(() => {
+    if (chartData.length < 2) {
+      return null;
     }
-    const vals = chartData.map(d => Number(d.nav_value) || 0);
-    const first = chartData[0]?.nav_value;
-    const last = chartData[chartData.length - 1]?.nav_value;
-    return {
-      values: vals,
-      chartKey: `${range}-${filteredData.length}-${first}-${last}`,
-    };
-  }, [chartData, filteredData.length, range]);
+    const values = chartData.map(d => d.__nav);
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const {ticks, lo, hi} = computeYTicks(minV, maxV);
+    const n = values.length;
+    const innerW = plotW - PLOT_PAD.left - PLOT_PAD.right;
+    const innerH = plotH - PLOT_PAD.top - PLOT_PAD.bottom;
+    const span = hi - lo || 1;
 
-  const showChart = chartData.length >= 2;
-
-  const [webviewReady, setWebviewReady] = useState(false);
-  const [webviewError, setWebviewError] = useState(null);
-
-  const apex = useMemo(() => {
-    if (!chartData.length) {
-      return {labels: [], series: []};
-    }
-    const labels = chartData.map(d => {
-      const ms = d.__ms;
-      if (!Number.isFinite(ms)) return '';
-      const dt = new Date(ms);
-      return dt.toLocaleDateString('en-IN', {day: '2-digit', month: 'short'});
+    const basePts = values.map((v, i) => {
+      const x = PLOT_PAD.left + (n <= 1 ? 0 : (i / (n - 1)) * innerW);
+      const y = PLOT_PAD.top + (1 - (v - lo) / span) * innerH;
+      return {x, y};
     });
-    const data = chartData.map(d => Number(d.nav_value) || 0);
-    return {labels, series: [{name: 'NAV', data}]};
-  }, [chartData]);
+    const smoothPoints = catmullRom2D(basePts, 16);
+    const ms0 = chartData[0]?.__ms;
+    const ms1 = chartData[chartData.length - 1]?.__ms;
+    const chartKey = `${range}-${n}-${ms0}-${ms1}-${isDark ? 'd' : 'l'}`;
 
-  const chartHtml = useMemo(() => {
-    if (!showChart) return '';
-    return buildApexLineChartHTML({labels: apex.labels, series: apex.series, lineColor});
-  }, [apex.labels, apex.series, lineColor, showChart]);
+    return {values, ticks, lo, hi, smoothPoints, chartKey};
+  }, [chartData, plotW, plotH, range, isDark]);
 
-  useEffect(() => {
-    setWebviewReady(false);
-    setWebviewError(null);
-  }, [chartHtml]);
+  const showChart = chartData.length >= 2 && chartModel != null;
+
+  const xAxisItems = useMemo(() => {
+    if (chartData.length < 2) {
+      return [];
+    }
+    const maxTicks = range === '1Y' || range === '6M' ? 9 : 8;
+    const idxs = pickXAxisIndices(chartData.length, maxTicks);
+    return idxs.map((i, idx) => {
+      const ms = chartData[i].__ms;
+      const prevMs = idx === 0 ? NaN : chartData[idxs[idx - 1]].__ms;
+      const {text, isMonthBoundary} = formatXAxisItem(ms, prevMs);
+      return {key: `xtick-${i}-${ms}`, text, isMonthBoundary};
+    });
+  }, [chartData, range]);
 
   return (
     <View style={styles.wrap}>
@@ -261,7 +353,7 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
         <Text style={[Textstyles.medium, styles.abs, isGain ? styles.green : styles.red]}>
           {absoluteReturn >= 0 ? '+' : '-'}₹{Math.abs(absoluteReturn).toFixed(2)}
         </Text>
-        <Text style={[Textstyles.normal, styles.rangeLabel]}>{range} return</Text>
+        <Text style={[Textstyles.normal, themed.rangeLabel]}>{range} return</Text>
       </View>
       <Text style={[Textstyles.medium, isGain ? styles.green : styles.red]}>
         {absoluteReturn >= 0 ? '+' : ''}
@@ -271,46 +363,72 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
       <View style={[styles.chartBox, {width: chartWidth}]}>
         {graphLoading && filteredData.length === 0 ? (
           <View style={styles.chartLoading}>
-            <ActivityIndicator size="large" color={Colors.themeBlue} />
-            <Text style={styles.loadingTxt}>Loading chart…</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={themed.loadingTxt}>Loading chart…</Text>
           </View>
         ) : !showChart ? (
           <View style={styles.chartLoading}>
-            <Text style={styles.loadingTxt}>Not enough NAV data</Text>
+            <Text style={themed.loadingTxt}>Not enough NAV data</Text>
           </View>
         ) : (
-          <View style={styles.chartStack}>
-            {/* Native fallback (so UI never goes blank) */}
-            <NativeNavLineChart key={`native-${chartKey}`} values={values} lineColor={lineColor} width={chartWidth} />
-
-            {!webviewError ? (
-              <WebView
-                key={`apex-${chartKey}`}
-                style={styles.webviewOverlay}
-                originWhitelist={['*']}
-                source={{html: chartHtml}}
-                javaScriptEnabled
-                domStorageEnabled
-                scrollEnabled={false}
-                onLoad={() => setWebviewReady(true)}
-                onError={e => {
-                  const msg = e?.nativeEvent?.description || e?.nativeEvent?.message || 'WebView error';
-                  setWebviewError(msg);
-                }}
-                onHttpError={e => {
-                  const msg = e?.nativeEvent?.description || e?.nativeEvent?.message || 'WebView http error';
-                  setWebviewError(msg);
-                }}
+          <View
+            style={[
+              styles.chartCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}>
+            <View style={styles.chartRow}>
+              <View style={[styles.yAxisCol, {width: Y_AXIS_W}]}>
+                {[...chartModel.ticks].reverse().map((tv, i) => (
+                  <Text
+                    key={`y-${i}-${tv}`}
+                    numberOfLines={1}
+                    style={[styles.yAxisLabel, {color: yLabelColor}]}>
+                    {formatYLabel(tv)}
+                  </Text>
+                ))}
+              </View>
+              <NavChartPlot
+                key={chartModel.chartKey}
+                smoothPoints={chartModel.smoothPoints}
+                yTicks={chartModel.ticks}
+                lo={chartModel.lo}
+                hi={chartModel.hi}
+                plotW={plotW}
+                plotH={plotH}
+                lineColor={lineColor}
+                gridColor={gridColor}
               />
+            </View>
+            {xAxisItems.length > 0 ? (
+              <View style={[styles.xAxisRow, {borderTopColor: gridColor}]}>
+                {xAxisItems.map(item => (
+                  <Text
+                    key={item.key}
+                    numberOfLines={1}
+                    style={[
+                      styles.xAxisLabel,
+                      {
+                        color: colors.textSecondary,
+                        fontWeight: item.isMonthBoundary ? '700' : '400',
+                      },
+                    ]}>
+                    {item.text}
+                  </Text>
+                ))}
+              </View>
             ) : null}
-
-            {/* While WebView is loading, keep native visible */}
-            {!webviewReady && !webviewError ? <View style={styles.webviewLoadingDim} pointerEvents="none" /> : null}
           </View>
         )}
         {graphLoading && filteredData.length > 0 ? (
-          <View style={styles.chartOverlay}>
-            <ActivityIndicator color={Colors.themeBlue} />
+          <View
+            style={[
+              styles.chartOverlay,
+              {backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.5)'},
+            ]}>
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : null}
       </View>
@@ -319,10 +437,10 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
         {RANGE_KEYS.map(key => (
           <TouchableOpacity
             key={key}
-            style={[styles.chip, range === key && styles.chipOn]}
+            style={[themed.chip, range === key && themed.chipOn]}
             onPress={() => onTimeFrameChange?.(key)}
             activeOpacity={0.85}>
-            <Text style={[Textstyles.medium, styles.chipTxt, range === key && styles.chipTxtOn]}>{key}</Text>
+            <Text style={[Textstyles.medium, themed.chipTxt, range === key && themed.chipTxtOn]}>{key}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -344,10 +462,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     marginRight: 8,
   },
-  rangeLabel: {
-    fontSize: 14,
-    color: Colors.GREY,
-  },
   green: {color: '#16a34a'},
   red: {color: '#dc2626'},
   chartBox: {
@@ -356,64 +470,66 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: 8,
   },
-  chartStack: {
+  chartCard: {
     width: '100%',
-    height: CHART_H,
-    position: 'relative',
-  },
-  webviewOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-  },
-  webviewLoadingDim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-  },
-  nativeLineRoot: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  nativeLineSegment: {
-    position: 'absolute',
-  },
-  nativeLineDot: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  nativeChart: {
-    backgroundColor: Colors.white,
     borderRadius: 12,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
-  barRow: {
+  chartRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
   },
-  barCell: {
-    flex: 1,
-    marginHorizontal: 0.5,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+  yAxisCol: {
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingRight: 4,
   },
-  bar: {
-    width: '100%',
-    minHeight: 3,
-    borderRadius: 2,
-    opacity: 0.88,
+  yAxisLabel: {
+    fontSize: 9,
+    ...Textstyles.normal,
+    textAlign: 'right',
+  },
+  plotArea: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  gridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  lineSeg: {
+    position: 'absolute',
+  },
+  endDot: {
+    position: 'absolute',
+    width: END_DOT,
+    height: END_DOT,
+    borderRadius: END_DOT / 2,
+  },
+  xAxisRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    minHeight: X_AXIS_H,
+    paddingHorizontal: 6,
+    paddingTop: 6,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  xAxisLabel: {
+    fontSize: 9,
+    ...Textstyles.normal,
+    flexShrink: 1,
+    textAlign: 'center',
+    maxWidth: '13%',
   },
   chartLoading: {
     height: CHART_H,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingTxt: {
-    marginTop: 8,
-    color: Colors.GREY,
-    fontSize: 14,
   },
   chartOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -426,28 +542,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     marginTop: 4,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    backgroundColor: Colors.white,
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  chipOn: {
-    borderColor: Colors.themeBlue,
-    backgroundColor: '#E0F2FE',
-  },
-  chipTxt: {
-    fontSize: 13,
-    color: Colors.TEXT_PRIMARY,
-  },
-  chipTxtOn: {
-    color: Colors.themeBlue,
-    ...Textstyles.medium,
-    fontWeight: '600',
   },
 });

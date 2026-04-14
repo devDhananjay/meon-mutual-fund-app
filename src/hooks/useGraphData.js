@@ -43,7 +43,10 @@ export function useGraphData(schemeId, timeFrame) {
       const res = await getSchemeHistory(schemeId, from_date, to_date);
       if (res?.success) {
         const body = res.data;
-        setData(body?.results?.nav_history ?? []);
+        const results = body?.results;
+        const nav =
+          Array.isArray(results) ? results : results?.nav_history != null ? results.nav_history : [];
+        setData(Array.isArray(nav) ? nav : []);
       } else {
         setData([]);
       }

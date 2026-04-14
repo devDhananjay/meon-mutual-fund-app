@@ -7,3 +7,8 @@ export async function loginWithCredentials(uccCode, password) {
     password,
   });
 }
+
+/** Logged-in profile (includes company branding like company_logo). */
+export async function fetchAuthProfile() {
+  return apiClient.get('/api/journey/mf/auth/profile/');
+}

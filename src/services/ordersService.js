@@ -9,6 +9,13 @@ export async function fetchOrderList(params = {}) {
     page_size: 50,
     ...params,
   };
+  // Some backends expect alternate query keys — send both without overwriting explicit values.
+  if (payload.status && payload.order_status == null) {
+    payload.order_status = payload.status;
+  }
+  if (payload.type && payload.order_type == null) {
+    payload.order_type = payload.type;
+  }
   if (__DEV__) {
     console.log('[order/list] request', {endpoint, params: payload});
   }
