@@ -189,7 +189,11 @@ export default function ProfileScreen() {
   }, [navigation]);
 
   const onForgotPassword = useCallback(() => {
-    navigation.navigate('ForgotPassword');
+    navigation.navigate('ChangePassword');
+  }, [navigation]);
+
+  const onProfileSettings = useCallback(() => {
+    navigation.navigate('ProfileSettings');
   }, [navigation]);
 
   const onThemeChange = useCallback(
@@ -258,7 +262,6 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.profileHeaderCard}>
-          <View style={styles.profileAccentBar} />
           <View style={styles.profileHeaderInner}>
             <View style={styles.profileRow}>
               <View style={styles.avatar}>
@@ -268,25 +271,19 @@ export default function ProfileScreen() {
                 <Text style={[Textstyles.heading, styles.displayName]} numberOfLines={2}>
                   {displayName}
                 </Text>
-                <View style={styles.profileMetaRow}>
-                  <View
-                    style={[
-                      styles.verifyPill,
-                      verified ? styles.verifyPillOk : styles.verifyPillPending,
-                    ]}>
-                    <Text style={[styles.verifyPillGlyph, verified ? styles.verifyPillGlyphOk : styles.verifyPillGlyphWarn]}>
-                      {verified ? '✓' : '!'}
-                    </Text>
-                    <Text style={[styles.verifyPillText, verified ? styles.verifyPillTextOk : styles.verifyPillTextPending]} numberOfLines={1}>
-                      {verified ? 'Verified' : verifyLine}
-                    </Text>
-                  </View>
-                  <View style={styles.memberPill}>
-                    <Text style={styles.memberPillText}>{memberLine}</Text>
-                  </View>
-                </View>
-                <Text style={styles.profileHint}>Manage your investments and account settings</Text>
+                <Text style={[styles.profileStatus, !verified && styles.profileStatusPending]} numberOfLines={1}>
+                  {verifyLine}
+                </Text>
+                <Text style={styles.profileMemberSince}>{memberLine}</Text>
               </View>
+              <TouchableOpacity
+                style={styles.profileSettingsBtn}
+                onPress={onProfileSettings}
+                activeOpacity={0.85}
+                hitSlop={8}>
+                {/* <Text style={styles.profileSettingsIcon}>⚙</Text> */}
+                <Image source={Icons.SettingsMinimalistic} style={styles.profileSettingsIconImg} resizeMode="contain" />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -394,9 +391,12 @@ const createStyles = palette =>
   },
   profileHeaderCard: {
     backgroundColor: palette.cardBg,
-    borderRadius: 18,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
     borderWidth: 1,
     borderColor: palette.cardBorder,
+    marginHorizontal: -16,
+    marginTop: 0,
     marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -405,15 +405,10 @@ const createStyles = palette =>
     shadowRadius: 10,
     // elevation: 2,
   },
-  profileAccentBar: {
-    height: 3,
-    backgroundColor: Colors.themeBlue,
-    opacity: 0.55,
-  },
   profileHeaderInner: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 32,
+    paddingTop: 28,
+    paddingBottom: 24,
   },
   profileRow: {flexDirection: 'row', alignItems: 'center'},
   avatar: {
@@ -427,26 +422,30 @@ const createStyles = palette =>
     borderWidth: 2,
     borderColor: palette.cardBg,
   },
-  avatarTxt: {fontSize: 22, fontWeight: '600', color: palette.white},
+  avatarTxt: {fontSize: 28, fontWeight: '700', color: palette.white},
   profileTextCol: {flex: 1, minWidth: 0},
   displayName: {
     fontSize: 19,
     color: palette.textPrimary,
-    marginBottom: 8,
+    marginBottom: 4,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  profileMetaRow: {flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8},
-  memberPill: {
-    backgroundColor: palette.iconBg,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: StyleSheet.hairlineWidth,
+  profileStatus: {fontSize: 17, color: palette.textPrimary, marginBottom: 4},
+  profileStatusPending: {color: palette.verifyPendingText},
+  profileMemberSince: {fontSize: 13, color: palette.textSecondary},
+  profileSettingsBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
     borderColor: palette.rowBorder,
+    backgroundColor: palette.iconBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
   },
-  memberPillText: {fontSize: 11, color: palette.textSecondary, fontWeight: '600'},
-  profileHint: {fontSize: 12, color: palette.textMuted, marginTop: 8},
+  profileSettingsIcon: {fontSize: 16, color: palette.themeIconTint},
   verifyPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -587,4 +586,5 @@ const createStyles = palette =>
   },
   logoutIconImg: {width: 20, height: 20, marginRight: 8},
   logoutText: {fontSize: 16, fontWeight: '500', color: '#EF4444'},
+  profileSettingsIconImg: {width: 20, height: 20},
 });

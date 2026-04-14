@@ -28,6 +28,8 @@ import RedeemScreen from '../screens/Redeem/RedeemScreen';
 import FundInvestmentScreen from '../screens/FundDetail/FundInvestmentScreen';
 import SupportArticleScreen from '../screens/Profile/SupportArticleScreen';
 import DeleteAccountScreen from '../screens/Profile/DeleteAccountScreen';
+import ProfileSettingsScreen from '../screens/Profile/ProfileSettingsScreen';
+import ChangePasswordScreen from '../screens/Profile/ChangePasswordScreen';
 import PrivacyPolicyScreen from '../legal/PRIVACY_POLICY';
 
 const Stack = createNativeStackNavigator();
@@ -95,6 +97,8 @@ export default function AppContainer() {
         <Stack.Screen name="SupportArticle" component={SupportArticleScreen} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+        <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

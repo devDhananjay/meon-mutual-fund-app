@@ -13,7 +13,9 @@ import {
 import {
   authenticateOrder,
   buildOrderPlacePayload,
-  createCartOrder,
+  buildSipRegisterPayload,
+  createSipRegistration,
+  createSingleOrder,
   extractOrderId,
   extractOrderAuthUrl,
 } from '../../services/ordersService';
@@ -58,6 +60,35 @@ function stepForAmount(amount) {
     return 1000;
   }
   return 500;
+}
+
+function isSipDateWithinAllowedRange(dateStr) {
+  const raw = String(dateStr || '').trim();
+  const parts = raw.split('/');
+  if (parts.length !== 3) {
+    return false;
+  }
+  const day = Number(parts[0]);
+  return Number.isFinite(day) && day >= 1 && day <= 28;
+}
+
+function stringifyApiValidationError(err) {
+  const body = err?.data;
+  const msg = err?.message;
+  if (body?.errors && typeof body.errors === 'object') {
+    const lines = [];
+    Object.entries(body.errors).forEach(([k, v]) => {
+      if (Array.isArray(v)) {
+        v.forEach(item => lines.push(`${k}: ${String(item)}`));
+      } else if (v != null) {
+        lines.push(`${k}: ${String(v)}`);
+      }
+    });
+    if (lines.length) {
+      return lines.join('\n');
+    }
+  }
+  return String(msg || body?.bse_remarks || body?.message || 'Could not place order.');
 }
 
 function CartLineItem({item, onRemove, onChangeAmount, onToggleSip, styles}) {
@@ -157,7 +188,10 @@ export default function CartScreen() {
 
   const onRemove = useCallback(
     code => {
-      dispatch(removeFromCart(code));
+      appAlert('Remove item', 'Do you want to remove this?', [
+        {text: 'Cancel', style: 'cancel'},
+        {text: 'Remove', style: 'destructive', onPress: () => dispatch(removeFromCart(code))},
+      ]);
     },
     [dispatch],
   );
@@ -209,18 +243,48 @@ export default function CartScreen() {
     }
     try {
       setCheckoutLoading(true);
-      const orderBodies = items.map(item =>
-        buildOrderPlacePayload({
+      const responses = [];
+      for (const item of items) {
+        const amount = Number(item?.amount) || minAmountForItem(item);
+        if (item?.isSIP && !isSipDateWithinAllowedRange(item?.sipDate)) {
+          throw {
+            message: `Invalid SIP date for ${item?.fund?.scheme_code || 'fund'}. SIP date must be between 1 and 28.`,
+            data: {sip_date: ['SIP date must be between 1 and 28.']},
+          };
+        }
+
+        const payload = item?.isSIP
+          ? buildSipRegisterPayload({
+              schemeCode: item?.fund?.scheme_code,
+              amount,
+              sipFrequency: item?.sipFrequency || 'Monthly',
+              sipDate: item?.sipDate,
+              sipDurationYears: Number(item?.sipDurationYears) || 1,
+            })
+          : buildOrderPlacePayload({
+              schemeCode: item?.fund?.scheme_code,
+              amount,
+              isSip: false,
+              mandateId: item?.mandateId,
+            });
+
+        console.log('[cart:onCheckout] placing item', {
           schemeCode: item?.fund?.scheme_code,
-          amount: Number(item?.amount) || minAmountForItem(item),
-          isSip: !!item?.isSIP,
-          sipFrequency: item?.sipFrequency,
-          sipDate: item?.sipDate,
-          sipDurationYears: Number(item?.sipDurationYears),
-          mandateId: item?.mandateId,
-        }),
-      );
-      const responses = await createCartOrder(orderBodies);
+          isSIP: !!item?.isSIP,
+          endpoint: item?.isSIP ? '/api/journey/mf/sip/register/' : '/api/journey/mf/order/place/',
+          payload,
+        });
+
+        // eslint-disable-next-line no-await-in-loop
+        const res = item?.isSIP ? await createSipRegistration(payload) : await createSingleOrder(payload);
+        responses.push(res);
+        console.log('[cart:onCheckout] item response', {
+          schemeCode: item?.fund?.scheme_code,
+          isSIP: !!item?.isSIP,
+          response: res?.data,
+        });
+      }
+
       const firstOrderId = responses.map(r => extractOrderId(r?.data)).find(Boolean) ?? null;
       const firstAuthUrl = responses.map(r => extractOrderAuthUrl(r?.data)).find(Boolean) ?? null;
       if (firstAuthUrl) {
@@ -236,7 +300,14 @@ export default function CartScreen() {
         ]);
       }
     } catch (e) {
-      appAlert('Checkout failed', String(e?.message || 'Could not place order.'));
+      console.error('[cart:onCheckout] error', {
+        message: e?.message,
+        status: e?.status,
+        endpoint: e?.endpoint,
+        method: e?.method,
+        data: e?.data,
+      });
+      appAlert('Checkout failed', stringifyApiValidationError(e));
     } finally {
       setCheckoutLoading(false);
     }

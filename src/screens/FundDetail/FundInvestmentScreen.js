@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  AppState,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
 import DatePicker from 'react-native-date-picker';
 import {useDispatch, useSelector} from 'react-redux';
 import {useFundData} from '../../hooks/useFundData';
@@ -20,9 +21,13 @@ import {useMandateData} from '../../hooks/useMandateData';
 import {
   authenticateOrder,
   buildOrderPlacePayload,
+  buildSipRegisterPayload,
+  createSipRegistration,
   createSingleOrder,
   extractOrderId,
   extractOrderAuthUrl,
+  fetchOrderStatus,
+  fetchOrderList,
   processOrderPayment,
   isAuthenticatedOrderState,
 } from '../../services/ordersService';
@@ -62,6 +67,14 @@ function formatSipDateDisplay(d) {
   return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
 }
 
+function isSipDateWithinAllowedRange(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) {
+    return false;
+  }
+  const day = d.getDate();
+  return day >= 1 && day <= 28;
+}
+
 function pickMandateLabel(item) {
   if (!item || typeof item !== 'object') {
     return '—';
@@ -72,6 +85,158 @@ function pickMandateLabel(item) {
   const left = bank ? String(bank).trim() : 'Mandate';
   const right = umrn ? `#${String(umrn).trim()}` : amount ? safeInr(amount) : '';
   return right ? `${left} • ${right}` : left;
+}
+
+function stringifyApiValidationError(err) {
+  const body = err?.data;
+  const msg = err?.message;
+  const skipped = new Set(['validation failed', 'validation error', 'bad request']);
+  const keyMap = {
+    amount: 'Amount',
+    investment_amount: 'Amount',
+    order_amount: 'Amount',
+    sip_amount: 'SIP Amount',
+    order_type: 'Order Type',
+    frequency: 'SIP Frequency',
+    sip_frequency: 'SIP Frequency',
+    sip_date: 'SIP Date',
+    installment_day: 'SIP Date',
+    mandate: 'Mandate',
+    mandate_id: 'Mandate',
+    scheme: 'Fund',
+    scheme_code: 'Fund',
+    non_field_errors: 'Details',
+    detail: 'Details',
+  };
+
+  const toFriendlyField = key => {
+    const raw = String(key || '').trim();
+    if (!raw) {
+      return 'Details';
+    }
+    const byMap = keyMap[raw.toLowerCase()];
+    if (byMap) {
+      return byMap;
+    }
+    return raw
+      .replace(/\./g, ' ')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, ch => ch.toUpperCase());
+  };
+
+  const normalizeText = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+  const toLine = (field, value) => `${toFriendlyField(field)}: ${normalizeText(value)}`;
+
+  const collect = value => {
+    if (!value) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return value
+        .map(v => normalizeText(v))
+        .filter(Boolean)
+        .filter(v => !skipped.has(v.toLowerCase()));
+    }
+    if (typeof value === 'string') {
+      const cleaned = normalizeText(value);
+      if (!cleaned || skipped.has(cleaned.toLowerCase())) {
+        return [];
+      }
+      return [cleaned];
+    }
+    if (typeof value === 'object') {
+      const out = [];
+      Object.entries(value).forEach(([field, raw]) => {
+        if (Array.isArray(raw)) {
+          raw.forEach(item => {
+            const cleaned = normalizeText(item);
+            if (cleaned) {
+              out.push(toLine(field, cleaned));
+            }
+          });
+        } else if (raw && typeof raw === 'object') {
+          Object.entries(raw).forEach(([sub, subRaw]) => {
+            if (Array.isArray(subRaw)) {
+              subRaw.forEach(item => {
+                const cleaned = normalizeText(item);
+                if (cleaned) {
+                  out.push(toLine(`${field}.${sub}`, cleaned));
+                }
+              });
+            } else if (subRaw != null) {
+              const cleaned = normalizeText(subRaw);
+              if (cleaned) {
+                out.push(toLine(`${field}.${sub}`, cleaned));
+              }
+            }
+          });
+        } else if (raw != null) {
+          const cleaned = normalizeText(raw);
+          if (cleaned) {
+            out.push(toLine(field, cleaned));
+          }
+        }
+      });
+      return out;
+    }
+    const cleaned = normalizeText(value);
+    if (!cleaned || skipped.has(cleaned.toLowerCase())) {
+      return [];
+    }
+    return [cleaned];
+  };
+
+  const details = Array.from(
+    new Set([
+      ...collect(body?.errors),
+      ...collect(body?.error),
+      ...collect(body?.detail),
+      ...collect(body?.message && body?.message !== msg ? body.message : null),
+      ...collect(body),
+    ]),
+  );
+
+  if (details.length > 0) {
+    return `Please fix:\n${details.join('\n')}`;
+  }
+
+  const cleanMsg = normalizeText(msg);
+  if (cleanMsg && !skipped.has(cleanMsg.toLowerCase())) {
+    return cleanMsg;
+  }
+  return 'Validation failed. Please check amount, SIP details, or mandate and try again.';
+}
+
+function extractStatusLookupId(resData) {
+  if (resData == null) {
+    return null;
+  }
+  const root = resData?.data ?? resData;
+  const inner = root?.data ?? root;
+  const id = inner?.id ?? root?.id;
+  if (id == null || String(id).trim() === '') {
+    return null;
+  }
+  return id;
+}
+
+function extractTransactionNumber(resData) {
+  if (resData == null) {
+    return null;
+  }
+  const root = resData?.data ?? resData;
+  const inner = root?.data ?? root;
+  const txn =
+    inner?.transaction_number ??
+    inner?.transactionNumber ??
+    root?.transaction_number ??
+    root?.transactionNumber;
+  if (txn == null || String(txn).trim() === '') {
+    return null;
+  }
+  return String(txn);
 }
 
 export default function FundInvestmentScreen() {
@@ -96,7 +261,14 @@ export default function FundInvestmentScreen() {
     () => fundInfo?.scheme_name || fundInfo?.base_scheme_name || paramName || 'Fund',
     [fundInfo?.base_scheme_name, fundInfo?.scheme_name, paramName],
   );
-  const mandates = useMemo(() => mandateData?.results ?? [], [mandateData?.results]);
+  const mandates = useMemo(
+    () =>
+      (mandateData?.results ?? []).filter(item => {
+        const status = String(item?.status ?? '').toUpperCase();
+        return status === 'ACTIVE';
+      }),
+    [mandateData?.results],
+  );
 
   const [orderType, setOrderType] = useState(initialOrderType);
   const [orderAmount, setOrderAmount] = useState('');
@@ -109,12 +281,19 @@ export default function FundInvestmentScreen() {
   const [freqModalVisible, setFreqModalVisible] = useState(false);
   const [selectedMandate, setSelectedMandate] = useState(null);
   const [pendingOrderId, setPendingOrderId] = useState(null);
+  const [pendingStatusLookupId, setPendingStatusLookupId] = useState(null);
+  const [pendingTransactionNumber, setPendingTransactionNumber] = useState(null);
   const [pendingOrderAmount, setPendingOrderAmount] = useState(null);
   const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [readyForPayment, setReadyForPayment] = useState(false);
+  const [paymentModeModalVisible, setPaymentModeModalVisible] = useState(false);
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState(null);
+  const [upiVpa, setUpiVpa] = useState('');
+  const [neftUtr, setNeftUtr] = useState('');
+  const waitingAuthReturnRef = useRef(false);
 
   const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
   const minSip = useMemo(() => pickMinSipInvestment(fundInfo), [fundInfo]);
@@ -125,7 +304,13 @@ export default function FundInvestmentScreen() {
     : 'Select your preferred mandate option';
 
   useEffect(() => {
-    if (!selectedMandate && mandates.length > 0) {
+    if (mandates.length === 0) {
+      setSelectedMandate(null);
+      return;
+    }
+    const selectedId = selectedMandate?.id ?? selectedMandate?.mandate_id;
+    const exists = mandates.some(m => (m?.id ?? m?.mandate_id) === selectedId);
+    if (!exists) {
       setSelectedMandate(mandates[0]);
     }
   }, [mandates, selectedMandate]);
@@ -184,6 +369,10 @@ export default function FundInvestmentScreen() {
       return;
     }
     const amount = raw;
+    if (orderType === 'SIP' && !isSipDateWithinAllowedRange(sipDate)) {
+      appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+      return;
+    }
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
       appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
@@ -227,31 +416,55 @@ export default function FundInvestmentScreen() {
       return;
     }
     const amount = raw;
+    if (orderType === 'SIP' && !isSipDateWithinAllowedRange(sipDate)) {
+      appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+      return;
+    }
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
       appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
     try {
       setPlacingOrder(true);
-      const payload = {
-        ...buildOrderPlacePayload({
-          schemeCode: fundInfo.scheme_code,
-          amount,
-          isSip: orderType === 'SIP',
-          sipFrequency,
-          sipDate: formatDDMMYYYY(sipDate),
-          sipDurationYears: Number(sipDurationYears),
-          mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
-        }),
-      };
-      const res = await createSingleOrder(payload);
+      const payload =
+        orderType === 'SIP'
+          ? buildSipRegisterPayload({
+              schemeCode: fundInfo.scheme_code,
+              amount,
+              sipFrequency,
+              sipDate: formatDDMMYYYY(sipDate),
+              sipDurationYears: Number(sipDurationYears),
+            })
+          : buildOrderPlacePayload({
+              schemeCode: fundInfo.scheme_code,
+              amount,
+              isSip: false,
+              mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+            });
+      console.log('[FundInvestment:onPlaceOrder] request payload', payload);
+      const res =
+        orderType === 'SIP'
+          ? await createSipRegistration(payload)
+          : await createSingleOrder(payload);
+      console.log('[FundInvestment:onPlaceOrder] raw response', res);
       const orderId = extractOrderId(res?.data);
+      const statusLookupId = extractStatusLookupId(res?.data);
+      const transactionNumber = extractTransactionNumber(res?.data);
       const directAuthUrl = extractOrderAuthUrl(res?.data);
+      console.log('[FundInvestment:onPlaceOrder] parsed result', {
+        orderId,
+        statusLookupId,
+        transactionNumber,
+        directAuthUrl,
+        responseData: res?.data,
+      });
       if (directAuthUrl) {
         setPendingGatewayUrl(directAuthUrl);
       }
       if (orderId) {
         setPendingOrderId(orderId);
+        setPendingStatusLookupId(statusLookupId);
+        setPendingTransactionNumber(transactionNumber);
         setPendingOrderAmount(amount);
         setReadyForPayment(false);
         appAlert('Order placed', 'Please tap "Authenticate & Continue" to complete payment.');
@@ -274,8 +487,16 @@ export default function FundInvestmentScreen() {
         }
       }
     } catch (e) {
-      appAlert('Order failed', String(e?.message || 'Could not place order.'));
+      console.error('[FundInvestment:onPlaceOrder] error', {
+        message: e?.message,
+        status: e?.status,
+        endpoint: e?.endpoint,
+        method: e?.method,
+        data: e?.data,
+      });
+      appAlert('Order failed', stringifyApiValidationError(e));
     } finally {
+      console.log('[FundInvestment:onPlaceOrder] finished');
       setPlacingOrder(false);
     }
   }, [
@@ -314,6 +535,7 @@ export default function FundInvestmentScreen() {
       const authUrl = extractOrderAuthUrl(res?.data);
       if (authUrl) {
         setPendingGatewayUrl(authUrl);
+        waitingAuthReturnRef.current = true;
         navigation.navigate('MandateAuthWebview', {
           uri: authUrl,
           title: 'Authenticate order',
@@ -325,6 +547,7 @@ export default function FundInvestmentScreen() {
       const msg = String(e?.message || '');
       if (msg.toLowerCase().includes('already in authenticated status') && pendingGatewayUrl) {
         setReadyForPayment(true);
+        waitingAuthReturnRef.current = true;
         navigation.navigate('MandateAuthWebview', {
           uri: pendingGatewayUrl,
           title: 'Authenticate order',
@@ -341,11 +564,136 @@ export default function FundInvestmentScreen() {
     }
   }, [navigation, pendingGatewayUrl, pendingOrderId]);
 
-  const onPayNow = useCallback(async () => {
+  const checkOrderStatusAfterAuthReturn = useCallback(async () => {
+    let lookupId = pendingStatusLookupId;
+    if (!lookupId && (pendingOrderId || pendingTransactionNumber)) {
+      try {
+        const listRes = await fetchOrderList({page: 1, page_size: 50});
+        const rows = listRes?.data?.results ?? listRes?.data?.data?.results ?? [];
+        const matched = rows.find(row => {
+          const byOrderId = pendingOrderId != null && String(row?.order_id) === String(pendingOrderId);
+          const byTxn =
+            pendingTransactionNumber != null &&
+            String(row?.transaction_number ?? '') === String(pendingTransactionNumber);
+          return byOrderId || byTxn;
+        });
+        if (matched?.id != null && String(matched.id).trim() !== '') {
+          lookupId = matched.id;
+          setPendingStatusLookupId(matched.id);
+          console.log('[FundInvestment:statusCheck] resolved lookup id from order list', {
+            id: matched.id,
+            order_id: matched?.order_id,
+            transaction_number: matched?.transaction_number,
+          });
+        }
+      } catch (listErr) {
+        console.log('[FundInvestment:statusCheck] list resolve failed', {
+          message: listErr?.message,
+          status: listErr?.status,
+        });
+      }
+    }
+    if (!lookupId) {
+      appAlert('Status check failed', 'Could not find order id for status check. Please open My Orders.');
+      return false;
+    }
+    try {
+      console.log('[FundInvestment:statusCheck] request', {id: lookupId});
+      const res = await fetchOrderStatus(lookupId);
+      const root = res?.data?.data ?? res?.data ?? {};
+      const detail = root?.order ?? root?.result ?? root?.data ?? root;
+      const statusRaw =
+        detail?.status ??
+        detail?.order_status ??
+        detail?.orderStatus ??
+        root?.status ??
+        root?.order_status ??
+        root?.message;
+      console.log('[FundInvestment:statusCheck] response', {
+        id: lookupId,
+        statusRaw,
+        detail,
+      });
+      if (isAuthenticatedOrderState(statusRaw)) {
+        setReadyForPayment(true);
+        return true;
+      }
+      setReadyForPayment(false);
+      appAlert(
+        'Authentication pending',
+        'Order is not authenticated yet. Please check in My Orders.',
+        [
+          {text: 'My Orders', onPress: () => navigation.navigate('MyOrders')},
+          {text: 'OK'},
+        ],
+      );
+      return false;
+    } catch (e) {
+      console.error('[FundInvestment:statusCheck] error', {
+        id: lookupId,
+        message: e?.message,
+        status: e?.status,
+        endpoint: e?.endpoint,
+        data: e?.data,
+      });
+      appAlert('Status Check', 'Please check this order in My Orders.', [
+        {text: 'My Orders', onPress: () => navigation.navigate('MyOrders')},
+        {text: 'OK'},
+      ]);
+      return false;
+    }
+  }, [navigation, pendingOrderId, pendingStatusLookupId, pendingTransactionNumber]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState !== 'active') {
+        return;
+      }
+      if (!waitingAuthReturnRef.current) {
+        return;
+      }
+      checkOrderStatusAfterAuthReturn().finally(() => {
+        waitingAuthReturnRef.current = false;
+      });
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [checkOrderStatusAfterAuthReturn]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!waitingAuthReturnRef.current) {
+        return undefined;
+      }
+      console.log('[FundInvestment:statusCheck] triggered by screen focus');
+      checkOrderStatusAfterAuthReturn().finally(() => {
+        waitingAuthReturnRef.current = false;
+      });
+      return undefined;
+    }, [checkOrderStatusAfterAuthReturn]),
+  );
+
+  const onPaymentConfirmationPress = useCallback(async () => {
+    if (paymentLoading) {
+      return;
+    }
+    setPaymentLoading(true);
+    try {
+      const ok = await checkOrderStatusAfterAuthReturn();
+      if (ok) {
+        setPaymentModeModalVisible(true);
+      }
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [checkOrderStatusAfterAuthReturn, paymentLoading]);
+
+  const onPayNow = useCallback(async (mode, neftReferenceOverride = '') => {
     const orderNumber = pendingOrderId;
     const totalAmount = Number(pendingOrderAmount ?? parseOrderAmount() ?? 0);
     const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
-    if (!orderNumber || !clientCode || !totalAmount) {
+    if (!orderNumber || !clientCode || !totalAmount || !mode) {
       appAlert('Pay now', 'Payment details are incomplete.');
       return;
     }
@@ -353,27 +701,70 @@ export default function FundInvestmentScreen() {
       setPaymentLoading(true);
       const res = await processOrderPayment({
         clientCode,
-        modeOfPayment: 'DIRECT',
+        modeOfPayment: mode,
         orderNumber,
         totalAmount,
+        vpaId: mode === 'UPI' ? upiVpa : '',
+        neftReference: mode === 'NEFT' ? neftReferenceOverride : '',
       });
+      const apiStatus = String(res?.data?.status ?? res?.status ?? '').toLowerCase();
+      const responseString =
+        res?.data?.data?.responsestring ??
+        res?.data?.data?.ResponseString ??
+        res?.data?.message ??
+        '';
       const paymentUrl = extractOrderAuthUrl(res?.data);
+      if (apiStatus === 'pending') {
+        appAlert('Payment', responseString || 'Payment is pending. Please try again.');
+        return;
+      }
       if (paymentUrl) {
+        setPaymentModeModalVisible(false);
+        setSelectedPaymentMode(null);
         navigation.navigate('MandateAuthWebview', {
           uri: paymentUrl,
           title: 'Complete payment',
         });
       } else {
-        appAlert('Pay now', 'Payment gateway URL not found.');
+        appAlert('Payment', responseString || 'Payment gateway URL not found.');
       }
     } catch (e) {
       appAlert('Payment failed', String(e?.message || 'Could not start payment.'));
     } finally {
       setPaymentLoading(false);
     }
-  }, [navigation, parseOrderAmount, pendingOrderAmount, pendingOrderId, user]);
+  }, [navigation, parseOrderAmount, pendingOrderAmount, pendingOrderId, upiVpa, user]);
+
+  const onContinuePaymentMode = useCallback(async () => {
+    if (!selectedPaymentMode) {
+      appAlert('Payment', 'Please select a payment mode.');
+      return;
+    }
+    if (selectedPaymentMode === 'UPI') {
+      const v = String(upiVpa || '').trim();
+      if (!v.includes('@') || v.length < 5) {
+        appAlert('UPI', 'Please enter a valid UPI VPA (example: name@bank).');
+        return;
+      }
+    }
+    if (selectedPaymentMode === 'NEFT') {
+      const v = String(neftUtr || '').trim();
+      if (!v) {
+        appAlert('NEFT', 'Please enter UTR / Reference.');
+        return;
+      }
+    }
+    await onPayNow(selectedPaymentMode, selectedPaymentMode === 'NEFT' ? neftUtr : '');
+  }, [neftUtr, onPayNow, selectedPaymentMode, upiVpa]);
 
   const onConfirmSipDate = useCallback(date => {
+    if (!isSipDateWithinAllowedRange(date)) {
+      setShowSipDatePicker(false);
+      setTimeout(() => {
+        appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+      }, 0);
+      return;
+    }
     setSipDate(date);
     setShowSipDatePicker(false);
   }, []);
@@ -388,6 +779,16 @@ export default function FundInvestmentScreen() {
     }
     return orderType === 'SIP' ? 'Start SIP' : 'Continue to Invest';
   }, [orderType, placingOrder]);
+
+  const onPrimaryCtaPress = useCallback(() => {
+    console.log('[FundInvestment:primaryCta] clicked', {
+      label: primaryCtaLabel,
+      orderType,
+      placingOrder,
+      schemeCode: fundInfo?.scheme_code ?? schemeCode,
+    });
+    onPlaceOrder();
+  }, [fundInfo?.scheme_code, onPlaceOrder, orderType, placingOrder, primaryCtaLabel, schemeCode]);
 
   if (!schemeCode) {
     return (
@@ -452,23 +853,25 @@ export default function FundInvestmentScreen() {
               <View style={styles.authSummaryWrap}>
                 <Text style={styles.authSummaryLabel}>Order Amount</Text>
                 <Text style={styles.authSummaryAmount}>{safeInr(pendingOrderAmount ?? minOrderAmount)}</Text>
-                <TouchableOpacity
-                  style={styles.authContinueBtn}
-                  onPress={onAuthenticateAndContinue}
-                  activeOpacity={0.9}
-                  disabled={authLoading}>
-                  <Text style={styles.authContinueTxt}>
-                    {authLoading ? 'Authenticating...' : 'Authenticate & Continue'}
-                  </Text>
-                </TouchableOpacity>
+                {!readyForPayment ? (
+                  <TouchableOpacity
+                    style={styles.authContinueBtn}
+                    onPress={onAuthenticateAndContinue}
+                    activeOpacity={0.9}
+                    disabled={authLoading}>
+                    <Text style={styles.authContinueTxt}>
+                      {authLoading ? 'Authenticating...' : 'Authenticate & Continue'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
                 {readyForPayment ? (
                   <TouchableOpacity
                     style={styles.payNowPrimaryBtn}
-                    onPress={onPayNow}
+                    onPress={onPaymentConfirmationPress}
                     activeOpacity={0.9}
                     disabled={paymentLoading}>
                     <Text style={styles.payNowPrimaryTxt}>
-                      {paymentLoading ? 'Starting payment...' : 'Pay Now'}
+                      {paymentLoading ? 'Starting payment...' : 'Payment Confirmation'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
@@ -605,7 +1008,7 @@ export default function FundInvestmentScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.primaryCta, placingOrder && styles.primaryCtaDisabled]}
-              onPress={onPlaceOrder}
+              onPress={onPrimaryCtaPress}
               activeOpacity={0.92}
               disabled={placingOrder}>
               <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>{primaryCtaLabel}</Text>
@@ -622,7 +1025,7 @@ export default function FundInvestmentScreen() {
         maxHeight={'72%'}>
         {mandateLoading ? <ActivityIndicator color={colors.primary} style={styles.modalLoader} /> : null}
         {!mandateLoading && mandates.length === 0 ? (
-          <Text style={styles.modalEmpty}>No mandate found. Please add mandate from Mandate screen.</Text>
+          <Text style={styles.modalEmpty}>No active mandate found. Please add/activate mandate from Mandate screen.</Text>
         ) : null}
         {!mandateLoading &&
           mandates.map((m, idx) => {
@@ -660,6 +1063,83 @@ export default function FundInvestmentScreen() {
             <Text style={[styles.modalRowTxt, sipFrequency === freq && styles.modalRowTxtActive]}>{freq}</Text>
           </TouchableOpacity>
         ))}
+      </AppModal>
+
+      <AppModal
+        visible={paymentModeModalVisible}
+        onClose={() => setPaymentModeModalVisible(false)}
+        title="Payment Confirmation"
+        isBottomSheet={false}
+        maxHeight={'74%'}>
+        <Text style={styles.paymentModeHint}>Select payment mode</Text>
+        <TouchableOpacity
+          style={[styles.modalRow, selectedPaymentMode === 'UPI' && styles.modalRowActive]}
+          onPress={() => setSelectedPaymentMode('UPI')}
+          activeOpacity={0.9}>
+          <Text style={[styles.modalRowTxt, selectedPaymentMode === 'UPI' && styles.modalRowTxtActive]}>
+            Send Payment Link via UPI
+          </Text>
+        </TouchableOpacity>
+        {selectedPaymentMode === 'UPI' ? (
+          <View style={styles.paymentInputWrap}>
+            <TextInput
+              value={upiVpa}
+              onChangeText={setUpiVpa}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="Enter UPI ID (name@bank)"
+              placeholderTextColor={colors.textSecondary}
+              style={styles.paymentInput}
+            />
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.modalRow, selectedPaymentMode === 'NEFT' && styles.modalRowActive]}
+          onPress={() => setSelectedPaymentMode('NEFT')}
+          activeOpacity={0.9}>
+          <Text style={[styles.modalRowTxt, selectedPaymentMode === 'NEFT' && styles.modalRowTxtActive]}>
+            Send Payment Link via NEFT
+          </Text>
+        </TouchableOpacity>
+        {selectedPaymentMode === 'NEFT' ? (
+          <View style={styles.paymentInputWrap}>
+            <TextInput
+              value={neftUtr}
+              onChangeText={setNeftUtr}
+              autoCapitalize="characters"
+              placeholder="Enter NEFT UTR / Reference"
+              placeholderTextColor={colors.textSecondary}
+              style={styles.paymentInput}
+            />
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.modalRow, selectedPaymentMode === 'DIRECT' && styles.modalRowActive]}
+          onPress={() => setSelectedPaymentMode('DIRECT')}
+          activeOpacity={0.9}>
+          <Text style={[styles.modalRowTxt, selectedPaymentMode === 'DIRECT' && styles.modalRowTxtActive]}>
+            Pay Now (Gateway)
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.paymentPrimaryBtn, paymentLoading && styles.primaryCtaDisabled]}
+          onPress={onContinuePaymentMode}
+          activeOpacity={0.9}
+          disabled={paymentLoading}>
+          <Text style={styles.paymentPrimaryBtnTxt}>{paymentLoading ? 'Processing...' : 'Continue'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.paymentCancelBtn}
+          onPress={() => {
+            setPaymentModeModalVisible(false);
+            setSelectedPaymentMode(null);
+          }}
+          activeOpacity={0.85}>
+          <Text style={styles.paymentCancelBtnTxt}>Close</Text>
+        </TouchableOpacity>
       </AppModal>
 
       {showSipDatePicker ? (
@@ -916,6 +1396,34 @@ function getFundInvestmentStyles(colors, isDark) {
   modalRowActive: {backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#EAF4FF'},
   modalRowTxt: {fontSize: 14, color: c.textPrimary},
   modalRowTxtActive: {...Textstyles.medium, color: c.primary, fontWeight: '600'},
+  paymentModeHint: {fontSize: 13, color: c.textSecondary, marginBottom: 10},
+  paymentInputWrap: {
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginTop: -2,
+    marginBottom: 10,
+    backgroundColor: c.inputBg,
+  },
+  paymentInput: {minHeight: 42, color: c.textPrimary, fontSize: 14},
+  paymentPrimaryBtn: {
+    marginTop: 10,
+    minHeight: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.primary,
+  },
+  paymentPrimaryBtnTxt: {...Textstyles.medium, color: '#fff', fontSize: 14, fontWeight: '600'},
+  paymentCancelBtn: {
+    marginTop: 8,
+    minHeight: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentCancelBtnTxt: {...Textstyles.medium, color: c.textSecondary, fontSize: 14},
   modalLoader: {marginVertical: 12},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},

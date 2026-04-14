@@ -38,6 +38,8 @@ const Icons = {
   threeDots: require('../assets/Icons/threeDots.png'),
   SearchIcon: require('../assets/searchIcon-7836305f-f243-4b06-aa4d-1c0aa2060610.png'),
   inProgress: require('../assets/Icons/inProgress.png'),
+  HidePassword: require('../assets/Icons/HidePassword.png'),
+  SettingsMinimalistic: require('../assets/Icons/SettingsMinimalistic.png'),
 
   // Profile screen icons
   MyOrdersIcon: require('../assets/Icons/MyOrders-f83910e4-9906-41cc-91b7-2ea1381b2ae1.png'),

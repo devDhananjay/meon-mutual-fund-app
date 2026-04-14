@@ -128,7 +128,11 @@ const styles = StyleSheet.create({
 
 export default function App() {
   useEffect(() => {
-    LogBox.ignoreAllLogs();
+    // if (!__DEV__) {
+    //   return;
+    // }
+    // Keep development logs visible for API debugging.
+    LogBox.ignoreLogs([]);
   }, []);
 
   return (

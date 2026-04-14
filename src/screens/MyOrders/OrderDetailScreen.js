@@ -1273,6 +1273,7 @@ function getOrderDetailStyles(colors, isDark) {
     paddingHorizontal: 12,
     fontSize: 14,
     backgroundColor: c.card,
+    color: c.textPrimary,
   },
   modalOverlay: {
     flex: 1,

@@ -52,6 +52,7 @@ export function normalizeOrdersResponse(apiBody) {
 const ORDER_PLACE_ENDPOINT = '/api/journey/mf/order/place/';
 const ORDER_AUTH_ENDPOINT = '/api/journey/mf/order/authenticate/';
 const ORDER_PAYMENT_PROCESS_ENDPOINT = '/api/journey/mf/payment/process/';
+const SIP_REGISTER_ENDPOINT = '/api/journey/mf/sip/register/';
 
 export function buildOrderPlacePayload({
   schemeCode,
@@ -146,6 +147,76 @@ export async function createSingleOrder(body) {
     console.log('[order/place] response', {
       success: res?.success,
       data: res?.data,
+    });
+  }
+  return res;
+}
+
+export function buildSipRegisterPayload({
+  schemeCode,
+  amount,
+  sipDate,
+  sipFrequency,
+  sipDurationYears,
+}) {
+  const normalizedFrequency = String(sipFrequency || '')
+    .trim()
+    .toUpperCase();
+  const safeYears = Math.max(1, Number(sipDurationYears) || 1);
+  const installments =
+    normalizedFrequency === 'QUARTERLY' ? safeYears * 4 : safeYears * 12;
+
+  return {
+    scheme_code: schemeCode,
+    start_date: sipDate,
+    frequency_type: normalizedFrequency || 'MONTHLY',
+    installment_amount: Number(amount),
+    trans_mode: 'P',
+    dp_txn_mode: 'P',
+    internal_ref_no: '',
+    subbroker_code: '',
+    euin: '',
+    euin_flag: 'N',
+    dpc: 'Y',
+    param2: '',
+    param3: '',
+    no_of_installments: installments,
+  };
+}
+
+export async function createSipRegistration(body) {
+  console.log('[sip/register] request', {
+    endpoint: SIP_REGISTER_ENDPOINT,
+    payload: body,
+  });
+  const res = await apiClient.post(SIP_REGISTER_ENDPOINT, body);
+  console.log('[sip/register] raw response', {
+    success: res?.success,
+    data: res?.data,
+  });
+
+  const root = res?.data ?? {};
+  const sipStatus = String(root?.status ?? '').toUpperCase();
+  if (sipStatus === 'FAILED' || sipStatus === 'ERROR') {
+    const message =
+      root?.bse_remarks || root?.message || 'SIP registration failed.';
+    const errObj = {
+      success: false,
+      status: 400,
+      message,
+      data: root,
+      endpoint: SIP_REGISTER_ENDPOINT,
+      method: 'POST',
+    };
+    console.error('[sip/register] failed response', errObj);
+    throw errObj;
+  }
+
+  if (__DEV__) {
+    console.log('[sip/register] success response', {
+      status: root?.status,
+      xsip_reg_id: root?.xsip_reg_id,
+      unique_ref_no: root?.unique_ref_no,
     });
   }
   return res;

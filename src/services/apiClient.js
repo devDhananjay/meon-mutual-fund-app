@@ -40,6 +40,14 @@ function shouldSkipLogoutOn401(config) {
 
 apiClient.interceptors.request.use(
   config => {
+    if (__DEV__) {
+      console.log('[apiClient] request', {
+        method: (config?.method || 'get').toUpperCase(),
+        url: `${config?.baseURL || ''}${config?.url || ''}`,
+        params: config?.params,
+        data: config?.data,
+      });
+    }
     if (isPublicMfEndpoint(config)) {
       delete config.headers.Authorization;
       return config;
@@ -68,6 +76,14 @@ async function handleUnauthorized() {
 
 apiClient.interceptors.response.use(
   response => {
+    if (__DEV__) {
+      console.log('[apiClient] response', {
+        status: response?.status,
+        method: (response?.config?.method || 'get').toUpperCase(),
+        url: `${response?.config?.baseURL || ''}${response?.config?.url || ''}`,
+        data: response?.data,
+      });
+    }
     if (response.data?.success === false) {
       return Promise.reject({
         success: false,

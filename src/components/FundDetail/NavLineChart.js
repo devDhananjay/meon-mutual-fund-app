@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -83,6 +83,13 @@ function formatYLabel(v) {
 function formatDayMonth(d) {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${dd} ${MONTHS[d.getMonth()]}`;
+}
+
+function formatTooltipDate(ms) {
+  const d = new Date(ms);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd} ${MONTHS[d.getMonth()]} ${yyyy}`;
 }
 
 /** Web-style: month change → "Apr '26" (bold); same month → "04 Apr". */
@@ -324,12 +331,13 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     const maxV = Math.max(...values);
     const {ticks, lo, hi} = computeYTicks(minV, maxV);
     const n = values.length;
-    const innerW = plotW - PLOT_PAD.left - PLOT_PAD.right;
+    const innerW = Math.max(1, plotW - 1);
     const innerH = plotH - PLOT_PAD.top - PLOT_PAD.bottom;
     const span = hi - lo || 1;
 
     const basePts = values.map((v, i) => {
-      const x = PLOT_PAD.left + (n <= 1 ? 0 : (i / (n - 1)) * innerW);
+      // Use full plot width so first/last points reach exact edges.
+      const x = n <= 1 ? 0 : (i / (n - 1)) * innerW;
       const y = PLOT_PAD.top + (1 - (v - lo) / span) * innerH;
       return {x, y};
     });
@@ -338,10 +346,15 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     const ms1 = chartData[chartData.length - 1]?.__ms;
     const chartKey = `${range}-${n}-${ms0}-${ms1}-${isDark ? 'd' : 'l'}`;
 
-    return {values, ticks, lo, hi, smoothPoints, chartKey};
+    return {values, ticks, lo, hi, smoothPoints, basePts, chartKey};
   }, [chartData, plotW, plotH, range, isDark]);
 
   const showChart = chartData.length >= 2 && chartModel != null;
+  const [selectedIdx, setSelectedIdx] = useState(null);
+
+  useEffect(() => {
+    setSelectedIdx(null);
+  }, [range, chartData.length]);
 
   const xAxisItems = useMemo(() => {
     if (chartData.length < 2) {
@@ -356,6 +369,58 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
       return {key: `xtick-${i}-${ms}`, text, isMonthBoundary};
     });
   }, [chartData, range]);
+
+  const onChartTouch = useMemo(
+    () => evt => {
+      if (!chartModel?.basePts?.length) {
+        return;
+      }
+      const x = Number(evt?.nativeEvent?.locationX);
+      if (!Number.isFinite(x)) {
+        return;
+      }
+      const clampedX = Math.max(0, Math.min(x, plotW - 1));
+      const lastIdx = chartModel.basePts.length - 1;
+      const edgeSnap = 20;
+
+      if (clampedX <= edgeSnap) {
+        setSelectedIdx(0);
+        return;
+      }
+      if (clampedX >= plotW - 1 - edgeSnap) {
+        setSelectedIdx(lastIdx);
+        return;
+      }
+
+      // Deterministic mapping: touch position -> point index.
+      // Guarantees right edge reaches the final data point.
+      const ratio = clampedX / Math.max(1, plotW - 1);
+      const idx = Math.round(ratio * lastIdx);
+      setSelectedIdx(Math.max(0, Math.min(lastIdx, idx)));
+    },
+    [chartModel, plotW],
+  );
+
+  const selectedPoint = useMemo(() => {
+    if (!showChart || selectedIdx == null || !chartModel?.basePts?.[selectedIdx] || !chartData[selectedIdx]) {
+      return null;
+    }
+    const p = chartModel.basePts[selectedIdx];
+    const row = chartData[selectedIdx];
+    const bubbleW = 128;
+    const leftRaw = p.x - bubbleW / 2;
+    const bubbleLeft = Math.max(8, Math.min(leftRaw, plotW - bubbleW - 8));
+    return {
+      x: p.x,
+      guideX: p.x,
+      dotX: p.x,
+      y: p.y,
+      nav: Number(row.__nav),
+      dateMs: row.__ms,
+      bubbleLeft,
+      bubbleW,
+    };
+  }, [showChart, selectedIdx, chartModel, chartData, plotW]);
 
   return (
     <View style={styles.wrap}>
@@ -400,17 +465,75 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
                   </Text>
                 ))}
               </View>
-              <NavChartPlot
-                key={chartModel.chartKey}
-                smoothPoints={chartModel.smoothPoints}
-                yTicks={chartModel.ticks}
-                lo={chartModel.lo}
-                hi={chartModel.hi}
-                plotW={plotW}
-                plotH={plotH}
-                lineColor={lineColor}
-                gridColor={gridColor}
-              />
+              <View style={[styles.plotWrap, {width: plotW, height: plotH}]}>
+                <NavChartPlot
+                  key={chartModel.chartKey}
+                  smoothPoints={chartModel.smoothPoints}
+                  yTicks={chartModel.ticks}
+                  lo={chartModel.lo}
+                  hi={chartModel.hi}
+                  plotW={plotW}
+                  plotH={plotH}
+                  lineColor={lineColor}
+                  gridColor={gridColor}
+                />
+                <View
+                  style={styles.touchOverlay}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={onChartTouch}
+                  onResponderMove={onChartTouch}
+                />
+                {selectedPoint ? (
+                  <>
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.selectedGuide,
+                        {
+                          left: selectedPoint.guideX,
+                          height: plotH,
+                          borderColor: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(17,24,39,0.22)',
+                        },
+                      ]}
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.selectedDot,
+                        {
+                          left: selectedPoint.dotX - 4,
+                          top: selectedPoint.y - 4,
+                          backgroundColor: lineColor,
+                        },
+                      ]}
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.tooltipBubble,
+                        {
+                          left: selectedPoint.bubbleLeft,
+                        top: Math.max(8, selectedPoint.y - 70),
+                          width: selectedPoint.bubbleW,
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}>
+                      <Text style={[styles.tooltipDate, {color: colors.textPrimary}]}>
+                        {formatTooltipDate(selectedPoint.dateMs)}
+                      </Text>
+                      <View style={[styles.tooltipDivider, {backgroundColor: colors.border}]} />
+                      <View style={styles.tooltipNavRow}>
+                        <View style={[styles.tooltipNavDot, {backgroundColor: lineColor}]} />
+                        <Text style={[styles.tooltipNavText, {color: colors.textPrimary}]}>
+                          NAV: ₹{selectedPoint.nav.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                ) : null}
+              </View>
             </View>
             {xAxisItems.length > 0 ? (
               <View style={[styles.xAxisRow, {borderTopColor: gridColor}]}>
@@ -504,6 +627,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  plotWrap: {
+    position: 'relative',
+  },
   gridLine: {
     position: 'absolute',
     left: 0,
@@ -512,6 +638,60 @@ const styles = StyleSheet.create({
   },
   lineSeg: {
     position: 'absolute',
+  },
+  touchOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3,
+  },
+  selectedGuide: {
+    position: 'absolute',
+    top: 0,
+    borderLeftWidth: 1,
+    zIndex: 4,
+  },
+  selectedDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    zIndex: 5,
+  },
+  tooltipBubble: {
+    position: 'absolute',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    zIndex: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 2},
+    // elevation: 4,
+  },
+  tooltipDate: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  tooltipDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -8,
+    marginBottom: 5,
+  },
+  tooltipNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tooltipNavDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  tooltipNavText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   endDot: {
     position: 'absolute',

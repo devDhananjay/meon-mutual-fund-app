@@ -106,7 +106,51 @@ function FundLogo({uri, name, colors, isDark}) {
   );
 }
 
-function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark}) {
+function buildMiniTrendSeries(seedInput) {
+  const seedStr = String(seedInput ?? 'fund');
+  let hash = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) % 9973;
+  }
+  const points = [];
+  for (let i = 0; i < 16; i++) {
+    const wave = Math.sin((i + (hash % 7)) / 2.5) * 0.28;
+    const trend = ((hash % 19) - 9) * 0.0025 * i;
+    const noise = ((hash + i * 13) % 11) / 100 - 0.05;
+    points.push(Math.max(0.08, Math.min(0.92, 0.5 + wave + trend + noise)));
+  }
+  return points;
+}
+
+function MiniTrendSparkline({fund, colors, isDark}) {
+  const points = useMemo(
+    () => buildMiniTrendSeries(fund?.scheme_code ?? fund?.isin ?? fund?.scheme_name ?? fund?.base_scheme_name),
+    [fund],
+  );
+  const width = 86;
+  const height = 24;
+  const step = width / Math.max(1, points.length - 1);
+
+  return (
+    <View style={[styles.sparklineWrap, {borderTopColor: colors.border}]}>
+      <View style={[styles.sparklineBase, {backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#D1D5DB'}]} />
+      {points.map((p, i) => (
+        <View
+          key={`sp-${i}`}
+          style={[
+            styles.sparkPoint,
+            {
+              left: i * step,
+              top: (1 - p) * (height - 4),
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark, holdingVisible}) {
   const fullName = fund?.scheme_name ?? fund?.base_scheme_name ?? '';
   const {base, suffix} = splitGrowthType(fullName);
   const logo = fund?.logo_url ?? fund?.logo ?? fund?.scheme_logo_url;
@@ -116,16 +160,16 @@ function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark}) {
   let rightBigColor = styles.statValueNeutral;
 
   if (sortMode === 'Day') {
-    rightBig = formatSignedInr(fund?.one_day_return);
+    rightBig = holdingVisible ? formatSignedInr(fund?.one_day_return) : '•••••';
     rightSmall = formatAbsPct(fund?.one_day_return_per);
     rightBigColor = Number(fund?.one_day_return) < 0 ? styles.negativeText : styles.positiveText;
   } else if (sortMode === 'Returns') {
-    rightBig = formatSignedInr(fund?.total_return);
+    rightBig = holdingVisible ? formatSignedInr(fund?.total_return) : '•••••';
     rightSmall = formatAbsPct(fund?.total_return_per);
     rightBigColor = Number(fund?.total_return) < 0 ? styles.negativeText : styles.positiveText;
   } else {
-    rightBig = formatInr(fund?.current_holding);
-    rightSmall = formatInr(fund?.amount);
+    rightBig = holdingVisible ? formatInr(fund?.current_holding) : '•••••';
+    rightSmall = holdingVisible ? formatInr(fund?.amount) : '•••••';
     rightBigColor = styles.statValueNeutral;
   }
 
@@ -143,6 +187,8 @@ function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark}) {
           {suffix ? <Text style={[Textstyles.medium, styles.growthLabel, {color: colors.textSecondary}]}>{suffix}</Text> : null}
         </View>
       </View>
+
+      <MiniTrendSparkline fund={fund} colors={colors} isDark={isDark} />
 
       <View style={styles.holdingRight}>
         <Text style={[Textstyles.medium, styles.rightBig, rightBigColor]}>{rightBig}</Text>
@@ -252,7 +298,7 @@ export default function DashboardScreen() {
               Holdings ({holdings.length})
             </Text>
             <Text style={[Textstyles.medium, styles.holdingsBig, {color: colors.textPrimary}]}>
-              {holdingVisible ? formatInr(portfolio?.current_holdings) : '****'}
+              {holdingVisible ? formatInr(portfolio?.current_holdings) : '•••••'}
             </Text>
           </View>
 
@@ -295,50 +341,52 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {holdingVisible && (
-          <View style={styles.statsCol}>
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>1D Returns</Text>
-              <Text
-                style={[
-                  Textstyles.medium,
-                  styles.statValue,
-                  Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
-                ]}>
-                {formatSignedInr(portfolio?.one_day_return)} ({formatAbsPct(portfolio?.one_day_return_per)})
-              </Text>
-            </View>
-
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Total Returns</Text>
-              <Text
-                style={[
-                  Textstyles.medium,
-                  styles.statValue,
-                  Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
-                ]}>
-                {formatSignedInr(portfolio?.total_return)} ({formatAbsPct(portfolio?.total_return_per)})
-              </Text>
-            </View>
-
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Invested</Text>
-              <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
-                {formatInr(portfolio?.total_amount)}
-              </Text>
-            </View>
-
-            <View style={styles.statRow}>
-              <View style={styles.xirrLabelRow}>
-                <Text style={[styles.statLabel, {color: colors.textSecondary}]}>XIRR</Text>
-                <Text style={[styles.caretDown, {color: colors.textSecondary}]}>⌄</Text>
-              </View>
-              <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
-                {portfolio?.XIRR != null ? `${Number(portfolio.XIRR).toFixed(2)}%` : '—'}
-              </Text>
-            </View>
+        <View style={styles.statsCol}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>1D Returns</Text>
+            <Text
+              style={[
+                Textstyles.medium,
+                styles.statValue,
+                Number(portfolio?.one_day_return) < 0 ? styles.negativeText : styles.positiveText,
+              ]}>
+              {holdingVisible
+                ? `${formatSignedInr(portfolio?.one_day_return)} (${formatAbsPct(portfolio?.one_day_return_per)})`
+                : `••••• (${formatAbsPct(portfolio?.one_day_return_per)})`}
+            </Text>
           </View>
-        )}
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Total Returns</Text>
+            <Text
+              style={[
+                Textstyles.medium,
+                styles.statValue,
+                Number(portfolio?.total_return) < 0 ? styles.negativeText : styles.positiveText,
+              ]}>
+              {holdingVisible
+                ? `${formatSignedInr(portfolio?.total_return)} (${formatAbsPct(portfolio?.total_return_per)})`
+                : `••••• (${formatAbsPct(portfolio?.total_return_per)})`}
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Invested</Text>
+            <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
+              {holdingVisible ? formatInr(portfolio?.total_amount) : '•••••'}
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <View style={styles.xirrLabelRow}>
+              <Text style={[styles.statLabel, {color: colors.textSecondary}]}>XIRR</Text>
+              <Text style={[styles.caretDown, {color: colors.textSecondary}]}>⌄</Text>
+            </View>
+            <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
+              {holdingVisible ? (portfolio?.XIRR != null ? `${Number(portfolio.XIRR).toFixed(2)}%` : '—') : '•••••'}
+            </Text>
+          </View>
+        </View>
       </View>
     ),
     [
@@ -448,6 +496,7 @@ export default function DashboardScreen() {
               onHoldingPress={onHoldingPress}
               colors={colors}
               isDark={isDark}
+              holdingVisible={holdingVisible}
             />
           ))}
 
@@ -804,8 +853,32 @@ const styles = StyleSheet.create({
   fundTextCol: {flex: 1, minWidth: 0, marginLeft: 12},
   fundName: {fontSize: 14, color: Colors.TEXT_PRIMARY, lineHeight: 18},
   growthLabel: {fontSize: 12, color: Colors.GREY, marginTop: 3},
-  rightBig: {fontSize: 16, color: Colors.TEXT_PRIMARY},
-  rightSmall: {fontSize: 14, color: Colors.GREY, marginTop: 4},
+  sparklineWrap: {
+    width: 68,
+    height: 18,
+    marginHorizontal: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+  },
+  sparklineBase: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 2,
+    height: 2,
+    borderRadius: 2,
+    opacity: 0.8,
+  },
+  sparkPoint: {
+    position: 'absolute',
+    width: 4,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#EF4444',
+    opacity: 0.95,
+  },
+  rightBig: {fontSize: 14, color: Colors.TEXT_PRIMARY},
+  rightSmall: {fontSize: 12, color: Colors.GREY, marginTop: 3},
   emptyBox: {
     padding: 32,
     alignItems: 'center',
