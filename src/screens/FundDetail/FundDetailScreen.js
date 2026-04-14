@@ -789,13 +789,24 @@ export default function FundDetailScreen() {
     setShowSipDatePicker(true);
   }, []);
 
-  const onPressInvestment = useCallback(() => {
-    navigateToInvestment(navigation, {
-      schemeCode: fundInfo?.scheme_code ?? schemeCode,
-      schemeName: displayName,
-      initialOrderType: orderType,
-    });
-  }, [displayName, fundInfo?.scheme_code, navigation, orderType, schemeCode]);
+  const openInvestmentForType = useCallback(
+    nextOrderType => {
+      navigateToInvestment(navigation, {
+        schemeCode: fundInfo?.scheme_code ?? schemeCode,
+        schemeName: displayName,
+        initialOrderType: nextOrderType,
+      });
+    },
+    [displayName, fundInfo?.scheme_code, navigation, schemeCode],
+  );
+
+  const onPressOneTimeInvestment = useCallback(() => {
+    openInvestmentForType('ONE_TIME');
+  }, [openInvestmentForType]);
+
+  const onPressSipInvestment = useCallback(() => {
+    openInvestmentForType('SIP');
+  }, [openInvestmentForType]);
 
   const header = useMemo(
     () => (
@@ -1341,8 +1352,11 @@ export default function FundDetailScreen() {
         <View style={{height: 20}} />
       </ScrollView>
       <View style={styles.stickyInvestWrap}>
-        <TouchableOpacity style={styles.stickyInvestBtn} onPress={onPressInvestment} activeOpacity={0.9}>
-          <Text style={[styles.stickyInvestTxt, Textstyles.medium]}>Continue to Invest</Text>
+        <TouchableOpacity style={[styles.stickyInvestBtn, styles.stickyInvestBtnGhost]} onPress={onPressOneTimeInvestment} activeOpacity={0.9}>
+          <Text style={[styles.stickyInvestTxt, styles.stickyInvestTxtGhost, Textstyles.medium]}>One-time</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.stickyInvestBtn} onPress={onPressSipInvestment} activeOpacity={0.9}>
+          <Text style={[styles.stickyInvestTxt, Textstyles.medium]}>Start SIP</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -1782,11 +1796,13 @@ function getFundDetailStyles(colors, isDark) {
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 16,
+    bottom: 3,
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
   },
   stickyInvestBtn: {
-    width: '100%',
+    flex: 1,
     minHeight: 52,
     borderRadius: 12,
     backgroundColor: '#21C76E',
@@ -1798,6 +1814,13 @@ function getFundDetailStyles(colors, isDark) {
     shadowOffset: {width: 0, height: 3},
     // elevation: 4,
   },
+  stickyInvestBtnGhost: {
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.primary,
+    shadowOpacity: 0,
+  },
   stickyInvestTxt: {fontSize: typeScale.bodyLg, color: '#FFFFFF'},
+  stickyInvestTxtGhost: {color: c.primary},
 });
 }

@@ -37,7 +37,7 @@ export const passwordRegex =
 export const mobileRegex = /^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[789]\d{9}$/;
 
 export const Colors = {
-  themeColor: '#21C76E',
+  themeColor:'#185CB7', //'#21C76E',
   themeBlue: '#21C76E',
   themeRed: '#DD0000',
   white: '#FFFFFF',

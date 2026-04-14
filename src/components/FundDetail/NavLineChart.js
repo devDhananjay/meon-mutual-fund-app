@@ -11,7 +11,15 @@ import {
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
 
-const RANGE_KEYS = ['1M', '2M', '3M', '6M', '1Y'];
+const RANGE_KEYS = [
+  '1M',
+  '2M',
+  '3M',
+  '6M',
+  '1Y',
+  // '3Y',
+  // '5Y',
+];
 
 const RANGE_MAP = {
   '1M': 30,
@@ -19,6 +27,8 @@ const RANGE_MAP = {
   '3M': 90,
   '6M': 180,
   '1Y': 365,
+  '3Y': 1095,
+  '5Y': 1825,
 };
 
 const CHART_H = 220;
@@ -337,7 +347,7 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
     if (chartData.length < 2) {
       return [];
     }
-    const maxTicks = range === '1Y' || range === '6M' ? 9 : 8;
+    const maxTicks = range === '1Y' || range === '3Y' || range === '5Y' || range === '6M' ? 9 : 8;
     const idxs = pickXAxisIndices(chartData.length, maxTicks);
     return idxs.map((i, idx) => {
       const ms = chartData[i].__ms;

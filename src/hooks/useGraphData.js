@@ -20,6 +20,12 @@ function dateRangeForTimeFrame(timeFrame) {
     case '1Y':
       fromDate.setFullYear(toDate.getFullYear() - 1);
       break;
+    case '3Y':
+      fromDate.setFullYear(toDate.getFullYear() - 3);
+      break;
+    case '5Y':
+      fromDate.setFullYear(toDate.getFullYear() - 5);
+      break;
     default:
       fromDate.setMonth(toDate.getMonth() - 6);
   }
