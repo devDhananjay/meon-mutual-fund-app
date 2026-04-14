@@ -89,15 +89,18 @@ function getInitials(user) {
 }
 
 function getDisplayName(user) {
-  const fn = (user?.full_name || user?.first_name || '').trim();
-  const ln = (user?.last_name || '').trim();
-  if (fn && ln) {
-    return `${fn} ${ln}`;
+  const fullName = (user?.full_name || '').trim();
+  if (fullName) {
+    return fullName;
+  }
+  const firstName = (user?.first_name || '').trim();
+  if (firstName) {
+    return firstName;
   }
   if (user?.name) {
     return user.name;
   }
-  return user?.full_name || 'Member';
+  return 'Member';
 }
 
 function getMemberSinceLine(user) {
@@ -262,6 +265,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.profileHeaderCard}>
+          <View style={styles.profileAccentBar} />
           <View style={styles.profileHeaderInner}>
             <View style={styles.profileRow}>
               <View style={styles.avatar}>
@@ -271,10 +275,24 @@ export default function ProfileScreen() {
                 <Text style={[Textstyles.heading, styles.displayName]} numberOfLines={2}>
                   {displayName}
                 </Text>
-                <Text style={[styles.profileStatus, !verified && styles.profileStatusPending]} numberOfLines={1}>
-                  {verifyLine}
-                </Text>
-                <Text style={styles.profileMemberSince}>{memberLine}</Text>
+                <View style={styles.profileMetaRow}>
+                  <View
+                    style={[
+                      styles.verifyPill,
+                      verified ? styles.verifyPillOk : styles.verifyPillPending,
+                    ]}>
+                    <Text style={[styles.verifyPillGlyph, verified ? styles.verifyPillGlyphOk : styles.verifyPillGlyphWarn]}>
+                      {verified ? '✓' : '!'}
+                    </Text>
+                    <Text style={[styles.verifyPillText, verified ? styles.verifyPillTextOk : styles.verifyPillTextPending]} numberOfLines={1}>
+                      {verified ? 'Verified' : verifyLine}
+                    </Text>
+                  </View>
+                  <View style={styles.memberPill}>
+                    <Text style={styles.memberPillText}>{memberLine}</Text>
+                  </View>
+                </View>
+                <Text style={styles.profileHint}>Manage your investments and account settings</Text>
               </View>
               <TouchableOpacity
                 style={styles.profileSettingsBtn}
@@ -391,11 +409,10 @@ const createStyles = palette =>
   },
   profileHeaderCard: {
     backgroundColor: palette.cardBg,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: palette.cardBorder,
-    marginHorizontal: -16,
+    marginHorizontal: 0,
     marginTop: 0,
     marginBottom: 16,
     overflow: 'hidden',
@@ -405,10 +422,15 @@ const createStyles = palette =>
     shadowRadius: 10,
     // elevation: 2,
   },
+  profileAccentBar: {
+    height: 3,
+    backgroundColor: Colors.themeBlue,
+    opacity: 0.55,
+  },
   profileHeaderInner: {
-    paddingHorizontal: 32,
-    paddingTop: 28,
-    paddingBottom: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   profileRow: {flexDirection: 'row', alignItems: 'center'},
   avatar: {
@@ -422,7 +444,7 @@ const createStyles = palette =>
     borderWidth: 2,
     borderColor: palette.cardBg,
   },
-  avatarTxt: {fontSize: 28, fontWeight: '700', color: palette.white},
+  avatarTxt: {fontSize: 22, fontWeight: '600', color: palette.white},
   profileTextCol: {flex: 1, minWidth: 0},
   displayName: {
     fontSize: 19,
@@ -431,9 +453,17 @@ const createStyles = palette =>
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  profileStatus: {fontSize: 17, color: palette.textPrimary, marginBottom: 4},
-  profileStatusPending: {color: palette.verifyPendingText},
-  profileMemberSince: {fontSize: 13, color: palette.textSecondary},
+  profileMetaRow: {flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8},
+  memberPill: {
+    backgroundColor: palette.iconBg,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.rowBorder,
+  },
+  memberPillText: {fontSize: 11, color: palette.textSecondary, fontWeight: '600'},
+  profileHint: {fontSize: 12, color: palette.textMuted, marginTop: 8},
   profileSettingsBtn: {
     width: 42,
     height: 42,
