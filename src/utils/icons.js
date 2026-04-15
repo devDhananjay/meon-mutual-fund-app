@@ -49,6 +49,9 @@ const Icons = {
   CompletedIcon: require('../assets/Icons/completedIcon.png'),
   PendingIcon: require('../assets/Icons/PendingIcon.png'),
   GoIcon: require('../assets/Icons/GoIcon.png'),
+  UserRounded: require('../assets/Icons/UserRounded.png'),
+  VerifiedIcon: require('../assets/Icons/verifiedIcon.png'),
+  DarkModeIcon: require('../assets/Icons/DarkMode.png'),
 
   // Profile screen icons
   MyOrdersIcon: require('../assets/Icons/MyOrders-f83910e4-9906-41cc-91b7-2ea1381b2ae1.png'),

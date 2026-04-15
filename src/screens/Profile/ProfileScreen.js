@@ -11,7 +11,6 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {CommonActions, useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   navigationRef,
   navigateToMyOrders,
@@ -19,9 +18,7 @@ import {
   navigateToMandate,
 } from '../../navigation/navigationRef';
 import {logout} from '../../store/slices/authSlice';
-import {setThemeMode} from '../../store/slices/themeSlice';
 import {clearAuthStorage} from '../../services/authStorage';
-import {STORAGE_KEYS} from '../../constants/storageKeys';
 import {appAlert} from '../../utils/appAlert';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -34,7 +31,7 @@ function getThemePalette(isDark) {
       cardBg: '#171A21',
       cardBorder: '#1F2937',
       iconBg: '#262B35',
-      iconTint: '#E5E7EB',
+      iconTint: '#1E81F2',
       textPrimary: '#F3F4F6',
       textSecondary: '#9CA3AF',
       textMuted: '#6B7280',
@@ -56,7 +53,7 @@ function getThemePalette(isDark) {
     cardBg: '#FFFFFF',
     cardBorder: '#E5E7EB',
     iconBg: '#F3F4F6',
-    iconTint: '#2B2F38',
+    iconTint: '#1E81F2',
     textPrimary: Colors.TEXT_PRIMARY,
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
@@ -166,7 +163,7 @@ function SectionCard({title, children, styles}) {
   );
 }
 
-function ProfileRow({icon, emoji, label, onPress, isLast, destructive, tintColor, styles}) {
+function ProfileRow({icon, emoji, label, onPress, isLast, destructive, tintColor, iconStyle, styles}) {
   return (
     <TouchableOpacity
       style={[styles.row, !isLast && styles.rowBorder]}
@@ -174,7 +171,12 @@ function ProfileRow({icon, emoji, label, onPress, isLast, destructive, tintColor
       activeOpacity={0.65}>
       <View style={styles.rowIconWrap}>
         {icon ? (
-          <Image source={icon} tintColor={tintColor || styles.rowIconTint.color} style={styles.rowIconImg} resizeMode="contain" />
+          <Image
+            source={icon}
+            tintColor={tintColor || styles.rowIconTint.color}
+            style={[styles.rowIconImg, iconStyle]}
+            resizeMode="contain"
+          />
         ) : (
           <Text style={styles.rowEmoji}>{emoji}</Text>
         )}
@@ -189,9 +191,8 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
-  const themeMode = useSelector(s => s.theme.mode);
   const [signingOut, setSigningOut] = useState(false);
-  const isDark = themeMode === 'dark';
+  const isDark = useSelector(s => s.theme.mode) === 'dark';
   const palette = useMemo(() => getThemePalette(isDark), [isDark]);
   const styles = useMemo(() => createStyles(palette), [palette]);
 
@@ -218,17 +219,9 @@ export default function ProfileScreen() {
     navigation.navigate('ProfileSettings');
   }, [navigation]);
 
-  const onThemeChange = useCallback(
-    async mode => {
-      dispatch(setThemeMode(mode));
-      try {
-        await AsyncStorage.setItem(STORAGE_KEYS.THEME_MODE, mode);
-      } catch {
-        /* ignore */
-      }
-    },
-    [dispatch],
-  );
+  const onAccountDetails = useCallback(() => {
+    navigation.navigate('AccountDetails');
+  }, [navigation]);
 
   const onMandate = useCallback(() => {
     navigateToMandate(navigation);
@@ -243,10 +236,6 @@ export default function ProfileScreen() {
 
   const onPrivacyPolicy = useCallback(() => {
     navigation.navigate('PrivacyPolicy');
-  }, [navigation]);
-
-  const onDeleteAccount = useCallback(() => {
-    navigation.navigate('DeleteAccount');
   }, [navigation]);
 
   const onLogout = useCallback(async () => {
@@ -305,9 +294,11 @@ export default function ProfileScreen() {
                       styles.verifyPill,
                       verified ? styles.verifyPillOk : styles.verifyPillPending,
                     ]}>
-                    <Text style={[styles.verifyPillGlyph, verified ? styles.verifyPillGlyphOk : styles.verifyPillGlyphWarn]}>
-                      {verified ? '✓' : '!'}
-                    </Text>
+                    {verified ? (
+                      <Image source={Icons.VerifiedIcon} style={styles.verifyPillIconImg} resizeMode="contain" />
+                    ) : (
+                      <Text style={[styles.verifyPillGlyph, styles.verifyPillGlyphWarn]}>!</Text>
+                    )}
                     <Text style={[styles.verifyPillText, verified ? styles.verifyPillTextOk : styles.verifyPillTextPending]} numberOfLines={1}>
                       {verified ? 'Verified' : verifyLine}
                     </Text>
@@ -331,6 +322,12 @@ export default function ProfileScreen() {
         </View>
 
         <SectionCard title="Accounts" styles={styles}>
+          <ProfileRow
+            icon={Icons.UserRounded}
+            label="Account Details"
+            onPress={onAccountDetails}
+            styles={styles}
+          />
           <ProfileRow icon={Icons.MyOrdersIcon} label="My Orders" onPress={onOrders} styles={styles} />
           <ProfileRow icon={Icons.MandateIcon} label="Mandate" onPress={onMandate} styles={styles} />
           <ProfileRow
@@ -339,62 +336,43 @@ export default function ProfileScreen() {
             onPress={onWatchlist}
             styles={styles}
           />
-          <View style={styles.themeRow}>
-            <View style={styles.themeIconBox}>
-              <Text style={styles.themeEmoji}>🎨</Text>
-            </View>
-            <View style={styles.themeMeta}>
-              <Text style={[Textstyles.medium, styles.themeTitle]}>App theme</Text>
-              <Text style={styles.themeHelp}>Light / dark</Text>
-            </View>
-            <View style={styles.themeSwitchWrap}>
-              <TouchableOpacity
-                style={[styles.themeOption, themeMode === 'light' && styles.themeOptionActive]}
-                onPress={() => onThemeChange('light')}
-                activeOpacity={0.85}>
-                <Text style={[styles.themeIcon, themeMode === 'light' && styles.themeIconActive]}>☀</Text>
-                <Text style={[styles.themeLabel, themeMode === 'light' && styles.themeLabelActive]}>Light</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.themeOption, themeMode === 'dark' && styles.themeOptionActive]}
-                onPress={() => onThemeChange('dark')}
-                activeOpacity={0.85}>
-                <Text style={[styles.themeIcon, themeMode === 'dark' && styles.themeIconActive]}>🌙</Text>
-                <Text style={[styles.themeLabel, themeMode === 'dark' && styles.themeLabelActive]}>Dark</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
           <ProfileRow
             icon={Icons.ChangePasswordIcon}
             label="Change Password"
             onPress={onForgotPassword}
-            styles={styles}
-          />
-          <ProfileRow
-            icon={Icons.deleteIcon}
-            label="Delete account"
-            onPress={onDeleteAccount}
-            destructive
             isLast
-            tintColor={'#DC2626'}
             styles={styles}
           />
         </SectionCard>
 
         <SectionCard title="Support & Legal" styles={styles}>
-          <ProfileRow icon={Icons.FaqIcon} label={"FAQ's"} onPress={() => onSupportArticle('faq')} styles={styles} />
+          <ProfileRow
+            icon={Icons.FaqIcon}
+            label={"FAQ's"}
+            onPress={() => onSupportArticle('faq')}
+            iconStyle={styles.rowIconImgThin}
+            styles={styles}
+          />
           <ProfileRow
             icon={Icons.HelpSupportIcon}
             label="Help & Support"
             onPress={() => onSupportArticle('help')}
+            iconStyle={styles.rowIconImgThin}
             styles={styles}
           />
-          <ProfileRow icon={Icons.PrivacyPolicyIcon} label="Privacy Policy" onPress={onPrivacyPolicy} styles={styles} />
+          <ProfileRow
+            icon={Icons.PrivacyPolicyIcon}
+            label="Privacy Policy"
+            onPress={onPrivacyPolicy}
+            iconStyle={styles.rowIconImgThin}
+            styles={styles}
+          />
           <ProfileRow
             icon={Icons.TermsAndConditionsIcon}
             label="Terms and Conditions"
             onPress={() => onSupportArticle('terms')}
             isLast
+            iconStyle={styles.rowIconImgThin}
             styles={styles}
           />
         </SectionCard>
@@ -422,7 +400,7 @@ const createStyles = palette =>
   StyleSheet.create({
   safe: {flex: 1, backgroundColor: palette.pageBg},
   scroll: {flex: 1},
-  scrollContent: {paddingBottom: 32, paddingHorizontal: 16},
+  scrollContent: {paddingBottom: 32, paddingHorizontal: 0},
   pageTitle: {
     fontSize: 13,
     fontWeight: '600',
@@ -432,10 +410,10 @@ const createStyles = palette =>
   },
   profileHeaderCard: {
     backgroundColor: palette.cardBg,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: palette.cardBorder,
+    width: '100%',
     marginHorizontal: 0,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     marginTop: 0,
     marginBottom: 16,
     overflow: 'hidden',
@@ -443,7 +421,6 @@ const createStyles = palette =>
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
     shadowRadius: 10,
-    // elevation: 2,
   },
   profileGlowOne: {
     position: 'absolute',
@@ -467,7 +444,7 @@ const createStyles = palette =>
   },
   profileAccentBar: {
     height: 4,
-    backgroundColor: Colors.themeBlue,
+    // backgroundColor: Colors.themeBlue,
     opacity: 0.6,
   },
   profileHeaderInner: {
@@ -475,23 +452,23 @@ const createStyles = palette =>
     paddingTop: 15,
     paddingBottom: 16,
   },
-  profileRow: {flexDirection: 'row', alignItems: 'center'},
+  profileRow: {flexDirection: 'row'},
   avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.themeBlue,
+    backgroundColor: Colors.LIGHT_GREY,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
     borderWidth: 2,
     borderColor: palette.cardBg,
   },
-  avatarTxt: {fontSize: 22, fontWeight: '600', color: palette.white},
+  avatarTxt: {fontSize: 22, color: Colors.themeColor},
   profileTextCol: {flex: 1, minWidth: 0},
   displayName: {
     fontSize: 19,
-    color: palette.textPrimary,
+    color: palette.themeIconTint,
     marginBottom: 2,
     fontWeight: '700',
     letterSpacing: -0.2,
@@ -542,6 +519,7 @@ const createStyles = palette =>
     backgroundColor: palette.verifyPendingBg,
   },
   verifyPillGlyph: {fontSize: 12, fontWeight: '700'},
+  verifyPillIconImg: {width: 13, height: 13, tintColor: palette.verifyBadgeText},
   verifyPillGlyphOk: {color: palette.verifyBadgeText},
   verifyPillGlyphWarn: {color: palette.verifyPendingText},
   verifyPillText: {fontSize: 12, fontWeight: '600'},
@@ -552,6 +530,7 @@ const createStyles = palette =>
     borderRadius: 18,
     borderWidth: 1,
     borderColor: palette.cardBorder,
+    marginHorizontal: 16,
     marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -587,72 +566,10 @@ const createStyles = palette =>
   rowEmoji: {fontSize: 20},
   rowIconTint: {color: palette.iconTint},
   rowIconImg: {width: 20, height: 20},
+  rowIconImgThin: {width: 18, height: 18, opacity: 0.92},
   rowLabel: {flex: 1, fontSize: 16, color: palette.textPrimary, fontWeight: '500'},
   rowLabelDestructive: {color: '#DC2626'},
   chevron: {width: 14, height: 14, tintColor: palette.chevron},
-  themeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.rowBorder,
-  },
-  themeIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: palette.iconBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  themeEmoji: {fontSize: 20},
-  themeMeta: {flex: 1, minWidth: 0},
-  themeTitle: {fontSize: 16, color: palette.textPrimary, fontWeight: '600'},
-  themeHelp: {fontSize: 12, color: palette.textMuted, marginTop: 2},
-  themeSwitchWrap: {
-    flexDirection: 'row',
-    backgroundColor: palette.toggleBg,
-    borderRadius: 12,
-    padding: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.rowBorder,
-  },
-  themeOption: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    minWidth: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  themeOptionActive: {
-    backgroundColor: palette.cardBg,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    // elevation: 2,
-  },
-  themeIcon: {
-    fontSize: 12,
-    marginBottom: 1,
-    color: palette.toggleInactiveText,
-    fontWeight: '600',
-  },
-  themeIconActive: {
-    color: palette.textPrimary,
-  },
-  themeLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: palette.toggleInactiveText,
-    letterSpacing: 0.2,
-  },
-  themeLabelActive: {
-    color: palette.textPrimary,
-  },
   logoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -661,6 +578,7 @@ const createStyles = palette =>
     borderRadius: 16,
     borderWidth: 1,
     borderColor: palette.cardBorder,
+    marginHorizontal: 16,
     paddingVertical: 16,
   },
   logoutIconImg: {width: 20, height: 20, marginRight: 8},

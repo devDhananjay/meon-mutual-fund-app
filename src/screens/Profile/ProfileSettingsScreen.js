@@ -1,150 +1,95 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, {useMemo, useState, useCallback} from 'react';
+import {Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
+import {useDispatch, useSelector} from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppHeader from '../../components/AppHeader';
-import {fetchAuthProfile} from '../../services/authService';
-import {appAlert} from '../../utils/appAlert';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
-
-function valueOrDash(v) {
-  return v == null || String(v).trim() === '' ? '—' : String(v);
-}
-
-function formatDob(v) {
-  const raw = valueOrDash(v);
-  if (raw === '—') {
-    return raw;
-  }
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) {
-    return raw;
-  }
-  return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'});
-}
-
-function Item({label, value, styles, isLast = false}) {
-  return (
-    <View style={[styles.itemRow, !isLast && styles.itemRowBorder]}>
-      <Text style={styles.itemLabel}>{label}</Text>
-      <Text style={[styles.itemValue, Textstyles.medium]}>{valueOrDash(value)}</Text>
-    </View>
-  );
-}
+import {setThemeMode} from '../../store/slices/themeSlice';
+import {STORAGE_KEYS} from '../../constants/storageKeys';
+import Icons from '../../utils/icons';
 
 export default function ProfileSettingsScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const {colors, isDark} = useAppTheme();
+  const themeMode = useSelector(s => s.theme.mode);
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
-  const [activeTab, setActiveTab] = useState('personal');
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+  const darkModeEnabled = themeMode === 'dark';
+
+  const onToggleDarkMode = useCallback(
+    async value => {
+      const nextMode = value ? 'dark' : 'light';
+      dispatch(setThemeMode(nextMode));
       try {
-        setLoading(true);
-        const res = await fetchAuthProfile();
-        const data = res?.data?.data ?? res?.data ?? {};
-        if (mounted) {
-          setProfile(data);
-        }
-      } catch (e) {
-        if (mounted) {
-          appAlert('Profile settings', String(e?.message || 'Could not load account details.'));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        await AsyncStorage.setItem(STORAGE_KEYS.THEME_MODE, nextMode);
+      } catch {
+        /* ignore */
       }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const personalRows = [
-    {label: 'Name (as per PAN)', value: profile?.full_name},
-    {label: 'Mobile', value: profile?.mobile_number},
-    {label: 'Email', value: profile?.email},
-    {label: 'Date of Birth', value: formatDob(profile?.date_of_birth)},
-    {label: "Father's name", value: profile?.father_name},
-  ];
-
-  const bankRows = [
-    {label: 'Bank', value: profile?.bank_name},
-    {label: 'Account number', value: profile?.account_number},
-    {label: 'IFSC Code', value: profile?.ifsc_code},
-    {label: 'Client Code', value: profile?.ucc_code},
-    {label: 'KYC', value: profile?.kyc_status === 'Y' ? 'Verified' : 'Pending'},
-  ];
+    },
+    [dispatch],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
-      <AppHeader
-        title="Account Details"
-        onBack={() => navigation.goBack()}
-        // right={
-        //   <TouchableOpacity onPress={() => navigation.navigate('ChangePassword')} hitSlop={8}>
-        //     <Text style={styles.changePwdLink}>Change</Text>
-        //   </TouchableOpacity>
-        // }
-      />
+      <AppHeader title="Settings" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <View style={styles.tabWrap}>
-            <TouchableOpacity
-              style={[styles.tabBtn, activeTab === 'personal' && styles.tabBtnActive]}
-              onPress={() => setActiveTab('personal')}
-              activeOpacity={0.85}>
-              <Text style={[styles.tabTxt, activeTab === 'personal' && styles.tabTxtActive]}>Personal Details</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tabBtn, activeTab === 'bank' && styles.tabBtnActive]}
-              onPress={() => setActiveTab('bank')}
-              activeOpacity={0.85}>
-              <Text style={[styles.tabTxt, activeTab === 'bank' && styles.tabTxtActive]}>Bank Details</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.sectionHead}>
-            {activeTab === 'personal' ? 'PERSONAL DETAILS' : 'BANK ACCOUNT DETAILS'}
-          </Text>
-
-          {loading ? (
-            <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : (
-            (activeTab === 'personal' ? personalRows : bankRows).map((row, idx, arr) => (
-              <Item
-                key={`${activeTab}-${row.label}`}
-                label={row.label}
-                value={row.value}
-                styles={styles}
-                isLast={idx === arr.length - 1}
-              />
-            ))
-          )}
-
-          <View style={styles.helpBox}>
-            <Text style={styles.helpTxt}>
-              If you need to update any of your {activeTab === 'personal' ? 'personal details' : 'bank details'},
-              you can contact our support team.
-            </Text>
-            <View style={styles.helpActions}>
-              {/* <Text style={styles.helpAction}>📞 +91 9990 767 766</Text> */}
-              <Text style={styles.helpAction}> support@meon.co.in</Text>
+        {/* <View style={styles.group}>  */}
+          {/* <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('AccountDetails')}>
+            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
+              <Image source={Icons.UserRounded} style={styles.rowIcon} resizeMode="contain" />
             </View>
+            <Text style={styles.rowLabel}>Account Details</Text>
+            <Image source={Icons.GoIcon} style={styles.rowChevron} resizeMode="contain" />
+          </TouchableOpacity> */}
+        {/* </View> */}
+
+        <View style={styles.group}>
+          <View style={styles.row}>
+            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
+              <Image source={Icons.DarkModeIcon} style={styles.rowIcon} resizeMode="contain" />
+            </View>
+            <Text style={styles.rowLabel}>Dark Mode</Text>
+            <Switch
+              value={darkModeEnabled}
+              onValueChange={onToggleDarkMode}
+              trackColor={{false: '#D5D7DC', true: '#20C274'}}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor="#D5D7DC"
+            />
           </View>
+
+          <View style={[styles.row, styles.rowDivider]}>
+            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
+              <Image source={Icons.NotificationsIcon} style={[styles.rowIcon, {tintColor: '#1E81F2'}]} resizeMode="contain" />
+            </View>
+            <Text style={styles.rowLabel}>Notifications</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{false: '#D5D7DC', true: '#20C274'}}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor="#D5D7DC"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.row, styles.rowDivider]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('DeleteAccount')}>
+            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#3B1F24' : '#FFF1F2'}]}>
+              <Image source={Icons.deleteIcon} style={styles.rowIconDelete} resizeMode="contain" />
+            </View>
+            <Text style={styles.rowLabel}>Delete Account</Text>
+            <Image source={Icons.GoIcon} style={styles.rowChevron} resizeMode="contain" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -154,57 +99,43 @@ export default function ProfileSettingsScreen() {
 function createStyles(c, isDark) {
   return StyleSheet.create({
     safe: {flex: 1, backgroundColor: c.background},
-    scrollContent: {paddingHorizontal: 16, paddingBottom: 16},
-    card: {
-      borderRadius: 16,
+    scrollContent: {paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20},
+    group: {
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
       backgroundColor: c.card,
-      padding: 14,
-    },
-    changePwdLink: {color: c.primary, fontSize: 13, ...Textstyles.medium},
-    tabWrap: {
-      backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
-      borderRadius: 13,
-      padding: 4,
-      flexDirection: 'row',
-      marginBottom: 14,
-    },
-    tabBtn: {flex: 1, minHeight: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center'},
-    tabBtnActive: {backgroundColor: c.card},
-    tabTxt: {fontSize: 14, color: c.textSecondary},
-    tabTxtActive: {fontSize: 14, color: c.primary, ...Textstyles.medium},
-    sectionHead: {fontSize: 24, letterSpacing: 1.2, color: c.textSecondary, marginVertical: 8},
-    loader: {marginVertical: 22},
-    itemRow: {paddingVertical: 14},
-    itemRowBorder: {borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border},
-    itemLabel: {fontSize: 14, color: c.textSecondary, marginBottom: 4},
-    itemValue: {fontSize: 16, color: c.textPrimary},
-    helpBox: {
-      marginTop: 18,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: isDark ? '#1D4ED8' : '#BFDBFE',
       overflow: 'hidden',
-      backgroundColor: isDark ? 'rgba(30,64,175,0.2)' : '#EFF6FF',
+      marginBottom: 12,
     },
-    helpTxt: {
-      textAlign: 'center',
-      color: c.primary,
-      fontSize: 13,
-      lineHeight: 18,
-      paddingVertical: 10,
-      paddingHorizontal: 10,
-    },
-    helpActions: {
-      borderTopWidth: 1,
-      borderTopColor: isDark ? '#1D4ED8' : '#BFDBFE',
-      minHeight: 36,
+    row: {
+      minHeight: 72,
+      paddingHorizontal: 14,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-around',
-      paddingHorizontal: 8,
+      backgroundColor: c.card,
     },
-    helpAction: {fontSize: 13, color: c.primary},
+    rowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    rowIcon: {width: 20, height: 20},
+    rowIconDelete: {width: 20, height: 20, tintColor: '#E64B63'},
+    rowLabel: {
+      flex: 1,
+      color: c.textPrimary,
+      fontSize: 16,
+      ...Textstyles.medium,
+      fontWeight: '600',
+    },
+    rowChevron: {width: 12, height: 12, tintColor: c.textSecondary},
   });
 }

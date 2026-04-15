@@ -29,6 +29,7 @@ import FundInvestmentScreen from '../screens/FundDetail/FundInvestmentScreen';
 import SupportArticleScreen from '../screens/Profile/SupportArticleScreen';
 import DeleteAccountScreen from '../screens/Profile/DeleteAccountScreen';
 import ProfileSettingsScreen from '../screens/Profile/ProfileSettingsScreen';
+import AccountDetailsScreen from '../screens/Profile/AccountDetailsScreen';
 import ChangePasswordScreen from '../screens/Profile/ChangePasswordScreen';
 import PrivacyPolicyScreen from '../legal/PRIVACY_POLICY';
 
@@ -98,6 +99,7 @@ export default function AppContainer() {
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
         <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
+        <Stack.Screen name="AccountDetails" component={AccountDetailsScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>
