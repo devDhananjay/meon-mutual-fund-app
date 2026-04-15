@@ -283,7 +283,7 @@ export default function ExploreScreen() {
           <View style={styles.heroTextCol}>
             <Text style={styles.heroTitle}>Invest every month and grow your wealth with SIP</Text>
             <TouchableOpacity style={styles.heroButton} onPress={onStartSIP} activeOpacity={0.85}>
-              <Text style={styles.heroButtonTxt}>Start a SIP</Text>
+              <Text style={[styles.heroButtonTxt, Textstyles.normal]}>Start a SIP</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -409,7 +409,7 @@ export default function ExploreScreen() {
               }}>
               <View style={styles.sortRightInner}>
                 <Text style={styles.sortRightTxt}>{listPeriodLabel} Returns</Text>
-                <Text style={styles.sortRightChevron}>⌄</Text>
+                <Image source={Icons.DropDown} style={styles.sortRightChevron} resizeMode="contain" />
               </View>
               <View style={styles.sortDottedUnderline} />
             </TouchableOpacity>
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
   },
-  heroButtonTxt: {...Textstyles.medium, color: Colors.white, fontSize: 15, fontWeight: '500'},
+  heroButtonTxt: {...Textstyles.medium, color: Colors.white, fontSize: 15},
 
   sectionHeader: {
     flexDirection: 'row',
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   sortRightBtn: {paddingLeft: 10, paddingRight: 6, alignItems: 'flex-end'},
   sortRightInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
   sortRightTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  sortRightChevron: {fontSize: 12, color: Colors.GREY},
+  sortRightChevron: {width: 12, height: 12, tintColor: Colors.GREY},
   sortDottedUnderline: {
     marginTop: 6,
     width: 120,

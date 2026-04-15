@@ -1,0 +1,29 @@
+'use client';
+
+import { codegenNativeComponent } from 'react-native';
+import type { ViewProps } from 'react-native';
+import type { WithDefault } from 'react-native/Libraries/Types/CodegenTypes';
+
+export type HeaderSubviewTypes =
+  | 'back'
+  | 'right'
+  | 'left'
+  | 'title'
+  | 'center'
+  | 'searchBar';
+
+export interface NativeProps extends ViewProps {
+  type?: WithDefault<
+    'back' | 'right' | 'left' | 'title' | 'center' | 'searchBar',
+    'left'
+  >;
+  hidesSharedBackground?: boolean;
+  synchronousShadowStateUpdatesEnabled?: WithDefault<boolean, false>;
+}
+
+export default codegenNativeComponent<NativeProps>(
+  'RNSScreenStackHeaderSubview',
+  {
+    interfaceOnly: true,
+  },
+);

@@ -630,7 +630,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.fundName} numberOfLines={2}>
             {title}
           </Text>
-          <Text style={styles.chev}>›</Text>
+          <Image source={Icons.GoIcon} style={styles.chev} resizeMode="contain" />
         </TouchableOpacity>
 
         <View style={styles.dateRow}>
@@ -731,7 +731,7 @@ export default function OrderDetailScreen() {
                           <Text style={styles.modalOptionMain}>Send Payment Link via UPI</Text>
                           <Text style={styles.modalOptionSub}>SBI *****8392</Text>
                         </View>
-                        <Text style={styles.modalOptionChevron}>›</Text>
+                        <Image source={Icons.GoIcon} style={styles.modalOptionChevron} resizeMode="contain" />
                       </TouchableOpacity>
 
                       {selectedPaymentMode === 'UPI' ? (
@@ -760,7 +760,7 @@ export default function OrderDetailScreen() {
                           <Text style={styles.modalOptionMain}>Net Banking</Text>
                           <Text style={styles.modalOptionSub}>Pay via net banking</Text>
                         </View>
-                        <Text style={styles.modalOptionChevron}>›</Text>
+                        <Image source={Icons.GoIcon} style={styles.modalOptionChevron} resizeMode="contain" />
                       </TouchableOpacity>
 
                       {selectedPaymentMode === 'NEFT' ? (
@@ -789,7 +789,7 @@ export default function OrderDetailScreen() {
                           <Text style={styles.modalOptionMain}>Pay via Payment Gateway</Text>
                           <Text style={styles.modalOptionSub}>Continue to secure payment page</Text>
                         </View>
-                        <Text style={styles.modalOptionChevron}>›</Text>
+                        <Image source={Icons.GoIcon} style={styles.modalOptionChevron} resizeMode="contain" />
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -985,7 +985,7 @@ export default function OrderDetailScreen() {
             <Text style={styles.helpIconTxt}>?</Text>
           </View>
           <Text style={[Textstyles.medium, styles.helpTxt]}>Need Help?</Text>
-          <Text style={styles.chev}>›</Text>
+          <Image source={Icons.GoIcon} style={styles.chev} resizeMode="contain" />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -1080,7 +1080,7 @@ function getOrderDetailStyles(colors, isDark) {
   },
   fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.primary},
   fundName: {flex: 1, ...Textstyles.medium, fontSize: 15, fontWeight: '600', color: c.textPrimary},
-  chev: {...Textstyles.normal, fontSize: 22, color: c.textSecondary, fontWeight: '300'},
+  chev: {width: 12, height: 12, tintColor: c.textSecondary},
   dateRow: {flexDirection: 'row', marginBottom: 12},
   dateHalf: {flex: 1, paddingRight: 8},
   dateLabel: {fontSize: 12, color: c.textSecondary, marginBottom: 4},
@@ -1230,7 +1230,7 @@ function getOrderDetailStyles(colors, isDark) {
   modalOptionIcon: {fontSize: 22, width: 34, textAlign: 'center'},
   modalOptionMain: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: c.textPrimary, marginBottom: 2},
   modalOptionSub: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '600'},
-  modalOptionChevron: {...Textstyles.medium, fontSize: 20, color: c.textPrimary, fontWeight: '500', marginLeft: 8},
+  modalOptionChevron: {width: 12, height: 12, tintColor: c.textPrimary, marginLeft: 8},
   modalContinuePrimaryBtn: {
     backgroundColor: '#1E81F2',
     borderRadius: 14,

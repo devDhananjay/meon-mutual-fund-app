@@ -1,9 +1,10 @@
 import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, ScrollView} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 import {navigateToMyOrders} from '../../navigation/navigationRef';
 import {useAppTheme} from '../../theme/useAppTheme';
 import AppBackButton from '../../components/AppBackButton';
@@ -33,7 +34,7 @@ export default function NotificationsScreen() {
           onPress={() => navigateToMyOrders(navigation)}
           activeOpacity={0.85}>
           <Text style={[Textstyles.medium, styles.linkLabel, {color: colors.primary}]}>View order activity</Text>
-          <Text style={[styles.chevron, {color: colors.textSecondary}]}>›</Text>
+          <Image source={Icons.GoIcon} style={[styles.chevron, {tintColor: colors.textSecondary}]} resizeMode="contain" />
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -78,5 +79,5 @@ const styles = StyleSheet.create({
     borderColor: Colors.BORDER_GREY,
   },
   linkLabel: {fontSize: 15, color: Colors.themeBlue},
-  chevron: {fontSize: 22, color: Colors.GREY},
+  chevron: {width: 14, height: 14},
 });

@@ -12,3 +12,12 @@ export async function loginWithCredentials(uccCode, password) {
 export async function fetchAuthProfile() {
   return apiClient.get('/api/journey/mf/auth/profile/');
 }
+
+/** Change password for logged-in user. */
+export async function changePassword({current_password, new_password, confirm_password}) {
+  return apiClient.put('/api/journey/mf/user/changePassword/', {
+    current_password,
+    new_password,
+    confirm_password,
+  });
+}

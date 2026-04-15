@@ -124,7 +124,7 @@ function createMyOrdersStyles(colors, isDark) {
     },
     fundLogoLetter: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.primary},
     fundName: {flex: 1, fontSize: 15, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary, lineHeight: 20},
-    cardChev: {...Textstyles.normal, fontSize: typeScale.chevron, color: c.textSecondary, fontWeight: '300', marginLeft: 2},
+    cardChev: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 4},
     cardGrid: {
       flexDirection: 'row',
       marginTop: 14,
@@ -476,7 +476,7 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}
         <Text style={styles.fundName} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={styles.cardChev}>›</Text>
+        <Image source={Icons.GoIcon} style={styles.cardChev} resizeMode="contain" />
       </View>
       <View style={styles.cardGrid}>
         <View style={styles.cardCell}>

@@ -12,6 +12,7 @@ import {
 import DatePicker from 'react-native-date-picker';
 import {useSelector} from 'react-redux';
 import Textstyles from '../../utils/text';
+import Icons from '../../utils/icons';
 import {postMandateRegister} from '../../services/mandateService';
 import AppModal from '../../components/AppModal';
 import {useAppTheme} from '../../theme/useAppTheme';
@@ -232,7 +233,7 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
             onPress={() => setTypePickerOpen(o => !o)}
             activeOpacity={0.85}>
             <Text style={[Textstyles.medium, styles.dropdownTxt]}>{mandateType}</Text>
-            <Text style={styles.chev}>▼</Text>
+            <Image source={Icons.DropDown} style={styles.chev} resizeMode="contain" />
           </TouchableOpacity>
           {typePickerOpen ? (
             <View style={styles.typeList}>
@@ -383,7 +384,7 @@ function getAddMandateModalStyles(colors, isDark) {
       backgroundColor: c.inputBg,
     },
     dropdownTxt: {fontSize: 15, color: c.textPrimary},
-    chev: {fontSize: 10, color: c.textSecondary},
+    chev: {width: 12, height: 12, tintColor: c.textSecondary},
     typeList: {
       marginTop: 8,
       borderWidth: 1,

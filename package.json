@@ -6,8 +6,10 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node scripts/apply-rn-screens-codegen-fix.mjs",
     "start": "react-native start",
+    "start:reset": "react-native start --reset-cache",
+    "clean:metro": "rm -rf \"$TMPDIR/metro-*\" \"$TMPDIR/haste-map-*\" node_modules/.cache 2>/dev/null; echo Metro caches cleared",
     "test": "jest"
   },
   "dependencies": {
@@ -26,7 +28,7 @@
     "react-native-gesture-handler": "2.24.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-safe-area-context": "5.7.0",
-    "react-native-screens": "3.37.0",
+    "react-native-screens": "^4.24.0",
     "react-native-version-check": "^3.5.0",
     "react-native-webview": "^13.16.1",
     "react-redux": "^9.2.0"

@@ -303,7 +303,7 @@ export default function WatchlistScreen() {
           <Text style={[Textstyles.medium, styles.sortLabel, {color: colors.textPrimary}]} numberOfLines={1}>
             1D Returns
           </Text>
-          <Text style={[styles.sortChevron, {color: colors.textPrimary}]}>▼</Text>
+          <Image source={Icons.DropDown} style={[styles.sortChevron, {tintColor: colors.textPrimary}]} resizeMode="contain" />
         </View>
         <View style={[styles.sortDottedLine, {borderBottomColor: colors.border}]} />
       </View>
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   headerRight: {width: 112, alignItems: 'flex-end'},
   sortInner: {flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end'},
   sortLabel: {fontSize: typeScale.label},
-  sortChevron: {fontSize: 9, marginLeft: 4, marginTop: 1},
+  sortChevron: {width: 10, height: 10, marginLeft: 4, marginTop: 1},
   sortDottedLine: {
     marginTop: 2,
     alignSelf: 'stretch',

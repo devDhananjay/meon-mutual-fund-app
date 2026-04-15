@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
 import {buildRedeemPlacePayload, createSingleOrder, extractOrderId} from '../../services/ordersService';
+import {getSchemeByCode} from '../../services/fundSchemeService';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppColors from '../../theme/colors';
@@ -42,17 +44,58 @@ export default function RedeemScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const {colors} = useAppTheme();
+  const user = useSelector(s => s.auth.user);
+  const canRedeem = useMemo(() => {
+    const v = user?.allow_redeem;
+    if (v === undefined || v === null || v === '') {
+      return true;
+    }
+    const s = String(v).trim().toLowerCase();
+    return !(v === false || v === 0 || s === 'false' || s === '0' || s === 'n' || s === 'no');
+  }, [user?.allow_redeem]);
   const schemeCode = route.params?.schemeCode ?? route.params?.scheme_code;
   const schemeName = route.params?.schemeName ?? route.params?.scheme_name ?? 'Fund';
   const folioNumber = route.params?.folioNumber ?? '';
   const availableUnits = Number(route.params?.availableUnits ?? 0) || 0;
   const maxAmount = Number(route.params?.maxAmount ?? route.params?.currentValue ?? 0) || 0;
+  const routeCurrentNav = Number(route.params?.currentNav ?? route.params?.current_nav ?? 0) || 0;
+  const [schemeDetail, setSchemeDetail] = useState(null);
 
   const [mode, setMode] = useState('amount');
   const [amountText, setAmountText] = useState('');
   const [unitsText, setUnitsText] = useState('');
   const [redeemAll, setRedeemAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (canRedeem) {
+      return;
+    }
+    appAlert('Redeem', 'Redeem is not available for your account.');
+    navigation.goBack();
+  }, [canRedeem, navigation]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!schemeCode) {
+        return;
+      }
+      try {
+        const res = await getSchemeByCode(schemeCode);
+        if (!mounted) {
+          return;
+        }
+        const d = res?.data?.data ?? res?.data ?? null;
+        setSchemeDetail(d);
+      } catch {
+        // optional data; validations fall back to route values
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [schemeCode]);
 
   const parsedAmount = useMemo(() => {
     const n = Number(String(amountText).replace(/[^0-9.]/g, ''));
@@ -65,6 +108,36 @@ export default function RedeemScreen() {
   }, [unitsText]);
 
   const redeemByAmount = mode === 'amount';
+  const currentNav = useMemo(() => {
+    const direct = Number(
+      schemeDetail?.current_nav ??
+        schemeDetail?.scheme_data?.current_nav ??
+        route.params?.current_nav ??
+        route.params?.nav ??
+        route.params?.currentNav,
+    );
+    if (Number.isFinite(direct) && direct > 0) {
+      return direct;
+    }
+    if (routeCurrentNav > 0) {
+      return routeCurrentNav;
+    }
+    if (availableUnits > 0 && maxAmount > 0) {
+      return maxAmount / availableUnits;
+    }
+    return 0;
+  }, [schemeDetail, route.params?.current_nav, route.params?.nav, route.params?.currentNav, routeCurrentNav, availableUnits, maxAmount]);
+
+  const minRedeemAmount = useMemo(() => {
+    const direct = Number(
+      schemeDetail?.redemption_amount_min ??
+        schemeDetail?.scheme_data?.redemption_amount_min ??
+        schemeDetail?.minimum_redemption_amount ??
+        schemeDetail?.scheme_data?.minimum_redemption_amount ??
+        route.params?.redemption_amount_min,
+    );
+    return Number.isFinite(direct) && direct > 0 ? direct : 0;
+  }, [schemeDetail, route.params?.redemption_amount_min]);
 
   const onProceed = useCallback(async () => {
     if (!schemeCode) {
@@ -75,6 +148,10 @@ export default function RedeemScreen() {
     if (redeemByAmount) {
       if (parsedAmount <= 0) {
         appAlert('Redeem', 'Enter a valid amount.');
+        return;
+      }
+      if (minRedeemAmount > 0 && parsedAmount < minRedeemAmount) {
+        appAlert('Redeem', `Please enter amount more than ${Math.round(minRedeemAmount)}.`);
         return;
       }
       if (maxAmount > 0 && parsedAmount > maxAmount + 0.01) {
@@ -90,6 +167,18 @@ export default function RedeemScreen() {
         appAlert('Redeem', `Units cannot exceed ${formatUnits(availableUnits)}.`);
         return;
       }
+      if (minRedeemAmount > 0 && currentNav > 0 && Number((parsedUnits * currentNav).toFixed(2)) < minRedeemAmount) {
+        appAlert('Redeem', `Please enter quantity more than ${(minRedeemAmount / currentNav).toFixed(3)}.`);
+        return;
+      }
+    }
+
+    if (!redeemByAmount && !redeemAll && currentNav > 0 && maxAmount > 0) {
+      const amountFromUnits = Number((parsedUnits * currentNav).toFixed(2));
+      if (amountFromUnits > maxAmount + 0.01) {
+        appAlert('Redeem', `You can redeem up to ${formatUnits(availableUnits)} units only.`);
+        return;
+      }
     }
 
     const allRedeem = !redeemByAmount && redeemAll;
@@ -100,6 +189,7 @@ export default function RedeemScreen() {
       redeemByAmount,
       amount: redeemByAmount ? parsedAmount : 0,
       units: redeemByAmount ? 0 : redeemAll ? availableUnits : parsedUnits,
+      currentNav,
       allRedeem,
     });
 
@@ -112,9 +202,21 @@ export default function RedeemScreen() {
         return;
       }
       const orderId = extractOrderId(res?.data);
+      const root = res?.data?.data ?? res?.data ?? {};
+      const txNumber =
+        root?.transaction_number ??
+        root?.transaction_no ??
+        root?.txn_number ??
+        root?.txn_no ??
+        root?.data?.transaction_number;
+      const txLine = txNumber ? `Transaction Number: ${txNumber}` : null;
+      const refLine = orderId ? `Reference: ${orderId}` : null;
+      const body = [txLine, refLine, 'Track status in My Orders.']
+        .filter(Boolean)
+        .join('\n');
       appAlert(
         'Redemption submitted',
-        orderId ? `Reference: ${orderId}\nTrack status in My Orders.` : 'Check My Orders for status.',
+        body || 'Check My Orders for status.',
         [{text: 'OK', onPress: () => navigation.goBack()}],
       );
     } catch (e) {
@@ -128,6 +230,8 @@ export default function RedeemScreen() {
     redeemByAmount,
     parsedAmount,
     parsedUnits,
+    minRedeemAmount,
+    currentNav,
     maxAmount,
     availableUnits,
     redeemAll,

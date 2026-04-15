@@ -1,8 +1,9 @@
 import React, {useMemo, useState} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import {radius} from '../../../theme/radius';
 import AppModal from '../../../components/AppModal';
 import Textstyles from '../../../utils/text';
+import Icons from '../../../utils/icons';
 import {useAppTheme} from '../../../theme/useAppTheme';
 
 function Chip({label, selected, onPress}) {
@@ -78,7 +79,7 @@ export default function FilterBar({
             <Text style={styles.sortValueTxt} numberOfLines={1}>
               {sortLabel}
             </Text>
-            <Text style={styles.sortChevron}>⌄</Text>
+            <Image source={Icons.DropDown} style={styles.sortChevron} resizeMode="contain" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.filterPillBtn} activeOpacity={0.85} onPress={onOpenFilterSheet}>
@@ -193,7 +194,7 @@ const getStyles = (colors, isDark) => StyleSheet.create({
     maxWidth: 116,
   },
   sortValueTxt: {...Textstyles.medium, fontSize: 12, fontWeight: '500', color: colors.textPrimary, flexShrink: 1},
-  sortChevron: {fontSize: 11, color: colors.textSecondary, marginLeft: 6},
+  sortChevron: {width: 12, height: 12, tintColor: colors.textSecondary, marginLeft: 6},
   filterPillBtn: {
     minHeight: 34,
     borderWidth: 1,

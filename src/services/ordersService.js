@@ -95,6 +95,7 @@ export function buildRedeemPlacePayload({
   redeemByAmount,
   amount,
   units,
+  currentNav,
   allRedeem,
 }) {
   const folio = String(folioNumber ?? '').trim();
@@ -106,8 +107,10 @@ export function buildRedeemPlacePayload({
     dp_txn: 'P',
     kyc_status: 'Y',
     euin_flag: 'N',
+    euin: '',
     min_redeem: 'N',
     dpc: 'Y',
+    mandate_id: '',
     folio_number: folio,
   };
 
@@ -115,7 +118,6 @@ export function buildRedeemPlacePayload({
     return {
       ...base,
       all_redeem: 'Y',
-      amount: 1,
     };
   }
 
@@ -123,15 +125,17 @@ export function buildRedeemPlacePayload({
     return {
       ...base,
       all_redeem: 'N',
-      amount: Math.max(0, Math.round(Number(amount))),
+      amount: Math.max(0, Number(amount)),
     };
   }
 
   const u = Number(units);
+  const nav = Number(currentNav);
+  const convertedAmount = Number.isFinite(u) && Number.isFinite(nav) && nav > 0 ? Number((u * nav).toFixed(0)) : 0;
   return {
     ...base,
     all_redeem: 'N',
-    units: Number.isFinite(u) ? u : 0,
+    amount: convertedAmount,
   };
 }
 

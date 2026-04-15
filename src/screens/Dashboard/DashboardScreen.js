@@ -202,8 +202,23 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const user = useSelector(s => s.auth.user);
-  const firstName = user?.full_name || user?.name || 'there';
+  const firstName = useMemo(() => {
+    const raw = user?.full_name || user?.first_name || user?.name || '';
+    const trimmed = String(raw).trim();
+    if (!trimmed) {
+      return 'there';
+    }
+    return trimmed.split(/\s+/)[0];
+  }, [user?.first_name, user?.full_name, user?.name]);
   const {colors, isDark} = useAppTheme();
+  const canRedeem = useMemo(() => {
+    const v = user?.allow_redeem;
+    if (v === undefined || v === null || v === '') {
+      return true;
+    }
+    const s = String(v).trim().toLowerCase();
+    return !(v === false || v === 0 || s === 'false' || s === '0' || s === 'n' || s === 'no');
+  }, [user?.allow_redeem]);
 
   const [holdingVisible, setHoldingVisible] = useState(true);
   const [sortMode, setSortMode] = useState('Current');
@@ -236,6 +251,10 @@ export default function DashboardScreen() {
   }, [holdingActionFund, navigation]);
 
   const onModalRedeem = useCallback(() => {
+    if (!canRedeem) {
+      appAlert('Redeem', 'Redeem is not available for your account.');
+      return;
+    }
     const fund = holdingActionFund;
     setHoldingActionFund(null);
     if (!fund) {
@@ -252,7 +271,7 @@ export default function DashboardScreen() {
       availableUnits: pickHoldingUnits(fund),
       maxAmount: pickHoldingCurrentValue(fund),
     });
-  }, [holdingActionFund, navigation]);
+  }, [canRedeem, holdingActionFund, navigation]);
 
   const cycleSortMode = useCallback(() => {
     setSortMode(prev => {
@@ -380,7 +399,7 @@ export default function DashboardScreen() {
           <View style={styles.statRow}>
             <View style={styles.xirrLabelRow}>
               <Text style={[styles.statLabel, {color: colors.textSecondary}]}>XIRR</Text>
-              <Text style={[styles.caretDown, {color: colors.textSecondary}]}>⌄</Text>
+              <Image source={Icons.DropDown} style={[styles.caretDown, {tintColor: colors.textSecondary}]} resizeMode="contain" />
             </View>
             <Text style={[Textstyles.medium, styles.statValue, {color: colors.textPrimary}]}>
               {holdingVisible ? (portfolio?.XIRR != null ? `${Number(portfolio.XIRR).toFixed(2)}%` : '—') : '•••••'}
@@ -408,11 +427,13 @@ export default function DashboardScreen() {
     () => (
       <View style={styles.footer}>
         <View style={[styles.sipCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <Image
-            source={require('../../assets/Icons/calendarSip.png')}
-            style={styles.sipEmoji}
-            resizeMode="contain"
-          />
+          <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
+            <Image
+              source={require('../../assets/Icons/calendarSip.png')}
+              style={styles.sipEmoji}
+              resizeMode="contain"
+            />
+          </View>
           <View style={styles.sipTextCol}>
             <Text style={[Textstyles.medium, styles.sipTitle, {color: colors.textPrimary}]}>
               Invest every month and grow your wealth with SIP
@@ -421,13 +442,13 @@ export default function DashboardScreen() {
               style={styles.sipButton}
               onPress={() => navigateToAllFundsSIP(navigation)}
               activeOpacity={0.85}>
-              <Text style={[Textstyles.medium, styles.sipButtonText]}>Start a SIP</Text>
+              <Text style={[Textstyles.normal, styles.sipButtonText]}>Start a SIP</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
     ),
-    [colors.border, colors.card, colors.textPrimary, navigation],
+    [colors.border, colors.card, colors.textPrimary, isDark, navigation],
   );
 
   const showInlineLoader = isPending && !refreshing;
@@ -478,7 +499,7 @@ export default function DashboardScreen() {
             <View style={styles.sortRight}>
               <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
               {sortMode === 'Current' ? <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text> : null}
-              <Text style={[styles.sortCaret, {color: colors.textSecondary}]}>⌄</Text>
+              <Image source={Icons.DropDown} style={[styles.sortCaret, {tintColor: colors.textSecondary}]} resizeMode="contain" />
             </View>
           </TouchableOpacity>
 
@@ -540,7 +561,7 @@ export default function DashboardScreen() {
           <Text style={[Textstyles.medium, styles.holdingModalTitle, {color: colors.textPrimary}]} numberOfLines={2}>
             {modalName}
           </Text>
-          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
+          <Image source={Icons.GoIcon} style={[styles.holdingModalChevron, {tintColor: colors.textSecondary}]} resizeMode="contain" />
         </TouchableOpacity>
 
         <View style={[styles.holdingModalDivider, {backgroundColor: colors.border}]} />
@@ -554,17 +575,19 @@ export default function DashboardScreen() {
 
         <View style={[styles.holdingModalDivider, {backgroundColor: colors.border}]} />
 
-        <TouchableOpacity style={[styles.holdingModalAction, {backgroundColor: colors.card}]} onPress={onModalRedeem} activeOpacity={0.8}>
-          <View
-            style={[
-              styles.holdingModalActionIconWrap,
-              {backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderColor: colors.border},
-            ]}>
-            <Text style={[styles.holdingModalActionIconTxt, {color: colors.textPrimary}]}>₹</Text>
-          </View>
-          <Text style={[Textstyles.medium, styles.holdingModalActionTxt, {color: colors.textPrimary}]}>Redeem</Text>
-          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
-        </TouchableOpacity>
+        {canRedeem ? (
+          <TouchableOpacity style={[styles.holdingModalAction, {backgroundColor: colors.card}]} onPress={onModalRedeem} activeOpacity={0.8}>
+            <View
+              style={[
+                styles.holdingModalActionIconWrap,
+                {backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderColor: colors.border},
+              ]}>
+              <Text style={[styles.holdingModalActionIconTxt, {color: colors.textPrimary}]}>₹</Text>
+            </View>
+            <Text style={[Textstyles.medium, styles.holdingModalActionTxt, {color: colors.textPrimary}]}>Redeem</Text>
+            <Image source={Icons.GoIcon} style={[styles.holdingModalChevron, {tintColor: colors.textSecondary}]} resizeMode="contain" />
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.holdingModalAction, {backgroundColor: colors.card}]}
@@ -580,7 +603,7 @@ export default function DashboardScreen() {
           <Text style={[Textstyles.medium, styles.holdingModalActionTxt, {color: colors.textPrimary}]}>
             Investment Details
           </Text>
-          <Text style={[styles.holdingModalChevron, {color: colors.textSecondary}]}>›</Text>
+          <Image source={Icons.GoIcon} style={[styles.holdingModalChevron, {tintColor: colors.textSecondary}]} resizeMode="contain" />
         </TouchableOpacity>
       </AppModal>
     </SafeAreaView>
@@ -743,10 +766,10 @@ const styles = StyleSheet.create({
   sortLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
   sortRight: {flexDirection: 'row', alignItems: 'center'},
   sortValueText: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginRight: 6},
-  sortCaret: {fontSize: 14, color: Colors.GREY, marginLeft: 6},
+  sortCaret: {width: 12, height: 12, marginLeft: 6},
   sortAngle: {fontSize: 14, color: Colors.GREY},
   xirrLabelRow: {flexDirection: 'row', alignItems: 'center'},
-  caretDown: {fontSize: 14, color: Colors.GREY, marginLeft: 6},
+  caretDown: {width: 12, height: 12, marginLeft: 6},
   holdingCard: {
     marginHorizontal: 0,
     flexDirection: 'row',
@@ -808,7 +831,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   holdingModalTitle: {flex: 1, fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 20},
-  holdingModalChevron: {fontSize: typeScale.chevron, color: Colors.GREY, fontWeight: '300'},
+  holdingModalChevron: {width: 12, height: 12},
   holdingModalDivider: {height: 1, backgroundColor: Colors.BORDER_GREY, marginHorizontal: 16},
   holdingModalRow: {
     flexDirection: 'row',
@@ -914,22 +937,33 @@ const styles = StyleSheet.create({
   sipCard: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
-    gap: 14,
+    borderRadius: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    gap: 16,
     borderWidth: 1,
     borderColor: '#EBECED',
     marginBottom: 0,
+    alignItems: 'center',
   },
-  sipEmoji: {width: 38, justifyContent: 'center', alignItems: 'center', top: 25, height: 38},
+  sipIconWrap: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sipEmoji: {width: 54, height: 54},
   sipTextCol: {flex: 1},
-  sipTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
+  sipTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 14},
   sipButton: {
     alignSelf: 'flex-start',
     backgroundColor: '#21C76E',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    minWidth: 148,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: 'center',
   },
   sipButtonText: {color: Colors.white, fontSize: 15},
 });

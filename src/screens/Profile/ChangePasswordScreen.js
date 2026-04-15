@@ -6,6 +6,7 @@ import AppHeader from '../../components/AppHeader';
 import {appAlert} from '../../utils/appAlert';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
+import {changePassword} from '../../services/authService';
 import { Icons } from '../../utils';
 
 function PasswordField({
@@ -48,6 +49,7 @@ export default function ChangePasswordScreen() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validLength = newPassword.length >= 8 && newPassword.length <= 12;
   const canUpdate =
@@ -56,7 +58,7 @@ export default function ChangePasswordScreen() {
     confirmPassword.length > 0 &&
     newPassword === confirmPassword;
 
-  const onUpdate = () => {
+  const onUpdate = async () => {
     if (!validLength) {
       appAlert('Change password', 'Password length must be 8-12 characters.');
       return;
@@ -65,50 +67,72 @@ export default function ChangePasswordScreen() {
       appAlert('Change password', 'New password and confirm password do not match.');
       return;
     }
-    appAlert('Change password', 'Password update request submitted.');
+    try {
+      setIsSubmitting(true);
+      const res = await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
+      const msg =
+        res?.data?.message ||
+        res?.data?.data?.message ||
+        'Password changed successfully.';
+      appAlert('Change password', msg);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e) {
+      const msg = e?.message || e?.data?.message || 'Unable to change password right now.';
+      appAlert('Change password', msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
       <AppHeader title="Change Password" onBack={() => navigation.goBack()} />
-      <View style={styles.body}>
-        <Text style={styles.caption}>Your new password must be 8 -12 character long.</Text>
-        <PasswordField
-          label="Current Password"
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          placeholder="Enter old password"
-          secureTextEntry={!showCurrent}
-          onToggle={() => setShowCurrent(v => !v)}
-          styles={styles}
-        />
-        <PasswordField
-          label="New Password"
-          value={newPassword}
-          onChangeText={setNewPassword}
-          placeholder="Enter password"
-          secureTextEntry={!showNew}
-          onToggle={() => setShowNew(v => !v)}
-          styles={styles}
-        />
-        <PasswordField
-          label="Confirm New Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="Enter password"
-          secureTextEntry={!showConfirm}
-          onToggle={() => setShowConfirm(v => !v)}
-          styles={styles}
-        />
-      </View>
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.updateBtn, !canUpdate && styles.updateBtnDisabled]}
-          onPress={onUpdate}
-          activeOpacity={0.9}
-          disabled={!canUpdate}>
-          <Text style={styles.updateBtnTxt}>Update</Text>
-        </TouchableOpacity>
+      <View style={styles.contentWrap}>
+        <View style={styles.body}>
+          <Text style={styles.caption}>Your new password must be 8 -12 character long.</Text>
+          <PasswordField
+            label="Current Password"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Enter old password"
+            secureTextEntry={!showCurrent}
+            onToggle={() => setShowCurrent(v => !v)}
+            styles={styles}
+          />
+          <PasswordField
+            label="New Password"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="Enter password"
+            secureTextEntry={!showNew}
+            onToggle={() => setShowNew(v => !v)}
+            styles={styles}
+          />
+          <PasswordField
+            label="Confirm New Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Enter password"
+            secureTextEntry={!showConfirm}
+            onToggle={() => setShowConfirm(v => !v)}
+            styles={styles}
+          />
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.updateBtn, (!canUpdate || isSubmitting) && styles.updateBtnDisabled]}
+            onPress={onUpdate}
+            activeOpacity={0.9}
+            disabled={!canUpdate || isSubmitting}>
+            <Text style={styles.updateBtnTxt}>{isSubmitting ? 'Updating...' : 'Update'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -117,7 +141,8 @@ export default function ChangePasswordScreen() {
 function createStyles(c, isDark) {
   return StyleSheet.create({
     safe: {flex: 1, backgroundColor: c.background},
-    body: {paddingHorizontal: 16, paddingTop: 10},
+    contentWrap: {width: '100%', maxWidth: 560, alignSelf: 'center'},
+    body: {paddingHorizontal: 20, paddingTop: 10},
     caption: {fontSize: 18, color: c.textSecondary, marginBottom: 18, lineHeight: 30},
     fieldWrap: {marginBottom: 14},
     fieldLabel: {fontSize: 17, color: c.textPrimary, marginBottom: 7, ...Textstyles.medium},
@@ -134,7 +159,7 @@ function createStyles(c, isDark) {
     input: {flex: 1, color: c.textPrimary, fontSize: 17},
     placeholderColor: {color: c.textSecondary},
     eye: {fontSize: 20},
-    footer: {paddingHorizontal: 16, paddingBottom: 14, paddingTop: 6},
+    footer: {paddingHorizontal: 20, paddingBottom: 14, paddingTop: 6},
     updateBtn: {
       minHeight: 52,
       borderRadius: 12,

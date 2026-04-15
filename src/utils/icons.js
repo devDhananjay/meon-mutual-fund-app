@@ -40,6 +40,15 @@ const Icons = {
   inProgress: require('../assets/Icons/inProgress.png'),
   HidePassword: require('../assets/Icons/HidePassword.png'),
   SettingsMinimalistic: require('../assets/Icons/SettingsMinimalistic.png'),
+  DropDown: require('../assets/Icons/DropDown.png'),
+
+  PedingIconsFilter: require('../assets/Icons/PedingIconsFilter.png'),
+  ActiveIcon: require('../assets/Icons/ActiveIcon.png'),
+  AllIcon: require('../assets/Icons/AllIcon.png'),
+  ExpiredIcon: require('../assets/Icons/ExpiredIcon.png'),
+  CompletedIcon: require('../assets/Icons/completedIcon.png'),
+  PendingIcon: require('../assets/Icons/PendingIcon.png'),
+  GoIcon: require('../assets/Icons/GoIcon.png'),
 
   // Profile screen icons
   MyOrdersIcon: require('../assets/Icons/MyOrders-f83910e4-9906-41cc-91b7-2ea1381b2ae1.png'),

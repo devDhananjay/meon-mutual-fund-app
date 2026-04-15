@@ -262,7 +262,7 @@ export default function AllFundsSIPScreen() {
             }}>
             <View style={styles.sortBtnInner}>
               <Text style={styles.sortBtnTxt}>{activeSort.label}</Text>
-              <Text style={styles.sortChevron}>⌄</Text>
+              <Image source={Icons.DropDown} style={styles.sortChevron} resizeMode="contain" />
             </View>
             <View style={styles.dottedUnderline} />
           </TouchableOpacity>
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   sortBtn: {paddingRight: 6},
   sortBtnInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
   sortBtnTxt: {...Textstyles.medium, fontSize: 14, color: Colors.TEXT_PRIMARY},
-  sortChevron: {fontSize: 12, color: Colors.GREY, marginTop: 2},
+  sortChevron: {width: 12, height: 12, tintColor: Colors.GREY, marginTop: 2},
   dottedUnderline: {
     marginTop: 6,
     width: 118,

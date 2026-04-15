@@ -30,10 +30,11 @@ import Icons from '../../utils/icons';
 function getThemePalette(isDark) {
   if (isDark) {
     return {
-      pageBg: '#0B1220',
-      cardBg: '#111827',
+      pageBg: '#0F1116',
+      cardBg: '#171A21',
       cardBorder: '#1F2937',
-      iconBg: '#1E293B',
+      iconBg: '#262B35',
+      iconTint: '#E5E7EB',
       textPrimary: '#F3F4F6',
       textSecondary: '#9CA3AF',
       textMuted: '#6B7280',
@@ -51,10 +52,11 @@ function getThemePalette(isDark) {
     };
   }
   return {
-    pageBg: '#F8FAFC',
+    pageBg: '#F3F4F6',
     cardBg: '#FFFFFF',
     cardBorder: '#E5E7EB',
-    iconBg: '#EEF5FF',
+    iconBg: '#F3F4F6',
+    iconTint: '#2B2F38',
     textPrimary: Colors.TEXT_PRIMARY,
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
@@ -101,6 +103,22 @@ function getDisplayName(user) {
     return user.name;
   }
   return 'Member';
+}
+
+function getProfileSubLine(user) {
+  const email = (user?.email || '').trim();
+  if (email) {
+    return email;
+  }
+  const mobile = (user?.mobile || user?.phone || '').trim();
+  if (mobile) {
+    return `+91 ${mobile}`;
+  }
+  const code = (user?.client_code || user?.clientCode || '').trim();
+  if (code) {
+    return `Client Code: ${code}`;
+  }
+  return 'Mutual Fund Investor';
 }
 
 function getMemberSinceLine(user) {
@@ -156,13 +174,13 @@ function ProfileRow({icon, emoji, label, onPress, isLast, destructive, tintColor
       activeOpacity={0.65}>
       <View style={styles.rowIconWrap}>
         {icon ? (
-          <Image source={icon} tintColor={tintColor ? tintColor : null} style={styles.rowIconImg} resizeMode="contain" />
+          <Image source={icon} tintColor={tintColor || styles.rowIconTint.color} style={styles.rowIconImg} resizeMode="contain" />
         ) : (
           <Text style={styles.rowEmoji}>{emoji}</Text>
         )}
       </View>
       <Text style={[Textstyles.medium, styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
-      <Text style={styles.chevron}>›</Text>
+      <Image source={Icons.GoIcon} style={styles.chevron} resizeMode="contain" />
     </TouchableOpacity>
   );
 }
@@ -179,6 +197,7 @@ export default function ProfileScreen() {
 
   const initials = useMemo(() => getInitials(user), [user]);
   const displayName = useMemo(() => getDisplayName(user), [user]);
+  const profileSubLine = useMemo(() => getProfileSubLine(user), [user]);
   const memberLine = useMemo(() => getMemberSinceLine(user), [user]);
   const verifyLine = useMemo(() => verificationLine(user), [user]);
   const verified = useMemo(() => isVerifiedUser(user), [user]);
@@ -265,6 +284,8 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.profileHeaderCard}>
+          <View style={styles.profileGlowOne} />
+          <View style={styles.profileGlowTwo} />
           <View style={styles.profileAccentBar} />
           <View style={styles.profileHeaderInner}>
             <View style={styles.profileRow}>
@@ -274,6 +295,9 @@ export default function ProfileScreen() {
               <View style={styles.profileTextCol}>
                 <Text style={[Textstyles.heading, styles.displayName]} numberOfLines={2}>
                   {displayName}
+                </Text>
+                <Text style={styles.profileSubLine} numberOfLines={1}>
+                  {profileSubLine}
                 </Text>
                 <View style={styles.profileMetaRow}>
                   <View
@@ -314,7 +338,6 @@ export default function ProfileScreen() {
             label="My Watchlist"
             onPress={onWatchlist}
             styles={styles}
-            tintColor={'#1E81F2'}
           />
           <View style={styles.themeRow}>
             <View style={styles.themeIconBox}>
@@ -345,7 +368,15 @@ export default function ProfileScreen() {
             icon={Icons.ChangePasswordIcon}
             label="Change Password"
             onPress={onForgotPassword}
+            styles={styles}
+          />
+          <ProfileRow
+            icon={Icons.deleteIcon}
+            label="Delete account"
+            onPress={onDeleteAccount}
+            destructive
             isLast
+            tintColor={'#DC2626'}
             styles={styles}
           />
         </SectionCard>
@@ -363,15 +394,7 @@ export default function ProfileScreen() {
             icon={Icons.TermsAndConditionsIcon}
             label="Terms and Conditions"
             onPress={() => onSupportArticle('terms')}
-            styles={styles}
-          />
-          <ProfileRow
-            icon={Icons.deleteIcon}
-            label="Delete account"
-            onPress={onDeleteAccount}
-            destructive
             isLast
-            tintColor={'red'}
             styles={styles}
           />
         </SectionCard>
@@ -422,14 +445,34 @@ const createStyles = palette =>
     shadowRadius: 10,
     // elevation: 2,
   },
+  profileGlowOne: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    right: -28,
+    top: -30,
+    backgroundColor: palette.toggleActiveBg,
+    opacity: 0.08,
+  },
+  profileGlowTwo: {
+    position: 'absolute',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    left: -16,
+    bottom: -22,
+    backgroundColor: palette.toggleActiveBg,
+    opacity: 0.05,
+  },
   profileAccentBar: {
-    height: 3,
+    height: 4,
     backgroundColor: Colors.themeBlue,
-    opacity: 0.55,
+    opacity: 0.6,
   },
   profileHeaderInner: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 15,
     paddingBottom: 16,
   },
   profileRow: {flexDirection: 'row', alignItems: 'center'},
@@ -449,9 +492,15 @@ const createStyles = palette =>
   displayName: {
     fontSize: 19,
     color: palette.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
     fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  profileSubLine: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    marginBottom: 8,
+    fontWeight: '500',
   },
   profileMetaRow: {flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8},
   memberPill: {
@@ -536,10 +585,11 @@ const createStyles = palette =>
     marginRight: 12,
   },
   rowEmoji: {fontSize: 20},
+  rowIconTint: {color: palette.iconTint},
   rowIconImg: {width: 20, height: 20},
   rowLabel: {flex: 1, fontSize: 16, color: palette.textPrimary, fontWeight: '500'},
   rowLabelDestructive: {color: '#DC2626'},
-  chevron: {fontSize: 18, color: palette.chevron, fontWeight: '300'},
+  chevron: {width: 14, height: 14, tintColor: palette.chevron},
   themeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -564,16 +614,16 @@ const createStyles = palette =>
   themeSwitchWrap: {
     flexDirection: 'row',
     backgroundColor: palette.toggleBg,
-    borderRadius: 14,
-    padding: 3,
+    borderRadius: 12,
+    padding: 2,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.rowBorder,
   },
   themeOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 11,
-    minWidth: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -586,8 +636,8 @@ const createStyles = palette =>
     // elevation: 2,
   },
   themeIcon: {
-    fontSize: 15,
-    marginBottom: 2,
+    fontSize: 12,
+    marginBottom: 1,
     color: palette.toggleInactiveText,
     fontWeight: '600',
   },
@@ -595,11 +645,10 @@ const createStyles = palette =>
     color: palette.textPrimary,
   },
   themeLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: palette.toggleInactiveText,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
+    letterSpacing: 0.2,
   },
   themeLabelActive: {
     color: palette.textPrimary,
@@ -616,5 +665,5 @@ const createStyles = palette =>
   },
   logoutIconImg: {width: 20, height: 20, marginRight: 8},
   logoutText: {fontSize: 16, fontWeight: '500', color: '#EF4444'},
-  profileSettingsIconImg: {width: 20, height: 20},
+  profileSettingsIconImg: {width: 20, height: 20, tintColor: palette.iconTint},
 });

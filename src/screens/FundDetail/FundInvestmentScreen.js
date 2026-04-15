@@ -947,7 +947,7 @@ export default function FundInvestmentScreen() {
                     onPress={() => setFreqModalVisible(true)}
                     activeOpacity={0.85}>
                     <Text style={styles.dropdownValue}>{sipFrequency}</Text>
-                    <Text style={styles.dropdownChevron}>⌄</Text>
+                    <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
                   </TouchableOpacity>
 
                   <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
@@ -982,7 +982,7 @@ export default function FundInvestmentScreen() {
                         {selectedMandateLabel}
                       </Text>
                     </View>
-                    <Text style={styles.mandateArrow}>›</Text>
+                    <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -1287,7 +1287,7 @@ function getFundInvestmentStyles(colors, isDark) {
     backgroundColor: c.inputBg,
   },
   dropdownValue: {...Textstyles.medium, fontSize: typeScale.bodyLg, color: c.textPrimary, fontWeight: '500'},
-  dropdownChevron: {fontSize: typeScale.chevron, top:-6, color: c.textSecondary},
+  dropdownChevron: {width: 12, height: 12, tintColor: c.textSecondary},
   calendarIcon: {fontSize: typeScale.chevron},
   sipOptionRow: {flexDirection: 'row', gap: 8, flexWrap: 'wrap'},
   inlineChip: {
@@ -1318,7 +1318,7 @@ function getFundInvestmentStyles(colors, isDark) {
   mandateTitle: {...Textstyles.heading, fontSize: 15, color: c.textPrimary, fontWeight: '700'},
   mandateTextWrap: {flex: 1},
   mandateSub: {fontSize: 13, color: c.textSecondary, marginTop: 4},
-  mandateArrow: {fontSize: typeScale.chevron + 6, color: c.textSecondary, marginLeft: 8},
+  mandateArrow: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 8},
   minAmtHint: {marginTop: 14, color: c.textSecondary, fontSize: 13},
   viewCart: {marginTop: 18, alignItems: 'center', paddingVertical: 8},
   viewCartTxt: {...Textstyles.medium, color: c.primary, fontSize: 16, fontWeight: '600'},

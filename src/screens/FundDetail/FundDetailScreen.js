@@ -1247,7 +1247,7 @@ export default function FundDetailScreen() {
                     activeOpacity={0.85}
                     onPress={openSipDatePicker}>
                     <Text style={styles.sipPickerValue}>{formatDDMMYYYY(sipDate)}</Text>
-                    <Text style={styles.sipPickerArrow}>⌄</Text>
+                    <Image source={Icons.DropDown} style={styles.sipPickerArrow} resizeMode="contain" />
                   </TouchableOpacity>
                 </View>
 
@@ -1283,7 +1283,7 @@ export default function FundDetailScreen() {
                   <Text style={styles.mandateTitle}>Choose Mandate Method</Text>
                   <Text style={styles.mandateSub} numberOfLines={2}>{selectedMandateLabel}</Text>
                 </View>
-                <Text style={styles.mandateArrow}>›</Text>
+                <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
               </TouchableOpacity>
             </>
           ) : null}
@@ -1710,7 +1710,7 @@ function getFundDetailStyles(colors, isDark) {
     backgroundColor: c.inputBg,
   },
   sipPickerValue: {fontSize: typeScale.bodyMd, color: c.textPrimary},
-  sipPickerArrow: {fontSize: typeScale.bodyMd, color: c.textSecondary},
+  sipPickerArrow: {width: 12, height: 12, tintColor: c.textSecondary},
   mandateSelectCard: {
     marginHorizontal: 14,
     marginTop: 14,
@@ -1725,7 +1725,7 @@ function getFundDetailStyles(colors, isDark) {
   },
   mandateTitle: {fontSize: typeScale.bodyMd, color: c.textPrimary, fontWeight: '700'},
   mandateSub: {fontSize: 14, color: c.textSecondary, marginTop: 4},
-  mandateArrow: {fontSize: typeScale.chevron + 4, color: c.textSecondary, marginLeft: 8},
+  mandateArrow: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 8},
   minAmtHint: {marginHorizontal: 14, marginTop: 12, color: c.textSecondary, fontSize: 13},
   orderActions: {flexDirection: 'row', gap: 10, marginHorizontal: 14, marginTop: 14, marginBottom: 14},
   addedToCartBtn: {

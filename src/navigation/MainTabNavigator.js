@@ -12,7 +12,7 @@ import {useAppTheme} from '../theme/useAppTheme';
 
 const Tab = createBottomTabNavigator();
 
-function tabIcon(tabKey, isDark, colors) {
+function tabIcon(tabKey, isDark, colors, activeColor) {
   return function TabBarIcon({focused}) {
     const source =
       tabKey === 'Dashboard'
@@ -34,10 +34,14 @@ function tabIcon(tabKey, isDark, colors) {
       <View style={styles.tabIconWrap}>
         <Image
           source={source}
-          style={[styles.tabIconImg, !focused && isDark ? {tintColor: colors.textSecondary} : null]}
+          style={[
+            styles.tabIconImg,
+            focused ? {tintColor: activeColor} : null,
+            !focused && isDark ? {tintColor: colors.textSecondary} : null,
+          ]}
           resizeMode="contain"
         />
-        {focused ? <View style={[styles.tabIndicator, {backgroundColor: colors.primary}]} /> : <View style={styles.tabIndicatorOff} />}
+        {focused ? <View style={[styles.tabIndicator, {backgroundColor: activeColor}]} /> : <View style={styles.tabIndicatorOff} />}
       </View>
     );
   };
@@ -46,7 +50,7 @@ function tabIcon(tabKey, isDark, colors) {
 export default function MainTabNavigator() {
   const {isDark, colors} = useAppTheme();
   const insets = useSafeAreaInsets();
-  const ACTIVE_BLUE = colors.primary;
+  const ACTIVE_BLUE = '#1E81F2';
   /** Push tab bar above Android 3-button / gesture nav & iOS home indicator */
   const tabBarBottomPad = Math.max(insets.bottom, 10);
   const tabBarTopPad = 8;
@@ -75,7 +79,7 @@ export default function MainTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: tabIcon('Dashboard', isDark, colors),
+          tabBarIcon: tabIcon('Dashboard', isDark, colors, ACTIVE_BLUE),
         }}
       />
       <Tab.Screen
@@ -83,7 +87,7 @@ export default function MainTabNavigator() {
         component={ExplorePixelPerfectScreen}
         options={{
           tabBarLabel: 'Explore',
-          tabBarIcon: tabIcon('Explore', isDark, colors),
+          tabBarIcon: tabIcon('Explore', isDark, colors, ACTIVE_BLUE),
         }}
       />
       <Tab.Screen
@@ -91,7 +95,7 @@ export default function MainTabNavigator() {
         component={MyFoliosScreen}
         options={{
           tabBarLabel: 'My Folios',
-          tabBarIcon: tabIcon('MyFolios', isDark, colors),
+          tabBarIcon: tabIcon('MyFolios', isDark, colors, ACTIVE_BLUE),
         }}
       />
       <Tab.Screen
@@ -99,7 +103,7 @@ export default function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: tabIcon('Profile', isDark, colors),
+          tabBarIcon: tabIcon('Profile', isDark, colors, ACTIVE_BLUE),
         }}
       />
     </Tab.Navigator>

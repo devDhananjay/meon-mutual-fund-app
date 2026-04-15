@@ -14,12 +14,10 @@ import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useMandateData} from '../../hooks/useMandateData';
 import Textstyles from '../../utils/text';
-import Icons from '../../utils/icons';
 import {
   pickAmount,
   pickBank,
   pickMandateListId,
-  pickSchemeTitle,
   pickStartDateDD,
   pickEndDateDD,
   pickStatus,
@@ -28,13 +26,13 @@ import AddMandateModal from './AddMandateModal';
 import AppModal from '../../components/AppModal';
 import {useAppTheme} from '../../theme/useAppTheme';
 import AppBackButton from '../../components/AppBackButton';
-import {SEARCH_FIELD} from '../../theme/searchField';
+import { Icons } from '../../utils';
 
 const STATUS_OPTIONS = [
-  {key: 'all', label: 'All Status'},
-  {key: 'APPROVED', label: 'APPROVED'},
-  {key: 'PENDING', label: 'PENDING'},
-  {key: 'EXPIRED', label: 'EXPIRED'},
+  {key: 'all', label: 'All'},
+  {key: 'PENDING', label: 'Pending'},
+  {key: 'APPROVED', label: 'Completed'},
+  {key: 'EXPIRED', label: 'Expired'},
 ];
 
 const EMPTY_ITEMS = [];
@@ -46,24 +44,117 @@ function mapStatusFilterToApi(statusKey) {
   return String(statusKey);
 }
 
-function StatusBadge({label, styles, isDark}) {
+function normalizeSearchText(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mandateStatusKeywords(rawStatus) {
+  const s = String(rawStatus ?? '').toUpperCase();
+  if (s.includes('ACTIVE') || s.includes('APPROVED') || s.includes('SUCCESS') || s.includes('COMPLETE')) {
+    return 'active approved completed success done verified';
+  }
+  if (s.includes('PENDING') || s.includes('PROCESS') || s.includes('WAIT')) {
+    return 'pending processing waiting authentication inprogress progress';
+  }
+  if (s.includes('EXPIR') || s.includes('FAIL') || s.includes('ERROR') || s.includes('REJECT') || s.includes('CANCEL')) {
+    return 'expired failed error rejected cancelled inactive';
+  }
+  return '';
+}
+
+function buildMandateSearchBlob(item) {
+  const status = pickStatus(item);
+  const bseStatus = item?.bse_data?.Status;
+  const responseMessage = item?.bse_response_message;
+  const rawAmount = item?.mandate_amount ?? item?.amount ?? '';
+  const formattedAmount = pickAmount(item);
+  const rawKeywords = [
+    pickMandateListId(item),
+    item?.mandate_id,
+    item?.id,
+    item?.client_code,
+    pickBank(item),
+    item?.bank_account_no,
+    item?.ifsc_code,
+    item?.account_type,
+    pickStartDateDD(item),
+    pickEndDateDD(item),
+    status,
+    bseStatus,
+    responseMessage,
+    rawAmount,
+    formattedAmount,
+    mandateStatusKeywords(status),
+    mandateStatusKeywords(bseStatus),
+  ];
+  return normalizeSearchText(rawKeywords.join(' '));
+}
+
+function StatusBadge({ label, styles, isDark }) {
   const raw = label || '—';
   const key = raw.replace(/\s+/g, '_').toUpperCase();
+
   let bg = isDark ? '#2C2C2C' : '#F3F4F6';
   let fg = isDark ? '#E5E7EB' : '#374151';
-  if (key.includes('EXPIR') || key.includes('FAIL') || key.includes('REJECT') || key.includes('CANCEL')) {
-    bg = isDark ? 'rgba(248,113,113,0.2)' : '#FEE2E2';
-    fg = isDark ? '#FCA5A5' : '#DC2626';
-  } else if (key.includes('SUCCESS') || key.includes('ACTIVE') || key.includes('APPROVED') || key.includes('COMPLETE')) {
-    bg = isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7';
-    fg = isDark ? '#86EFAC' : '#15803D';
-  } else if (key.includes('PROGRESS') || key.includes('PENDING') || key.includes('PROCESS')) {
-    bg = isDark ? 'rgba(251,191,36,0.15)' : '#FEF3C7';
-    fg = isDark ? '#FCD34D' : '#D97706';
+  let icon = null;
+
+  if (
+    key.includes('EXPIR') ||
+    key.includes('FAIL') ||
+    key.includes('REJECT') ||
+    key.includes('CANCEL')
+  ) {
+    bg = isDark ? 'rgba(229,72,77,0.22)' : '#FDEBEC';
+    fg = isDark ? '#FCA5A5' : '#E5484D';
+    icon = Icons.ExpiredIcon;
+  } else if (
+    key.includes('SUCCESS') ||
+    key.includes('ACTIVE') ||
+    key.includes('APPROVED') ||
+    key.includes('COMPLETE')
+  ) {
+    bg = isDark ? 'rgba(46,182,125,0.22)' : '#E8F8EF';
+    fg = isDark ? '#86EFAC' : '#2EB67D';
+    icon = Icons.CompletedIcon;
+  } else if (
+    key.includes('PROGRESS') ||
+    key.includes('PENDING') ||
+    key.includes('PROCESS')
+  ) {
+    bg = isDark ? 'rgba(233,162,59,0.2)' : '#FFF3E5';
+    fg = isDark ? '#FCD34D' : '#E9A23B';
+    icon = Icons.PedingIconsFilter;
   }
+
   return (
-    <View style={[styles.statusPill, {backgroundColor: bg}]}>
-      <Text style={[styles.statusPillTxt, {color: fg}]} numberOfLines={1}>
+    <View
+      style={[
+        styles.statusPill,
+        {
+          backgroundColor: bg,
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+      ]}
+    >
+      {icon && (
+        <Image
+          source={icon}
+          style={[
+            styles.statusPillIconImg,
+            {marginRight: 6, width: 12, height: 12, tintColor: fg},
+          ]}
+          resizeMode="contain"
+        />
+      )}
+      <Text
+        style={[styles.statusPillTxt, { color: fg }]}
+        numberOfLines={1}
+      >
         {raw}
       </Text>
     </View>
@@ -71,7 +162,8 @@ function StatusBadge({label, styles, isDark}) {
 }
 
 function MandateCard({item, onViewDetails, styles, isDark}) {
-  const mid = pickMandateListId(item);
+  const rawMid = pickMandateListId(item);
+  const mid = String(rawMid ?? '').startsWith('#') ? rawMid : `#${rawMid}`;
   const bank = pickBank(item);
   const start = pickStartDateDD(item);
   const end = pickEndDateDD(item);
@@ -80,7 +172,7 @@ function MandateCard({item, onViewDetails, styles, isDark}) {
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardTop}>
+      <View style={[styles.cardTop, {backgroundColor: isDark ? '#1E222B' : '#F3F4F6'}]}>
         <Text style={styles.mandateId} numberOfLines={1}>
           {mid}
         </Text>
@@ -111,7 +203,10 @@ function MandateCard({item, onViewDetails, styles, isDark}) {
       <View style={styles.cardBottom}>
         <Text style={styles.amountTxt}>{amount}</Text>
         <TouchableOpacity onPress={() => onViewDetails(item)} hitSlop={8} activeOpacity={0.75}>
-          <Text style={styles.viewDetails}>View Details &gt;</Text>
+          <View style={styles.viewDetailsRow}>
+            <Text style={styles.viewDetails}>View Details</Text>
+            <Image source={Icons.GoIcon} style={styles.viewDetailsIcon} resizeMode="contain" />
+          </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -123,20 +218,30 @@ function MandateFilterSheet({visible, draftStatus, onChangeDraftStatus, onClose,
     <AppModal
       visible={visible}
       onClose={onClose}
-      title="Filter"
+      title="Status"
       isBottomSheet
-      showActions
-      onCancel={onClose}
-      onApply={onApply}>
-      <Text style={styles.filterSectionLabel}>Status</Text>
-      <View style={styles.chipRow}>
-        {STATUS_OPTIONS.map(opt => (
+      maxHeight={'55%'}>
+      <View style={styles.filterList}>
+        {STATUS_OPTIONS.map((opt, index) => (
           <TouchableOpacity
             key={opt.key}
-            style={[styles.chip, draftStatus === opt.key && styles.chipOn]}
-            onPress={() => onChangeDraftStatus(opt.key)}
+            style={[styles.filterRow, index !== STATUS_OPTIONS.length - 1 && styles.filterRowBorder]}
+            onPress={() => {
+              onChangeDraftStatus(opt.key);
+              onApply(opt.key);
+            }}
             activeOpacity={0.85}>
-            <Text style={[styles.chipTxt, draftStatus === opt.key && styles.chipTxtOn]}>{opt.label}</Text>
+            <View style={styles.filterRowIcon}>
+              {opt.key === 'all' ? 
+              <Image source={Icons.AllIcon} style={styles.filterRowIconImg} resizeMode="contain" />
+              : opt.key === 'PENDING' ? 
+              <Image source={Icons.PedingIconsFilter} style={styles.filterRowIconImg} resizeMode="contain" />
+              : opt.key === 'APPROVED' ? <Image source={Icons.CompletedIcon} style={styles.filterRowIconImg} resizeMode="contain" />
+              : <Image source={Icons.ExpiredIcon} style={styles.filterRowIconImg} resizeMode="contain" />
+              }
+            </View>
+            <Text style={styles.filterRowLabel}>{opt.label}</Text>
+            {draftStatus === opt.key ? <Text style={styles.filterSelectedTick}>✓</Text> : null}
           </TouchableOpacity>
         ))}
       </View>
@@ -154,6 +259,7 @@ export default function MandateScreen() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [draftStatus, setDraftStatus] = useState('all');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const listParams = useMemo(
     () => ({
@@ -164,28 +270,18 @@ export default function MandateScreen() {
 
   const {data, isPending, error, refreshing, refetch} = useMandateData(listParams);
   const items = data?.results ?? EMPTY_ITEMS;
-  const totalCount = data?.count ?? items.length;
 
-  const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = normalizeSearchText(search);
     if (!q) {
       return items;
     }
+    const tokens = q.split(' ').filter(Boolean);
     return items.filter(it => {
-      const blob = [
-        pickSchemeTitle(it),
-        pickBank(it),
-        pickMandateListId(it),
-        pickStatus(it),
-        String(it.umrn ?? ''),
-        String(it.id ?? ''),
-      ]
-        .join(' ')
-        .toLowerCase();
-      return blob.includes(q);
+      const blob = buildMandateSearchBlob(it);
+      return tokens.every(token => blob.includes(token));
     });
   }, [items, search]);
 
@@ -211,27 +307,36 @@ export default function MandateScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <View style={styles.searchCard}>
-          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search mandates…"
-            placeholderTextColor={colors.muted}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+        <View style={styles.filterHeadRow}>
+          <View style={styles.searchWrap}>
+            <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
+            <TextInput
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search..."
+              placeholderTextColor={colors.textSecondary}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <TouchableOpacity
+            style={styles.statusSelect}
+            activeOpacity={0.85}
+            onPress={() => {
+              setDraftStatus(statusFilter);
+              setFilterOpen(true);
+            }}>
+            <Text style={styles.statusSelectText}>
+              {STATUS_OPTIONS.find(s => s.key === statusFilter)?.label || 'All'}
+            </Text>
+            <Image source={Icons.DropDown} style={styles.statusSelectCaret} resizeMode="contain" />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.countLine}>
-          {filtered.length === 0
-            ? '0 mandates'
-            : `Showing ${filtered.length}${totalCount > filtered.length ? ` of ${totalCount}` : ''}`}
-        </Text>
       </View>
     ),
-    [search, filtered.length, totalCount, styles, colors.muted],
+    [colors.textSecondary, search, statusFilter, styles],
   );
 
   const fabBottom = 16 + insets.bottom;
@@ -246,20 +351,7 @@ export default function MandateScreen() {
         <View style={styles.headerSlot} />
       )}
       <Text style={styles.navTitle}>Mandate</Text>
-      <TouchableOpacity
-        style={styles.headerSlot}
-        onPress={() => {
-          setDraftStatus(statusFilter);
-          setFilterOpen(true);
-        }}
-        hitSlop={12}
-        accessibilityLabel="Filter mandates">
-        <Image
-          source={Icons.FilterBlack}
-          style={[styles.headerFilterIcon, {tintColor: colors.textPrimary}]}
-          resizeMode="contain"
-        />
-      </TouchableOpacity>
+      <View style={styles.headerSlot} />
     </View>
   );
 
@@ -297,9 +389,7 @@ export default function MandateScreen() {
           <View style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <Text style={[Textstyles.medium, styles.emptyTitle, {color: colors.textPrimary}]}>No mandates found</Text>
             <Text style={[Textstyles.normal, styles.emptySub, {color: colors.textSecondary}]}>
-              {search.trim()
-                ? 'Try a different search.'
-                : 'When you add a mandate, it will appear here.'}
+              When you add a mandate, it will appear here.
             </Text>
           </View>
         }
@@ -327,8 +417,8 @@ export default function MandateScreen() {
         draftStatus={draftStatus}
         onChangeDraftStatus={setDraftStatus}
         onClose={() => setFilterOpen(false)}
-        onApply={() => {
-          setStatusFilter(draftStatus);
+        onApply={selectedKey => {
+          setStatusFilter(selectedKey);
           setFilterOpen(false);
         }}
       />
@@ -360,74 +450,120 @@ function createMandateStyles(colors, isDark) {
   },
   loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   loadingTxt: {marginTop: 12, color: c.textSecondary},
-  pageHead: {paddingHorizontal: 0, paddingTop: 8},
-  searchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: c.card,
-    borderRadius: SEARCH_FIELD.borderRadius,
-    borderWidth: 1,
-    borderColor: c.border,
-    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
-    paddingVertical: SEARCH_FIELD.paddingVertical,
-    minHeight: SEARCH_FIELD.minHeight,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    // elevation: 2,
-  },
-  searchIconImg: {
-    width: SEARCH_FIELD.iconSize,
-    height: SEARCH_FIELD.iconSize,
-    marginRight: SEARCH_FIELD.iconMarginRight,
-  },
-  searchInput: {
+  pageHead: {paddingHorizontal: 0, paddingTop: 10, paddingBottom: 10},
+  filterHeadRow: {flexDirection: 'row', gap: 10},
+  searchWrap: {
     flex: 1,
-    fontSize: SEARCH_FIELD.inputFontSize,
-    color: c.textPrimary,
-    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
-  },
-  countLine: {fontSize: 12, color: c.textSecondary, marginBottom: 8, paddingHorizontal: 4},
-  listContent: {paddingHorizontal: 16, paddingTop: 4},
-  card: {
-    backgroundColor: c.card,
+    minHeight: 48,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: c.border,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    // elevation: 2,
+    backgroundColor: c.card,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  cardTop: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12},
-  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: c.textPrimary, flex: 1, marginRight: 8},
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    maxWidth: '48%',
+  searchIconImg:{
+    width: 16,
+    height: 16,
   },
-  statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500', textTransform: 'capitalize'},
-  cardGrid: {flexDirection: 'row', marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: isDark ? c.border : '#F3F4F6'},
-  cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
-  cardLabel: {fontSize: 10, color: c.textSecondary, textTransform: 'uppercase', marginBottom: 4},
-  cardVal: {...Textstyles.medium, fontSize: 13, fontWeight: '600', color: c.textPrimary},
-  cardBottom: {
+  searchIconTxt: {
+    fontSize: 17,
+    color: c.textSecondary,
+    marginRight: 8,
+    lineHeight: 18,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: c.textPrimary,
+    paddingVertical: 8,
+  },
+  statusSelect: {
+    minHeight: 48,
+    minWidth: 114,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: isDark ? c.border : '#F3F4F6',
   },
-  amountTxt: {...Textstyles.medium, fontSize: 20, fontWeight: '500', color: c.textPrimary},
-  viewDetails: {...Textstyles.medium, fontSize: 15, fontWeight: '600', color: c.primary},
+  statusSelectText: {
+    ...Textstyles.medium,
+    fontSize: 15,
+    color: c.textPrimary,
+    fontWeight: '600',
+  },
+  statusSelectCaret: {
+    width: 12,
+    height: 12,
+  },
+  listContent: {paddingHorizontal: 16, paddingTop: 4},
+  card: {
+    backgroundColor: c.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: c.border,
+    padding: 10,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    // elevation: 2,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 9,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    minHeight: 40,
+    paddingVertical: 7,
+  },
+  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '700', color: c.textPrimary, flex: 1, marginRight: 8},
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingRight: 16,
+    paddingVertical: 4,
+    height: 30,
+    borderRadius: 8,
+    maxWidth: '48%',
+  },
+  statusPillIcon: {fontSize: 10, fontWeight: '700', lineHeight: 14},
+  statusPillTxt: {...Textstyles.medium, fontSize: 10.5, fontWeight: '600', textTransform: 'capitalize', lineHeight: 14},
+  cardGrid: {
+    flexDirection: 'row',
+    marginTop: 1,
+    paddingTop: 10,
+    paddingBottom: 2,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? c.border : '#ECEFF3',
+  },
+  cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
+  cardLabel: {fontSize: 11.5, color: c.textSecondary, marginBottom: 3},
+  cardVal: {...Textstyles.medium, fontSize: 13, fontWeight: '700', color: c.textPrimary},
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: isDark ? c.border : '#ECEFF3',
+  },
+  amountTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '700', color: c.textPrimary, lineHeight: 20},
+  viewDetails: {...Textstyles.medium, fontSize: 13.5, fontWeight: '600', color: '#2F80ED'},
+  viewDetailsRow: {flexDirection: 'row', alignItems: 'center'},
+  viewDetailsIcon: {width: 10, height: 10, tintColor: '#2F80ED', marginLeft: 6},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -493,24 +629,41 @@ function createMandateStyles(colors, isDark) {
   },
   filterHead: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10},
   filterTitle: {fontSize: 18, ...Textstyles.heading, fontWeight: '700', color: c.textPrimary},
-  filterSectionLabel: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textSecondary, marginBottom: 10},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18},
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.card,
+  filterList: {
+    marginTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.border,
+  },
+  filterRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  filterRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.border,
+  },
+  filterRowIcon: {
+    width: 26,
+    fontSize: 18,
+    color: c.textSecondary,
+    textAlign: 'center',
     marginRight: 8,
-    marginBottom: 8,
   },
-  chipOn: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
+  filterRowLabel: {
+    ...Textstyles.medium,
+    flex: 1,
+    fontSize: 16,
+    color: c.textPrimary,
+    fontWeight: '600',
   },
-  chipTxt: {fontSize: 12, ...Textstyles.medium, color: '#4B5563', fontWeight: '600'},
-  chipTxtOn: {color: '#FFFFFF'},
+  filterSelectedTick: {
+    fontSize: 18,
+    color: c.primary,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
   filterActions: {flexDirection: 'row', marginTop: 8},
   filterBtnCancel: {
     flex: 1,
@@ -531,5 +684,9 @@ function createMandateStyles(colors, isDark) {
     alignItems: 'center',
   },
   filterBtnApplyTxt: {fontSize: 16, ...Textstyles.heading, fontWeight: '700', color: '#FFFFFF'},
+  filterRowIconImg:{
+    width: 18,
+    height: 18,
+  },
 });
 }
