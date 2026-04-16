@@ -848,7 +848,7 @@ export default function FundDetailScreen() {
       <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]}>
         {header}
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.loadingTxt}>Loading fund…</Text>
         </View>
       </SafeAreaView>
@@ -1799,7 +1799,7 @@ function getFundDetailStyles(colors, isDark) {
     bottom: 0,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 16,
     backgroundColor: c.card,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.border,
@@ -1811,7 +1811,7 @@ function getFundDetailStyles(colors, isDark) {
     flex: 1,
     minHeight: 46,
     borderRadius: 12,
-    backgroundColor: '#21C76E',
+    backgroundColor: '#1E81F2',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

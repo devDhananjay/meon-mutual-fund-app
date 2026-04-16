@@ -90,6 +90,8 @@ const SORT_MODE_LABEL = {
 };
 
 function FundLogo({uri, name, colors, isDark}) {
+  // Some call-sites (e.g. modal) don't pass theme colors; keep rendering safe.
+  const primary = colors?.primary ?? Colors.themeBlue;
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
   }
@@ -99,34 +101,47 @@ function FundLogo({uri, name, colors, isDark}) {
       style={[
         styles.fundLogo,
         styles.fundLogoPh,
-        {backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6', borderColor: colors.border},
+        {backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6', borderColor: primary},
       ]}>
-      <Text style={[styles.fundLogoLetter, {color: colors.primary}]}>{letter}</Text>
+      <Text style={[styles.fundLogoLetter, {color: primary}]}>{letter}</Text>
     </View>
   );
 }
 
-function buildMiniTrendSeries(seedInput) {
+function buildOneDayTrendSeries({seedInput, pct}) {
   const seedStr = String(seedInput ?? 'fund');
   let hash = 0;
   for (let i = 0; i < seedStr.length; i++) {
     hash = (hash * 31 + seedStr.charCodeAt(i)) % 9973;
   }
+
+  const n = 16;
+  const direction = pct >= 0 ? 1 : -1;
+  const absPct = Math.abs(pct);
+  // pct is a percent value (e.g. "1.23" or "-0.45"); convert to a small spark amplitude.
+  const magnitude = Math.min(0.35, absPct / 12 + 0.06);
+
   const points = [];
-  for (let i = 0; i < 16; i++) {
-    const wave = Math.sin((i + (hash % 7)) / 2.5) * 0.28;
-    const trend = ((hash % 19) - 9) * 0.0025 * i;
+  for (let i = 0; i < n; i++) {
+    const prog = i / Math.max(1, n - 1);
+    const wave = Math.sin((i + (hash % 7)) / 2.2) * (0.06 + magnitude * 0.35);
     const noise = ((hash + i * 13) % 11) / 100 - 0.05;
-    points.push(Math.max(0.08, Math.min(0.92, 0.5 + wave + trend + noise)));
+    const base = 0.5 + direction * magnitude * prog;
+    const v = base + wave + noise;
+    points.push(Math.max(0.08, Math.min(0.92, v)));
   }
   return points;
 }
 
 function MiniTrendSparkline({fund, colors, isDark}) {
-  const points = useMemo(
-    () => buildMiniTrendSeries(fund?.scheme_code ?? fund?.isin ?? fund?.scheme_name ?? fund?.base_scheme_name),
-    [fund],
-  );
+  const seedInput = fund?.scheme_code ?? fund?.isin ?? fund?.scheme_name ?? fund?.base_scheme_name;
+  const pctRaw = fund?.one_day_return_per ?? fund?.one_day_return_perc ?? fund?.one_day_return_percentage;
+  const pct = Number(pctRaw);
+  const hasPct = Number.isFinite(pct);
+
+  const lineColor = hasPct ? (pct >= 0 ? '#22C55E' : '#DC2626') : colors.primary;
+
+  const points = useMemo(() => buildOneDayTrendSeries({seedInput, pct: hasPct ? pct : 0}), [seedInput, pct, hasPct]);
   const width = 86;
   const height = 24;
   const step = width / Math.max(1, points.length - 1);
@@ -142,6 +157,7 @@ function MiniTrendSparkline({fund, colors, isDark}) {
             {
               left: i * step,
               top: (1 - p) * (height - 4),
+              backgroundColor: lineColor,
             },
           ]}
         />
@@ -157,7 +173,7 @@ function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark, holdingVisi
 
   let rightBig = '';
   let rightSmall = '';
-  let rightBigColor = styles.statValueNeutral;
+  let rightBigColor = {color: colors.textPrimary};
 
   if (sortMode === 'Day') {
     rightBig = holdingVisible ? formatSignedInr(fund?.one_day_return) : '•••••';
@@ -170,7 +186,7 @@ function HoldingRow({fund, sortMode, onHoldingPress, colors, isDark, holdingVisi
   } else {
     rightBig = holdingVisible ? formatInr(fund?.current_holding) : '•••••';
     rightSmall = holdingVisible ? formatInr(fund?.amount) : '•••••';
-    rightBigColor = styles.statValueNeutral;
+    rightBigColor = {color: colors.textPrimary};
   }
 
   return (
@@ -442,7 +458,7 @@ export default function DashboardScreen() {
               style={styles.sipButton}
               onPress={() => navigateToAllFundsSIP(navigation)}
               activeOpacity={0.85}>
-              <Text style={[Textstyles.normal, styles.sipButtonText]}>Start a SIP</Text>
+              <Text style={[Textstyles.normal, styles.sipButtonText]}>Start SIP</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -671,7 +687,7 @@ const styles = StyleSheet.create({
   },
   welcome: {
     flex: 1,
-    fontSize: typeScale.title,
+    fontSize:20,
     color: Colors.TEXT_PRIMARY,
     lineHeight: 22,
     paddingRight: 4,
@@ -897,7 +913,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 2,
     borderRadius: 1,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#22C55E',
     opacity: 0.95,
   },
   rightBig: {fontSize: 14, color: Colors.TEXT_PRIMARY},
@@ -958,7 +974,7 @@ const styles = StyleSheet.create({
   sipTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 14},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#21C76E',
+    backgroundColor: '#1E81F2',
     minWidth: 148,
     paddingVertical: 11,
     paddingHorizontal: 20,

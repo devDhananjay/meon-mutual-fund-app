@@ -27,7 +27,7 @@ import {TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
-const GREEN_CTA = '#21C76E';
+const GREEN_CTA = '#1E81F2';
 const LOSS_RED = '#DC2626';
 const GAIN_GREEN = '#16A34A';
 const LABEL_GRAY = '#6B7280';

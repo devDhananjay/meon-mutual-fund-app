@@ -35,8 +35,12 @@ export default function ProfileSettingsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
-      <AppHeader title="Settings" onBack={() => navigation.goBack()} />
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <AppHeader
+        title="Settings"
+        onBack={() => navigation.goBack()}
+        backgroundColor={isDark ? colors.background : '#FFFFFF'}
+      />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* <View style={styles.group}>  */}
           {/* <TouchableOpacity
@@ -60,9 +64,9 @@ export default function ProfileSettingsScreen() {
             <Switch
               value={darkModeEnabled}
               onValueChange={onToggleDarkMode}
-              trackColor={{false: '#D5D7DC', true: '#20C274'}}
+              trackColor={{false: '#D5D7DC', true: colors.primary}}
               thumbColor="#FFFFFF"
-              ios_backgroundColor="#D5D7DC"
+              // ios_backgroundColor="#D5D7DC"
             />
           </View>
 
@@ -74,9 +78,9 @@ export default function ProfileSettingsScreen() {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{false: '#D5D7DC', true: '#20C274'}}
+              trackColor={{false: '#D5D7DC', true: colors.primary}}
               thumbColor="#FFFFFF"
-              ios_backgroundColor="#D5D7DC"
+              // ios_backgroundColor="#D5D7DC"
             />
           </View>
 
@@ -98,8 +102,8 @@ export default function ProfileSettingsScreen() {
 
 function createStyles(c, isDark) {
   return StyleSheet.create({
-    safe: {flex: 1, backgroundColor: c.background},
-    scrollContent: {paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20},
+    safe: {flex: 1, backgroundColor: isDark ? c.background : '#FFFFFF'},
+    scrollContent: {paddingHorizontal: 16, paddingTop: 0, paddingBottom: 20},
     group: {
       borderRadius: 14,
       borderWidth: 1,

@@ -382,7 +382,7 @@ export default function ExplorePixelPerfectScreen() {
               Invest every month and grow your wealth with SIP
             </Text>
             <TouchableOpacity style={styles.sipButton} onPress={onStartSIP} activeOpacity={0.9}>
-              <Text style={[styles.sipButtonTxt, Textstyles.normal]}>Start a SIP</Text>
+              <Text style={[styles.sipButtonTxt, Textstyles.normal]}>Start SIP</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   sipTitle: {color: Colors.TEXT_PRIMARY, lineHeight: 20, marginBottom: 12},
   sipButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#21C76E',
+    backgroundColor: '#1E81F2',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 18,

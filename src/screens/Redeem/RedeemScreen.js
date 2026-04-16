@@ -43,7 +43,7 @@ function formatUnits(u) {
 export default function RedeemScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const {colors} = useAppTheme();
+  const {colors, isDark} = useAppTheme();
   const user = useSelector(s => s.auth.user);
   const canRedeem = useMemo(() => {
     const v = user?.allow_redeem;
@@ -259,37 +259,63 @@ export default function RedeemScreen() {
         </Text>
         <View style={[styles.divider, {backgroundColor: colors.border}]} />
 
-        <View style={styles.banner}>
-          <Text style={styles.bannerLabel}>Redeem available</Text>
-          <Text style={styles.bannerValue}>{formatUnits(availableUnits)} units</Text>
+        <View style={[styles.banner, {backgroundColor: isDark ? 'rgba(134,239,172,0.14)' : BANNER_BG}]}>
+          <Text style={[styles.bannerLabel, {color: isDark ? '#86EFAC' : BANNER_FG}]}>Redeem available</Text>
+          <Text style={[styles.bannerValue, {color: isDark ? '#86EFAC' : BANNER_FG}]}>
+            {formatUnits(availableUnits)} units
+          </Text>
         </View>
 
-        <View style={styles.segment}>
+        <View style={[styles.segment, {backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E8EAED'}]}>
           <TouchableOpacity
-            style={[styles.segBtn, redeemByAmount && styles.segBtnOn]}
+            style={[
+              styles.segBtn,
+              redeemByAmount && styles.segBtnOn,
+              redeemByAmount && isDark ? {backgroundColor: 'rgba(30,129,242,0.25)'} : null,
+            ]}
             onPress={() => {
               setMode('amount');
               setRedeemAll(false);
             }}
             activeOpacity={0.85}>
-            <Text style={[styles.segTxt, redeemByAmount && styles.segTxtOn]}>Amount</Text>
+            <Text
+              style={[
+                styles.segTxt,
+                {color: isDark ? colors.textSecondary : '#6B7280'},
+                redeemByAmount && styles.segTxtOn,
+                redeemByAmount && isDark ? {color: colors.primary} : null,
+              ]}>
+              Amount
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.segBtn, !redeemByAmount && styles.segBtnOn]}
+            style={[
+              styles.segBtn,
+              !redeemByAmount && styles.segBtnOn,
+              !redeemByAmount && isDark ? {backgroundColor: 'rgba(30,129,242,0.25)'} : null,
+            ]}
             onPress={() => {
               setMode('quantity');
             }}
             activeOpacity={0.85}>
-            <Text style={[styles.segTxt, !redeemByAmount && styles.segTxtOn]}>Quantity</Text>
+            <Text
+              style={[
+                styles.segTxt,
+                {color: isDark ? colors.textSecondary : '#6B7280'},
+                !redeemByAmount && styles.segTxtOn,
+                !redeemByAmount && isDark ? {color: colors.primary} : null,
+              ]}>
+              Quantity
+            </Text>
           </TouchableOpacity>
         </View>
 
         {redeemByAmount ? (
           <>
-            <View style={styles.inputWrap}>
-              <Text style={styles.rupee}>₹</Text>
+            <View style={[styles.inputWrap, {borderColor: colors.border, backgroundColor: colors.card}]}>
+              <Text style={[styles.rupee, {color: colors.textPrimary}]}>₹</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, {color: colors.textPrimary}]}
                 placeholder="Enter Amount"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="decimal-pad"
@@ -307,10 +333,10 @@ export default function RedeemScreen() {
           </>
         ) : (
           <>
-            <View style={styles.inputWrap}>
-              <Text style={styles.unitsLabel}>Units</Text>
+            <View style={[styles.inputWrap, {borderColor: colors.border, backgroundColor: colors.card}]}>
+              <Text style={[styles.unitsLabel, {color: colors.textPrimary}]}>Units</Text>
               <TextInput
-                style={[styles.input, styles.inputFlex]}
+                style={[styles.input, styles.inputFlex, {color: colors.textPrimary}]}
                 placeholder="Enter Quantity"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="decimal-pad"
@@ -320,7 +346,7 @@ export default function RedeemScreen() {
               />
             </View>
             <View style={styles.redeemAllRow}>
-            <Text style={styles.redeemAllTxt}>Redeem All</Text>
+            <Text style={[styles.redeemAllTxt, {color: colors.textPrimary}]}>Redeem All</Text>
 
               <Switch
                 value={redeemAll}
@@ -330,8 +356,9 @@ export default function RedeemScreen() {
                     setUnitsText(formatUnits(availableUnits));
                   }
                 }}
-                trackColor={{false: '#D1D5DB', true: '#86EFAC'}}
-                thumbColor={redeemAll ? '#fff' : '#f4f3f4'}
+                trackColor={{false: isDark ? '#475569' : colors.border, true: colors.primary}}
+                thumbColor={redeemAll ? '#FFFFFF' : isDark ? '#E5E7EB' : '#f4f3f4'}
+                // ios_backgroundColor={isDark ? '#475569' : colors.border}
                 style={{left: 20}}
               />
             </View>
@@ -390,7 +417,7 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row',
     backgroundColor: '#E8EAED',
-    borderRadius: 40,
+    borderRadius: 20,
     padding: 4,
     marginBottom: 16,
     overflow: 'hidden',
@@ -400,10 +427,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 40,
+    borderRadius: 20,
   },
   segBtnOn: {
-    backgroundColor: '#E3F0FF',
+    backgroundColor: 'white',
   },
   segTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, lineHeight: 20, color: '#6B7280', fontWeight: '600'},
   segTxtOn: {color: CHIP_BLUE},

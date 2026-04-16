@@ -438,7 +438,7 @@ export default function NavLineChart({graphData = [], graphLoading, timeFrame, o
       <View style={[styles.chartBox, {width: chartWidth}]}>
         {graphLoading && filteredData.length === 0 ? (
           <View style={styles.chartLoading}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={themed.loadingTxt}>Loading chart…</Text>
           </View>
         ) : !showChart ? (

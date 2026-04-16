@@ -9,12 +9,16 @@ import {typeScale} from '../theme/typography';
 const HEADER_ICON_LIGHT = '#000000';
 const HEADER_ICON_DARK = '#FFFFFF';
 
-export default function AppHeader({title, onBack, right, subtitle}) {
+export default function AppHeader({title, onBack, right, subtitle, backgroundColor}) {
   const insets = useSafeAreaInsets();
   const {colors, isDark} = useAppTheme();
   const headerIconTint = isDark ? HEADER_ICON_DARK : HEADER_ICON_LIGHT;
   return (
-    <View style={[styles.wrap, {paddingTop: insets.top + 4, backgroundColor: colors.background}]}>
+    <View
+      style={[
+        styles.wrap,
+        {paddingTop: insets.top + 4, backgroundColor: backgroundColor ?? colors.background},
+      ]}>
       <View style={styles.row}>
         <TouchableOpacity
           onPress={onBack}

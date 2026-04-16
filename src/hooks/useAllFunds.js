@@ -25,12 +25,13 @@ export function useAllFunds({
     setError(null);
     try {
       const q = debouncedSearch?.trim?.() ?? '';
+      // Match web curl params closely (keys must be present even if empty).
       const params = {
         page: isMobile ? 1 : page + 1,
         page_size: isMobile ? showMoreCount : rowsPerPage,
-        ...(q ? {search: q, q} : {}),
-        ...(selectedCategory ? {filter1: selectedCategory} : {}),
-        ...(selectedRisk ? {filter2: selectedRisk} : {}),
+        search: q,
+        filter1: selectedCategory || '',
+        filter2: selectedRisk || '',
       };
       const res = await getSchemes(params);
       if (reqId !== requestIdRef.current) {

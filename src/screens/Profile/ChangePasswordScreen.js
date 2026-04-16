@@ -91,7 +91,7 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <AppHeader title="Change Password" onBack={() => navigation.goBack()} />
       <View style={styles.contentWrap}>
         <View style={styles.body}>
@@ -104,6 +104,7 @@ export default function ChangePasswordScreen() {
             secureTextEntry={!showCurrent}
             onToggle={() => setShowCurrent(v => !v)}
             styles={styles}
+            autoFocus
           />
           <PasswordField
             label="New Password"

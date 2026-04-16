@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   titleCol: {flex: 1, minWidth: 0},
   title: {
-    fontSize: typeScale.title,
+    fontSize:20,
     lineHeight: 22,
   },
   subtitle: {fontSize: 14, marginTop: 4},

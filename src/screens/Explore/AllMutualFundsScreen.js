@@ -16,18 +16,32 @@ import {SEARCH_FIELD} from '../../theme/searchField';
 import AppBackButton from '../../components/AppBackButton';
 const LOAD_MORE_STEP = 10;
 
+function buildStableFundId(scheme) {
+  const code = pickSchemeCode(scheme);
+  if (code) {
+    return String(code);
+  }
+  if (scheme?.scheme_id != null) {
+    return String(scheme.scheme_id);
+  }
+  if (scheme?.scheme_master_id != null) {
+    return String(scheme.scheme_master_id);
+  }
+  // Fallback is based on immutable content, never list index.
+  const name = String(scheme?.base_scheme_name || scheme?.name || 'fund').trim().toLowerCase();
+  const amc = String(scheme?.amc_name || '').trim().toLowerCase();
+  const cat = String(scheme?.scheme_type || '').trim().toLowerCase();
+  return `${name}::${amc}::${cat}`;
+}
+
 function mapApiResultsToFundsForList(data) {
   if (!data?.results?.length) {
     return [];
   }
 
-  return data.results.map((scheme, index) => {
+  return data.results.map(scheme => {
     const code = pickSchemeCode(scheme);
-    const id =
-      code ??
-      (scheme?.scheme_id != null ? String(scheme.scheme_id) : undefined) ??
-      (scheme?.scheme_master_id != null ? String(scheme.scheme_master_id) : undefined) ??
-      String(index);
+    const id = buildStableFundId(scheme);
 
     const returns = scheme?.returns ?? {};
     return {
@@ -154,11 +168,12 @@ export default function AllMutualFundsScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const [sortPeriodKey, setSortPeriodKey] = useState('3y'); // 1y | 3y | 5y
+  const [sortPeriodKey, setSortPeriodKey] = useState('none'); // none | 3y | 5y | 7y
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedRisk, setSelectedRisk] = useState('');
 
   const [showMoreCount, setShowMoreCount] = useState(10);
+  const [fetchCount, setFetchCount] = useState(30);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
@@ -210,7 +225,7 @@ export default function AllMutualFundsScreen() {
   const {data, isLoading, error} = useAllFunds({
     page: 0,
     rowsPerPage: 10,
-    showMoreCount,
+    showMoreCount: fetchCount,
     isMobile: true,
     debouncedSearch,
     selectedCategory,
@@ -220,12 +235,18 @@ export default function AllMutualFundsScreen() {
   const apiFunds = useMemo(() => mapApiResultsToFundsForList(data), [data]);
 
   const sortedFunds = useMemo(() => {
+    if (sortPeriodKey === 'none') {
+      return apiFunds;
+    }
     const list = [...apiFunds];
     list.sort((a, b) => getReturnValue(b, sortPeriodKey) - getReturnValue(a, sortPeriodKey));
     return list;
   }, [apiFunds, sortPeriodKey]);
 
   const sortLabel = useMemo(() => {
+    if (sortPeriodKey === 'none') {
+      return 'Sort';
+    }
     return sortPeriodKey === '5y'
       ? '5Y Returns'
       : sortPeriodKey === '7y'
@@ -244,13 +265,24 @@ export default function AllMutualFundsScreen() {
     }
   }, [isLoading]);
 
+  useEffect(() => {
+    setShowMoreCount(10);
+    setFetchCount(30);
+    loadMoreLock.current = false;
+  }, [debouncedSearch, selectedCategory, selectedRisk]);
+
   const handleEndReached = useCallback(() => {
     if (!hasMore || isLoading || loadMoreLock.current) {
       return;
     }
     loadMoreLock.current = true;
-    setShowMoreCount(c => Math.min(c + LOAD_MORE_STEP, totalCount));
-  }, [hasMore, isLoading, totalCount]);
+    const nextVisible = Math.min(showMoreCount + LOAD_MORE_STEP, totalCount);
+    setShowMoreCount(nextVisible);
+
+    if (nextVisible + LOAD_MORE_STEP > apiFunds.length && fetchCount < totalCount) {
+      setFetchCount(c => Math.min(c + 20, totalCount));
+    }
+  }, [hasMore, isLoading, totalCount, showMoreCount, apiFunds.length, fetchCount]);
 
   const onPressFund = useCallback(
     fund => {
@@ -268,6 +300,8 @@ export default function AllMutualFundsScreen() {
       setSortPeriodKey(key);
     }
   }, []);
+
+  const returnPeriodKey = sortPeriodKey === 'none' ? '1y' : sortPeriodKey;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -320,19 +354,22 @@ export default function AllMutualFundsScreen() {
 
       {isLoading && sortedFunds.length === 0 ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : (
         <FlatList
           data={sortedFunds.slice(0, showMoreCount)}
-          keyExtractor={(item, index) => String(item?.id ?? item?.scheme_code ?? index)}
+          keyExtractor={item => String(item?.id ?? item?.scheme_code ?? item?.name)}
           renderItem={({item}) => (
             <View style={styles.fundItemWrap}>
-              <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
+              <FundListItem fund={item} returnPeriodKey={returnPeriodKey} onPress={() => onPressFund(item)} />
             </View>
           )}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          onMomentumScrollBegin={() => {
+            loadMoreLock.current = false;
+          }}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.35}
           ListFooterComponent={

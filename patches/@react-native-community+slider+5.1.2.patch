@@ -1,0 +1,20 @@
+diff --git a/node_modules/@react-native-community/slider/react-native-slider.podspec b/node_modules/@react-native-community/slider/react-native-slider.podspec
+index 54d77bd..bbb2ec0 100644
+--- a/node_modules/@react-native-community/slider/react-native-slider.podspec
++++ b/node_modules/@react-native-community/slider/react-native-slider.podspec
+@@ -16,7 +16,15 @@ Pod::Spec.new do |s|
+   s.platforms    = { :ios => "9.0", :visionos => "1.0" }
+ 
+   s.source       = { :git => "https://github.com/callstack/react-native-slider.git", :tag => "v#{s.version}" }
++  # Fabric component view files rely on generated codegen headers/types.
++  # Exclude them on legacy architecture builds.
+   s.source_files = "ios/**/*.{h,m,mm}"
++  unless new_arch_enabled
++    s.exclude_files = [
++      "ios/RNCSliderComponentView.h",
++      "ios/RNCSliderComponentView.mm",
++    ]
++  end
+ 
+   if new_arch_enabled
+     s.subspec "common" do |ss|

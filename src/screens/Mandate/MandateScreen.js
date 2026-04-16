@@ -561,9 +561,9 @@ function createMandateStyles(colors, isDark) {
     borderTopColor: isDark ? c.border : '#ECEFF3',
   },
   amountTxt: {...Textstyles.medium, fontSize: 15, fontWeight: '700', color: c.textPrimary, lineHeight: 20},
-  viewDetails: {...Textstyles.medium, fontSize: 13.5, fontWeight: '600', color: '#2F80ED'},
+  viewDetails: {...Textstyles.medium, fontSize: 13.5, fontWeight: '600', color: '#1E81F2'},
   viewDetailsRow: {flexDirection: 'row', alignItems: 'center'},
-  viewDetailsIcon: {width: 10, height: 10, tintColor: '#2F80ED', marginLeft: 6},
+  viewDetailsIcon: {width: 10, height: 10, tintColor: '#1E81F2', marginLeft: 6},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,

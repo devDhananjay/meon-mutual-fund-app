@@ -21,7 +21,7 @@ export function useAppTheme() {
         textSecondary: isDark ? '#AAAAAA' : '#6B7280',
         border: isDark ? '#2C2C2C' : '#E5E7EB',
         muted: isDark ? '#AAAAAA' : '#9CA3AF',
-        primary: isDark ? '#60A5FA' : '#2F80ED',
+        primary: '#1E81F2',
         success: isDark ? '#22C55E' : '#16A34A',
         danger: isDark ? '#F87171' : '#DC2626',
         inputBg: isDark ? '#1E1E1E' : '#FFFFFF',

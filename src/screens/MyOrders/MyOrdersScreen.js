@@ -141,7 +141,7 @@ function createMyOrdersStyles(colors, isDark) {
       paddingHorizontal: 8,
       paddingVertical: 5,
       borderRadius: 8,
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
       maxWidth: '100%',
     },
     statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500'},
@@ -489,7 +489,7 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}
           <Text style={styles.cellVal}>{investDate}</Text>
         </View>
         <View style={styles.cardCell}>
-          <Text style={styles.cellLabel}>Status</Text>
+          <Text style={[styles.cellLabel, {alignSelf: 'center'}]}>Status</Text>
           <StatusBadge label={status} styles={styles} isDark={isDark} />
         </View>
       </View>

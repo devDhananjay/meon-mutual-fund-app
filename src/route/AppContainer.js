@@ -51,7 +51,7 @@ export default function AppContainer() {
           card: '#1E1E1E',
           text: '#FFFFFF',
           border: '#2C2C2C',
-          primary: '#21C76E',
+          primary: '#1E81F2',
         },
       }
     : {
@@ -62,7 +62,7 @@ export default function AppContainer() {
           card: '#FFFFFF',
           text: '#111827',
           border: '#E5E7EB',
-          primary: '#21C76E',
+          primary: '#1E81F2',
         },
       };
 

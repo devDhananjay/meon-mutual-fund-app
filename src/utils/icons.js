@@ -41,6 +41,7 @@ const Icons = {
   HidePassword: require('../assets/Icons/HidePassword.png'),
   SettingsMinimalistic: require('../assets/Icons/SettingsMinimalistic.png'),
   DropDown: require('../assets/Icons/DropDown.png'),
+  CalendarOthers: require('../assets/Icons/calendarOthers.png'),
 
   PedingIconsFilter: require('../assets/Icons/PedingIconsFilter.png'),
   ActiveIcon: require('../assets/Icons/ActiveIcon.png'),

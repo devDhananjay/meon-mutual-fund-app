@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   primaryBtn: {
-    backgroundColor: '#2F80ED',
+    backgroundColor: '#1E81F2',
   },
   secondaryBtn: {
     borderWidth: 1,

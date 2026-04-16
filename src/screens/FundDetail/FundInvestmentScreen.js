@@ -804,7 +804,7 @@ export default function FundInvestmentScreen() {
     return (
       <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -941,14 +941,16 @@ export default function FundInvestmentScreen() {
 
               {orderType === 'SIP' ? (
                 <>
+                <View style={{marginTop:10}}>
                   <Text style={styles.fieldLabel}>SIP frequency</Text>
                   <TouchableOpacity
                     style={styles.dropdownField}
-                    onPress={() => setFreqModalVisible(true)}
-                    activeOpacity={0.85}>
-                    <Text style={styles.dropdownValue}>{sipFrequency}</Text>
-                    <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
-                  </TouchableOpacity>
+                      onPress={() => setFreqModalVisible(true)}
+                      activeOpacity={0.85}>
+                      <Text style={styles.dropdownValue}>{sipFrequency}</Text>
+                      <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
+                    </TouchableOpacity>
+                  </View>
 
                   <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
                   <TouchableOpacity
@@ -956,7 +958,7 @@ export default function FundInvestmentScreen() {
                     onPress={() => setShowSipDatePicker(true)}
                     activeOpacity={0.85}>
                     <Text style={styles.dropdownValue}>{formatSipDateDisplay(sipDate)}</Text>
-                    <Text style={styles.calendarIcon}>📅</Text>
+                    <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
                   </TouchableOpacity>
 
                   <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP Duration (Years)</Text>
@@ -1210,14 +1212,14 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   orderTabs: {
     flexDirection: 'row',
-    borderRadius: 40,
+    borderRadius: 15,
     backgroundColor: isDark ? '#2C2C2C' : '#E8EAED',
     padding: 4,
     marginBottom: 4,
     overflow: 'hidden',
   },
-  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 40},
-  orderTabBtnActive: {backgroundColor: isDark ? 'rgba(96,165,250,0.15)' : '#E3F0FF'},
+  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 15},
+  orderTabBtnActive: {backgroundColor: isDark ? 'rgba(226, 231, 237, 0.15)' : 'white'},
   orderTabTxt: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.textSecondary, fontWeight: '600'},
   orderTabTxtActive: {color: c.primary},
   amountInputWrap: {
@@ -1288,7 +1290,7 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   dropdownValue: {...Textstyles.medium, fontSize: typeScale.bodyLg, color: c.textPrimary, fontWeight: '500'},
   dropdownChevron: {width: 12, height: 12, tintColor: c.textSecondary},
-  calendarIcon: {fontSize: typeScale.chevron},
+  calendarIcon: {width: 18, height: 18, tintColor: c.textSecondary},
   sipOptionRow: {flexDirection: 'row', gap: 8, flexWrap: 'wrap'},
   inlineChip: {
     borderWidth: 1,
@@ -1326,7 +1328,6 @@ function getFundInvestmentStyles(colors, isDark) {
   footer: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 12,
     backgroundColor: c.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.border,

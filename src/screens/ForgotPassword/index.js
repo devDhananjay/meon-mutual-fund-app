@@ -77,6 +77,7 @@ export default function ForgotPassword() {
             <CustomInput
               label="Username / Email"
               value={usernameOrEmail}
+              autoFocus
               onChangeText={v => {
                 setUsernameOrEmail(v);
                 if (fieldError) {

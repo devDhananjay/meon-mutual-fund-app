@@ -82,14 +82,19 @@ function formatPct(value) {
   return `${sign}${n.toFixed(2)}%`;
 }
 
-function FundLogo({name, uri}) {
+function FundLogo({name, uri, colors}) {
   if (uri) {
     return <Image source={{uri}} style={styles.fundLogo} resizeMode="contain" />;
   }
   const letter = (name || '?')[0]?.toUpperCase() ?? '?';
   return (
-    <View style={[styles.fundLogo, styles.fundLogoPh]}>
-      <Text style={styles.fundLogoLetter}>{letter}</Text>
+    <View
+      style={[
+        styles.fundLogo,
+        styles.fundLogoPh,
+        {backgroundColor: colors.inputBg, borderColor: colors.border},
+      ]}>
+      <Text style={[styles.fundLogoLetter, {color: colors.primary}]}>{letter}</Text>
     </View>
   );
 }
@@ -124,19 +129,21 @@ function WatchlistRow({
         isFirst && styles.rowInCardFirst,
         isLast && styles.rowInCardLast,
         !isLast && styles.rowInCardDivider,
+        {backgroundColor: colors.card},
+        !isLast ? {borderBottomColor: colors.border} : null,
       ]}>
       <TouchableOpacity
         style={styles.rowMainTap}
         onPress={() => onOpenFund(item)}
         activeOpacity={0.75}
         disabled={busy}>
-        <FundLogo name={title} uri={logo} />
+        <FundLogo name={title} uri={logo} colors={colors} />
         <View style={styles.nameCol}>
-          <Text style={[Textstyles.medium, styles.fundName]} numberOfLines={2}>
+          <Text style={[Textstyles.medium, styles.fundName, {color: colors.textPrimary}]} numberOfLines={2}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[Textstyles.medium, styles.subLine]} numberOfLines={2}>
+            <Text style={[Textstyles.medium, styles.subLine, {color: colors.textSecondary}]} numberOfLines={2}>
               {subtitle}
             </Text>
           ) : null}
@@ -145,11 +152,11 @@ function WatchlistRow({
           <Text
             style={[
               styles.returnPct,
-              !hasNum ? styles.returnNeutral : isNeg ? styles.returnNeg : styles.returnPos,
+              !hasNum ? {color: colors.textSecondary} : isNeg ? styles.returnNeg : styles.returnPos,
             ]}>
             {pct}
           </Text>
-          <Text style={[Textstyles.medium, styles.periodLabel]}>1D</Text>
+          <Text style={[Textstyles.medium, styles.periodLabel, {color: colors.textSecondary}]}>1D</Text>
         </View>
       </TouchableOpacity>
       <TouchableOpacity
@@ -164,7 +171,7 @@ function WatchlistRow({
         ) : (
           <Image
             source={Icons.BookmarkFilled}
-            style={[styles.watchlistRowIcon, {tintColor: AppColors.primary}]}
+            style={[styles.watchlistRowIcon, {tintColor: colors.primary}]}
             resizeMode="contain"
           />
         )}
@@ -268,12 +275,12 @@ export default function WatchlistScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <View style={styles.searchCard}>
+        <View style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
-            style={[Textstyles.medium, styles.searchInput]}
+            style={[Textstyles.medium, styles.searchInput, {color: colors.textPrimary}]}
             placeholder="Search watchlist..."
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.textSecondary}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
@@ -283,7 +290,7 @@ export default function WatchlistScreen() {
         </View>
       </View>
     ),
-    [search],
+    [search, colors.inputBg, colors.border, colors.textSecondary],
   );
 
   const headerBar = (
@@ -298,7 +305,7 @@ export default function WatchlistScreen() {
       <Text style={[Textstyles.medium, styles.headerTitle, {color: colors.textPrimary}]} numberOfLines={1}>
         My Watchlist
       </Text>
-      <View style={styles.headerRight}>
+      {/* <View style={styles.headerRight}>
         <View style={styles.sortInner}>
           <Text style={[Textstyles.medium, styles.sortLabel, {color: colors.textPrimary}]} numberOfLines={1}>
             1D Returns
@@ -306,7 +313,7 @@ export default function WatchlistScreen() {
           <Image source={Icons.DropDown} style={[styles.sortChevron, {tintColor: colors.textPrimary}]} resizeMode="contain" />
         </View>
         <View style={[styles.sortDottedLine, {borderBottomColor: colors.border}]} />
-      </View>
+      </View> */}
     </View>
   );
 
@@ -341,12 +348,12 @@ export default function WatchlistScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={[Textstyles.medium, styles.emptyTitle]}>No funds in watchlist</Text>
-            <Text style={[Textstyles.normal, styles.emptySub]}>
+          <View style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Text style={[Textstyles.medium, styles.emptyTitle, {color: colors.textPrimary}]}>No funds in watchlist</Text>
+            <Text style={[Textstyles.normal, styles.emptySub, {color: colors.textSecondary}]}>
               {search.trim() ? 'Try a different search.' : 'Explore funds and tap the bookmark to save them here.'}
             </Text>
-            <TouchableOpacity style={styles.cta} onPress={goExplore} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.cta, {backgroundColor: colors.primary}]} onPress={goExplore} activeOpacity={0.85}>
               <Text style={[Textstyles.medium, styles.ctaTxt]}>Explore funds</Text>
             </TouchableOpacity>
           </View>

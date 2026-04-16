@@ -8,6 +8,11 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Keep iOS aligned with Android (`android/gradle.properties` newArchEnabled=false).
+# New Architecture on iOS only can trigger a race where native emits events before
+# `RCTEventEmitter` is registered (red screen: receiveEvent / registerCallableModule).
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -20,7 +25,8 @@ target 'MeonMutualFunds' do
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/.."
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    :new_arch_enabled => false
   )
 
   target 'MeonMutualFundsTests' do
@@ -36,5 +42,20 @@ target 'MeonMutualFunds' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Align pod deployment targets with the app (avoids Xcode SDK warnings, e.g. pods still on iOS 9).
+    app_ios = '15.1'
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |cfg|
+        current = cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        next if current.nil? || current.to_s.include?('$')
+
+        begin
+          cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = app_ios if Gem::Version.new(current) < Gem::Version.new(app_ios)
+        rescue ArgumentError
+          cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = app_ios
+        end
+      end
+    end
   end
 end

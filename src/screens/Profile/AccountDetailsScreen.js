@@ -90,10 +90,11 @@ export default function AccountDetailsScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <AppHeader
         title="Account Details"
         onBack={() => navigation.goBack()}
+        backgroundColor={isDark ? colors.background : '#FFFFFF'}
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
@@ -147,7 +148,7 @@ export default function AccountDetailsScreen() {
 
 function createStyles(c, isDark) {
   return StyleSheet.create({
-    safe: {flex: 1, backgroundColor: c.background},
+    safe: {flex: 1, backgroundColor: isDark ? c.background : '#FFFFFF'},
     scrollContent: {paddingHorizontal: 16, paddingBottom: 16},
     card: {
       borderRadius: 16,

@@ -4,6 +4,13 @@
 
 @implementation AppDelegate
 
+// Force legacy architecture at runtime (matches Android `newArchEnabled=false` and avoids
+// Fabric/bridge timing issues such as RCTEventEmitter.receiveEvent / registerCallableModule).
+- (BOOL)newArchEnabled
+{
+  return NO;
+}
+
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
   self.moduleName = @"MeonMutualFunds";

@@ -1,5 +1,5 @@
 export const AppColors = {
-  primary: '#21C76E',
+  primary: '#1E81F2',
   background: '#F8FAFC',
   card: '#FFFFFF',
   textPrimary: '#111827',

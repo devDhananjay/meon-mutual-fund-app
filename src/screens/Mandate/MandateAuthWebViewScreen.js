@@ -62,7 +62,7 @@ export default function MandateAuthWebViewScreen() {
             {backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.65)'},
           ]}
           pointerEvents="none">
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : null}
       <WebView

@@ -103,7 +103,7 @@ export default function Login() {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
         <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="small" color={colors.primary} />
       </SafeAreaView>
     );
   }

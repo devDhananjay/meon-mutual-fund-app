@@ -729,7 +729,7 @@ export default function OrderDetailScreen() {
                         <Text style={styles.modalOptionIcon}>🪪</Text>
                         <View style={{flex: 1}}>
                           <Text style={styles.modalOptionMain}>Send Payment Link via UPI</Text>
-                          <Text style={styles.modalOptionSub}>SBI *****8392</Text>
+                          <Text style={styles.modalOptionSub}>BANK ***********</Text>
                         </View>
                         <Image source={Icons.GoIcon} style={styles.modalOptionChevron} resizeMode="contain" />
                       </TouchableOpacity>

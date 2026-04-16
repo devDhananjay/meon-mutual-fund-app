@@ -20,6 +20,7 @@ import {typeScale} from '../../theme/typography';
 import {SEARCH_FIELD} from '../../theme/searchField';
 import {TAB_SCREEN_SAFE_TOP_EXTRA, TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
 
 const CATEGORIES = [
   {label: 'All categories', value: ''},
@@ -91,6 +92,7 @@ function Chip({label, selected, onPress}) {
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
+  const {isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const headerPadTop = insets.top + TAB_SCREEN_SAFE_TOP_EXTRA;
   const [searchTerm, setSearchTerm] = useState('');
@@ -275,15 +277,17 @@ export default function ExploreScreen() {
         ) : null}
 
         <View style={styles.heroCard}>
-          <Image
-            source={require('../../assets/Icons/calendarSip.png')}
-            style={styles.heroEmoji}
-            resizeMode="contain"
-          />
+          <View style={[styles.heroIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
+            <Image
+              source={require('../../assets/Icons/calendarSip.png')}
+              style={styles.heroEmoji}
+              resizeMode="contain"
+            />
+          </View>
           <View style={styles.heroTextCol}>
             <Text style={styles.heroTitle}>Invest every month and grow your wealth with SIP</Text>
             <TouchableOpacity style={styles.heroButton} onPress={onStartSIP} activeOpacity={0.85}>
-              <Text style={[styles.heroButtonTxt, Textstyles.normal]}>Start a SIP</Text>
+              <Text style={[styles.heroButtonTxt, Textstyles.normal]}>Start SIP</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -569,10 +573,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   heroEmoji: {width: 34, height: 34},
+  heroIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroTextCol: {flex: 1},
   heroTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
   heroButton: {
-    backgroundColor: '#21C76E',
+    backgroundColor: '#1E81F2',
     alignSelf: 'flex-start',
     paddingVertical: 10,
     paddingHorizontal: 16,
