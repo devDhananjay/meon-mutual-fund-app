@@ -398,7 +398,7 @@ export default function ProfileScreen() {
 
 const createStyles = palette =>
   StyleSheet.create({
-  safe: {flex: 1, backgroundColor: palette.pageBg},
+  safe: {flex: 1, backgroundColor: 'white'},
   scroll: {flex: 1},
   scrollContent: {paddingBottom: 32, paddingHorizontal: 0},
   pageTitle: {

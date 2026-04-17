@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {View, StatusBar, StyleSheet, Animated, Image} from 'react-native';
+import {View, StatusBar, StyleSheet, Animated, Image, TouchableOpacity, Linking, Text} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch} from 'react-redux';
@@ -10,7 +10,8 @@ import {loadStoredSession} from '../../services/authStorage';
 import {fetchAuthProfile} from '../../services/authService';
 import {persistAuth} from '../../services/authStorage';
 import {useAppTheme} from '../../theme/useAppTheme';
-import {baseUrl} from '../../utils/AppConstant';
+import {baseUrl, Colors} from '../../utils/AppConstant';
+import { Textstyles } from '../../utils';
 
 const API_ORIGIN = 'https://mutualfunds.meon.co.in';
 
@@ -125,6 +126,22 @@ export default function Splash() {
           <AuthBrand />
         )}
       </Animated.View>
+      <View style={{ bottom: 0, left: 0, right: 0, position: 'absolute', }}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://meon.co.in')
+              .catch(err => console.error('Failed to open URL:', err))}
+            style={{ flexDirection: 'row', top: -20, alignSelf: 'center', alignItems: 'center' }}>
+            <Text style={[
+              Textstyles.normal,
+              { color: Colors.TEXT_PRIMARY, fontSize: 13 },
+            ]}>© Meon MF By</Text>
+
+            <Text style={[
+              Textstyles.normal,
+              { color: Colors.themeColor, fontSize: 13 },
+            ]}> Meon Technologies Pvt. Ltd</Text>
+          </TouchableOpacity>
+        </View>
       <View style={[styles.bottomLine, {backgroundColor: colors.border}]} />
     </SafeAreaView>
   );
@@ -144,7 +161,7 @@ const styles = StyleSheet.create({
   },
   bottomLine: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 10,
     width: 120,
     height: 3,
     borderRadius: 2,
