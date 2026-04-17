@@ -43,7 +43,7 @@ function FundLogo({logoUrl, name, size, s}) {
   );
 }
 
-export default function FundCard({fund, variant = 'popular', onPress}) {
+export default function FundCard({fund, variant = 'popular', onPress, cardWidth}) {
   const {colors, isDark} = useAppTheme();
   const styles = getStyles(colors, isDark);
   const name = fund?.name ?? '';
@@ -51,14 +51,21 @@ export default function FundCard({fund, variant = 'popular', onPress}) {
   const {period, value} = pickTrailingReturn(fund);
 
   const isRecent = variant === 'recent';
+  const logoSize = 32;
+
+  const widthStyle = isRecent
+    ? cardWidth != null
+      ? {width: cardWidth, alignSelf: 'flex-start'}
+      : styles.cardRecent
+    : null;
 
   return (
     <TouchableOpacity
       activeOpacity={0.78}
       onPress={onPress}
-      style={[styles.card, isRecent && styles.cardRecent]}>
+      style={[styles.card, !isRecent && styles.cardPopular, widthStyle]}>
       <View style={styles.topRow}>
-        <FundLogo logoUrl={fund?.logo_url} name={name} size={isRecent ? 32 : 40} s={styles} />
+        <FundLogo logoUrl={fund?.logo_url} name={name} size={logoSize} s={styles} />
         <View style={styles.nameCol}>
           <Text style={styles.fundName} numberOfLines={2}>
             {name}
@@ -82,35 +89,42 @@ export default function FundCard({fund, variant = 'popular', onPress}) {
 const getStyles = (colors, isDark) =>
   StyleSheet.create({
     card: {
-      flex: 1,
       minWidth: 0,
+      width: '100%',
       backgroundColor: colors.card,
       borderRadius: radius.card,
       borderWidth: 1,
       borderColor: colors.border,
       padding: 12,
-      ...shadows.card,
+      /* Match flat list rows in dark mode (border-only, no glow). */
+      ...(isDark ? {} : shadows.card),
     },
+    /** Grid: natural height (no stretch to row); same width as cell */
+    cardPopular: {
+      alignSelf: 'flex-start',
+    },
+    /** Fallback when parent does not pass `cardWidth` (e.g. horizontal list) */
     cardRecent: {
       width: 220,
+      alignSelf: 'flex-start',
     },
     topRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
     },
     logo: {borderRadius: 10, backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6'},
     logoPlaceholder: {alignItems: 'center', justifyContent: 'center'},
     logoLetter: {fontSize: 13, fontWeight: '500', color: colors.primary},
     nameCol: {flex: 1, minWidth: 0},
-    fundName: {fontSize: 12, fontWeight: '500', color: colors.textPrimary, lineHeight: 16},
+    fundName: {fontSize: 12, fontWeight: '500', color: colors.textPrimary, lineHeight: 15},
     metricsRow: {
-      marginTop: 10,
+      marginTop: 8,
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-end',
       justifyContent: 'space-between',
       gap: 8,
-      minHeight: 34,
+      minHeight: 28,
     },
     returnCol: {alignItems: 'flex-start', flexShrink: 0},
     period: {fontSize: 10, color: colors.textSecondary, fontWeight: '500'},

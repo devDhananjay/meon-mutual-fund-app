@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -208,7 +209,13 @@ function mapApiResultsToFunds(apiData) {
 
 export default function ExplorePixelPerfectScreen() {
   const navigation = useNavigation();
-  const {colors} = useAppTheme();
+  const {colors, isDark} = useAppTheme();
+  const {width: windowWidth} = useWindowDimensions();
+  /** Same inner width as Popular grid column (padding 16 each side, 4px gutter). */
+  const popularColumnWidth = useMemo(
+    () => Math.max(140, Math.floor((windowWidth - 32) / 2 - 4)),
+    [windowWidth],
+  );
 
   const [sortPeriodKey, setSortPeriodKey] = useState('3y'); // 1y | 3y | 5y
   const [selectedCategory, setSelectedCategory] = useState(''); // '' means All categories
@@ -342,11 +349,15 @@ export default function ExplorePixelPerfectScreen() {
 
   const renderFundRow = useCallback(
     ({item}) => (
-      <View style={styles.allFundsItemWrap}>
+      <View
+        style={[
+          styles.allFundsItemWrap,
+          {backgroundColor: colors.card, borderColor: colors.border},
+        ]}>
         <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
       </View>
     ),
-    [sortPeriodKey, onPressFund],
+    [sortPeriodKey, onPressFund, colors.card, colors.border],
   );
 
   const keyExtractor = useCallback((item, index) => String(item.id ?? item.scheme_code ?? `fund-${index}`), []);
@@ -360,7 +371,11 @@ export default function ExplorePixelPerfectScreen() {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Search mutual funds">
-          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
+          <Image
+            source={Icons.SearchIcon}
+            style={[styles.searchIconImg, isDark ? {tintColor: colors.textSecondary} : null]}
+            resizeMode="contain"
+          />
           <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
             Search funds...
           </Text>
@@ -376,7 +391,13 @@ export default function ExplorePixelPerfectScreen() {
         ) : null}
 
         <View style={[styles.sipBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <Image source={require('../../assets/Icons/calendarSip.png')} style={styles.sipEmoji} resizeMode="contain" />
+          <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
+            <Image
+              source={require('../../assets/Icons/calendarSip.png')}
+              style={styles.sipEmoji}
+              resizeMode="contain"
+            />
+          </View>
           <View style={styles.sipTextCol}>
             <Text style={[Textstyles.medium, styles.sipTitle, {color: colors.textPrimary}]}>
               Invest every month and grow your wealth with SIP
@@ -415,7 +436,12 @@ export default function ExplorePixelPerfectScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentScroll} contentContainerStyle={styles.recentContent}>
           {recentlyViewed.map((f, idx) => (
             <View key={f.id ?? idx} style={styles.recentItem}>
-              <FundCard fund={f} variant="recent" onPress={() => onPressFund(f)} />
+              <FundCard
+                fund={f}
+                variant="recent"
+                cardWidth={popularColumnWidth}
+                onPress={() => onPressFund(f)}
+              />
             </View>
           ))}
         </ScrollView>
@@ -455,6 +481,8 @@ export default function ExplorePixelPerfectScreen() {
     ),
     [
       colors,
+      isDark,
+      popularColumnWidth,
       listError,
       popularFunds,
       recentlyViewed,
@@ -575,16 +603,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 18,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EBECED',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
   },
-  sipEmoji: {width: 38, height: 38},
+  /** Same calendar pill as Dashboard Start SIP */
+  sipIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sipEmoji: {width: 44, height: 44},
   sipTextCol: {flex: 1},
   sipTitle: {color: Colors.TEXT_PRIMARY, lineHeight: 20, marginBottom: 12},
   sipButton: {
@@ -612,17 +646,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: 16,
     marginBottom: 16,
+    alignItems: 'flex-start',
   },
   gridItemBase: {
     width: '50%',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   gridItemLeft: {paddingRight: 4},
   gridItemRight: {paddingRight: 0},
 
   recentScroll: {marginTop: 4, marginBottom: 18},
   recentContent: {paddingHorizontal: 16, gap: 12},
-  recentItem: {width: 220},
+  recentItem: {flexShrink: 0},
 
   allFundsHeadRow: {
     flexDirection: 'row',
@@ -654,9 +689,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.BORDER_GREY,
-    backgroundColor: Colors.white,
+    borderWidth: 1,
   },
   listStatusBox: {
     flexDirection: 'row',

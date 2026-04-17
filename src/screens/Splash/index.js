@@ -36,7 +36,7 @@ function toAbsoluteLogoUrl(rawLogo) {
 export default function Splash() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const {colors} = useAppTheme();
+  const {colors, isDark} = useAppTheme();
   const [companyLogoUrl, setCompanyLogoUrl] = useState(null);
   const done = useRef(false);
   const fade = useRef(new Animated.Value(0)).current;
@@ -126,19 +126,19 @@ export default function Splash() {
           <AuthBrand />
         )}
       </Animated.View>
-      <View style={{ bottom: 0, left: 0, right: 0, position: 'absolute', }}>
+      <View style={styles.footerWrap}>
           <TouchableOpacity
             onPress={() => Linking.openURL('https://meon.co.in')
               .catch(err => console.error('Failed to open URL:', err))}
-            style={{ flexDirection: 'row', top: -20, alignSelf: 'center', alignItems: 'center' }}>
+            style={styles.footerLinkRow}>
             <Text style={[
               Textstyles.normal,
-              { color: Colors.TEXT_PRIMARY, fontSize: 13 },
+              {color: isDark ? Colors.white : colors.textPrimary, fontSize: 13},
             ]}>© Meon MF By</Text>
 
             <Text style={[
               Textstyles.normal,
-              { color: Colors.themeColor, fontSize: 13 },
+              {color: colors.primary, fontSize: 13},
             ]}> Meon Technologies Pvt. Ltd</Text>
           </TouchableOpacity>
         </View>
@@ -155,6 +155,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoWrap: {marginBottom: 10},
+  footerWrap: {bottom: 0, left: 0, right: 0, position: 'absolute'},
+  footerLinkRow: {flexDirection: 'row', top: -20, alignSelf: 'center', alignItems: 'center'},
   companyLogo: {
     width: 200,
     height: 100,

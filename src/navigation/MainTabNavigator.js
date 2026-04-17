@@ -3,6 +3,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Text, View, StyleSheet, Image} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
+/** Tab Explore uses this screen (not ExploreScreen.js). Theme/UI changes must be applied here too. */
 import ExplorePixelPerfectScreen from '../screens/Explore/ExplorePixelPerfectScreen';
 import MyFoliosScreen from '../screens/MyFolios/MyFoliosScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';

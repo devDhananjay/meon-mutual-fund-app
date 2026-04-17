@@ -463,9 +463,10 @@ function createMandateStyles(colors, isDark) {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  searchIconImg:{
+  searchIconImg: {
     width: 16,
     height: 16,
+    ...(isDark ? {tintColor: c.textSecondary} : {}),
   },
   searchIconTxt: {
     fontSize: 17,
@@ -500,6 +501,7 @@ function createMandateStyles(colors, isDark) {
   statusSelectCaret: {
     width: 12,
     height: 12,
+    tintColor: c.textSecondary,
   },
   listContent: {paddingHorizontal: 16, paddingTop: 4},
   card: {

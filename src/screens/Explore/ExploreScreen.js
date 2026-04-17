@@ -77,13 +77,13 @@ function mapResultsToFunds(data) {
   });
 }
 
-function Chip({label, selected, onPress}) {
+function Chip({label, selected, onPress, chipStyles}) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
+      style={[chipStyles.chip, selected && chipStyles.chipSelected]}
       activeOpacity={0.85}>
-      <Text style={[Textstyles.normal, styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>
+      <Text style={[Textstyles.normal, chipStyles.chipText, selected && chipStyles.chipTextSelected]} numberOfLines={1}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -92,7 +92,8 @@ function Chip({label, selected, onPress}) {
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
-  const {isDark} = useAppTheme();
+  const {colors, isDark} = useAppTheme();
+  const styles = useMemo(() => createExploreStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const headerPadTop = insets.top + TAB_SCREEN_SAFE_TOP_EXTRA;
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,7 +179,7 @@ export default function ExploreScreen() {
     const s = String(raw ?? '').trim().replace('%', '').replace(',', '');
     const n = Number(s);
     if (Number.isNaN(n)) {
-      return Colors.TEXT_PRIMARY;
+      return colors.textPrimary;
     }
     return n >= 0 ? Colors.green : Colors.red;
   };
@@ -233,9 +234,9 @@ export default function ExploreScreen() {
   const initialLoading = isLoading && !data;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={[styles.headerBlock, {paddingTop: headerPadTop}]}>
+        <View style={[styles.headerBlock, {paddingTop: headerPadTop, backgroundColor: colors.background}]}>
           <View style={styles.titleRow}>
             <Text style={styles.pageTitle}>Explore</Text>
           </View>
@@ -245,7 +246,7 @@ export default function ExploreScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Search funds..."
-            placeholderTextColor={Colors.GREY}
+            placeholderTextColor={colors.textSecondary}
             value={searchTerm}
             onChangeText={setSearchTerm}
             returnKeyType="search"
@@ -262,7 +263,7 @@ export default function ExploreScreen() {
 
         {initialLoading ? (
           <View style={[styles.loadingInline, {paddingTop: 0}]}>
-            <ActivityIndicator size="small" color={Colors.themeBlue} />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={[Textstyles.normal, styles.loadingTextInline]}>Loading…</Text>
           </View>
         ) : null}
@@ -428,6 +429,7 @@ export default function ExploreScreen() {
                   label={c.label}
                   selected={selectedCategory === c.value}
                   onPress={() => setSelectedCategory(c.value)}
+                  chipStyles={styles}
                 />
               ))}
             </ScrollView>
@@ -440,6 +442,7 @@ export default function ExploreScreen() {
                   label={r.label}
                   selected={selectedRisk === r.value}
                   onPress={() => setSelectedRisk(r.value)}
+                  chipStyles={styles}
                 />
               ))}
             </ScrollView>
@@ -498,278 +501,289 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: '#F9FAFB'},
-  scrollContent: {paddingBottom: 28},
+function createExploreStyles(colors, isDark) {
+  const border = colors.border;
+  const card = colors.card;
+  const chipSelBg = isDark ? 'rgba(96,165,250,0.12)' : '#E0F2FE';
+  const errBg = isDark ? 'rgba(248,113,113,0.12)' : '#FEF2F2';
+  const errBorder = isDark ? 'rgba(248,113,113,0.35)' : '#FECACA';
+  const errText = isDark ? '#FCA5A5' : '#B91C1C';
 
-  loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingInline: {paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
-  loadingText: {marginTop: 12, color: Colors.GREY, fontSize: SEARCH_FIELD.inputFontSize},
-  loadingTextInline: {marginTop: 0, color: Colors.GREY, fontSize: 14},
+  return StyleSheet.create({
+    safe: {flex: 1},
+    scrollContent: {paddingBottom: 28},
 
-  headerBlock: {
-    paddingHorizontal: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  titleRow: {
-    marginBottom: TAB_SCREEN_TITLE_TO_SEARCH,
-  },
-  pageTitle: {...Textstyles.heading, fontSize: typeScale.title, color: Colors.TEXT_PRIMARY},
+    loadingBox: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
+    loadingInline: {paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
+    loadingText: {marginTop: 12, color: colors.textSecondary, fontSize: SEARCH_FIELD.inputFontSize},
+    loadingTextInline: {marginTop: 0, color: colors.textSecondary, fontSize: 14},
 
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: SEARCH_FIELD.borderRadius,
-    marginHorizontal: 0,
-    paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
-    paddingVertical: SEARCH_FIELD.paddingVertical,
-    minHeight: SEARCH_FIELD.minHeight,
-    marginBottom: 14,
-  },
-  searchIconImg: {
-    width: SEARCH_FIELD.iconSize,
-    height: SEARCH_FIELD.iconSize,
-    marginRight: SEARCH_FIELD.iconMarginRight,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: SEARCH_FIELD.inputFontSize,
-    color: Colors.TEXT_PRIMARY,
-    paddingVertical: SEARCH_FIELD.inputPaddingVertical,
-  },
-  clearSearch: {padding: 4},
-  clearText: {fontSize: 16, color: Colors.GREY},
+    headerBlock: {
+      paddingHorizontal: 16,
+    },
+    titleRow: {
+      marginBottom: TAB_SCREEN_TITLE_TO_SEARCH,
+    },
+    pageTitle: {...Textstyles.heading, fontSize: typeScale.title, color: colors.textPrimary},
 
-  errorBanner: {
-    marginHorizontal: 16,
-    marginBottom: 10,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  errorText: {flex: 1, color: '#B91C1C', fontSize: 13},
-  retryBtn: {paddingVertical: 6, paddingHorizontal: 10},
-  retryText: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '600'},
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: card,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: SEARCH_FIELD.borderRadius,
+      marginHorizontal: 0,
+      paddingHorizontal: SEARCH_FIELD.paddingHorizontal,
+      paddingVertical: SEARCH_FIELD.paddingVertical,
+      minHeight: SEARCH_FIELD.minHeight,
+      marginBottom: 14,
+    },
+    searchIconImg: {
+      width: SEARCH_FIELD.iconSize,
+      height: SEARCH_FIELD.iconSize,
+      marginRight: SEARCH_FIELD.iconMarginRight,
+      ...(isDark ? {tintColor: colors.textSecondary} : {}),
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: SEARCH_FIELD.inputFontSize,
+      color: colors.textPrimary,
+      paddingVertical: SEARCH_FIELD.inputPaddingVertical,
+    },
+    clearSearch: {padding: 4},
+    clearText: {fontSize: 16, color: colors.textSecondary},
 
-  heroCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-    gap: 12,
-  },
-  heroEmoji: {width: 34, height: 34},
-  heroIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroTextCol: {flex: 1},
-  heroTitle: {fontSize: 16, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 12},
-  heroButton: {
-    backgroundColor: '#1E81F2',
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  heroButtonTxt: {...Textstyles.medium, color: Colors.white, fontSize: 15},
+    errorBanner: {
+      marginHorizontal: 16,
+      marginBottom: 10,
+      backgroundColor: errBg,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: errBorder,
+      padding: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    errorText: {flex: 1, color: errText, fontSize: 13},
+    retryBtn: {paddingVertical: 6, paddingHorizontal: 10},
+    retryText: {...Textstyles.medium, color: colors.primary, fontWeight: '600'},
 
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  sectionTitle: {...Textstyles.heading, fontSize: 16, color: Colors.TEXT_PRIMARY},
-  viewAll: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '500'},
+    heroCard: {
+      backgroundColor: card,
+      borderRadius: 14,
+      marginHorizontal: 16,
+      borderWidth: 1,
+      borderColor: border,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 18,
+      gap: 12,
+    },
+    /** Match Dashboard Start SIP calendar wrap */
+    heroEmoji: {width: 44, height: 44},
+    heroIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroTextCol: {flex: 1},
+    heroTitle: {fontSize: 16, color: colors.textPrimary, lineHeight: 22, marginBottom: 12},
+    heroButton: {
+      backgroundColor: colors.primary,
+      alignSelf: 'flex-start',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+    },
+    heroButtonTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 15},
 
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 22,
-  },
-  popCard: {
-    width: '48%',
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    padding: 12,
-  },
-  popTop: {flexDirection: 'row', alignItems: 'center'},
-  popMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    gap: 8,
-    minHeight: 36,
-  },
-  popMetricsSpacer: {flex: 1, minWidth: 0},
-  popReturnCol: {alignItems: 'flex-end', flexShrink: 0},
-  popLogo: {width: 36, height: 36, borderRadius: 10, marginRight: 10},
-  logoPlaceholder: {
-    backgroundColor: Colors.offWhite,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-  },
-  logoLetter: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: Colors.themeBlue},
-  popTextCol: {flex: 1, minWidth: 0},
-  popName: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: Colors.TEXT_PRIMARY, lineHeight: 18},
-  popCategory: {fontSize: 12, color: Colors.GREY, marginTop: 4},
-  popPeriodLabel: {...Textstyles.medium, fontSize: 11, color: Colors.GREY, fontWeight: '500', marginBottom: 4},
-  popReturnVal: {...Textstyles.medium, fontSize: 14, fontWeight: '500'},
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      marginTop: 4,
+      marginBottom: 10,
+    },
+    sectionTitle: {...Textstyles.heading, fontSize: 16, color: colors.textPrimary},
+    viewAll: {...Textstyles.medium, color: colors.primary, fontWeight: '500'},
 
-  riskPlain: {
-    ...Textstyles.medium,
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.GREY,
-    flex: 1,
-    minWidth: 0,
-    marginRight: 8,
-  },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 16,
+      gap: 12,
+      marginBottom: 22,
+    },
+    popCard: {
+      width: '48%',
+      backgroundColor: card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: border,
+      padding: 12,
+    },
+    popTop: {flexDirection: 'row', alignItems: 'center'},
+    popMetricsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 10,
+      gap: 8,
+      minHeight: 36,
+    },
+    popMetricsSpacer: {flex: 1, minWidth: 0},
+    popReturnCol: {alignItems: 'flex-end', flexShrink: 0},
+    popLogo: {width: 36, height: 36, borderRadius: 10, marginRight: 10},
+    logoPlaceholder: {
+      backgroundColor: isDark ? colors.inputBg : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: border,
+    },
+    logoLetter: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.primary},
+    popTextCol: {flex: 1, minWidth: 0},
+    popName: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: colors.textPrimary, lineHeight: 18},
+    popCategory: {fontSize: 12, color: colors.textSecondary, marginTop: 4},
+    popPeriodLabel: {...Textstyles.medium, fontSize: 11, color: colors.textSecondary, fontWeight: '500', marginBottom: 4},
+    popReturnVal: {...Textstyles.medium, fontSize: 14, fontWeight: '500'},
 
-  recentRow: {flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 18},
-  recentCard: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  recentLogo: {width: 34, height: 34, borderRadius: 10, marginTop: 2},
-  recentTextCol: {flex: 1, paddingLeft: 0, minWidth: 0},
-  recentName: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: Colors.TEXT_PRIMARY, lineHeight: 18, flexShrink: 1},
-  recentMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-    gap: 8,
-    minHeight: 36,
-  },
-  recentMetricsSpacer: {flex: 1, minWidth: 0},
-  recentRiskTxt: {...Textstyles.medium, fontSize: 12, color: Colors.GREY, fontWeight: '500', flex: 1, minWidth: 0, marginRight: 8},
-  recentReturnCol: {alignItems: 'flex-end', flexShrink: 0},
-  recentReturn: {...Textstyles.medium, fontSize: 13, fontWeight: '500'},
-  recentPeriod: {fontSize: 11, color: Colors.GREY, marginBottom: 2},
-  recentEmpty: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recentEmptyTxt: {fontSize: 13, color: Colors.GREY, textAlign: 'center'},
-  bottomSpacer: {height: 24},
+    riskPlain: {
+      ...Textstyles.medium,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      flex: 1,
+      minWidth: 0,
+      marginRight: 8,
+    },
 
-  allFundsBlock: {paddingBottom: 18, paddingHorizontal: 16},
-  allFundsHeader: {
-    paddingHorizontal: 0,
-    paddingTop: 6,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  allFundsHeaderLeft: {flex: 1},
-  allFundsTitle: {fontSize: 16, marginBottom: 6, color: Colors.TEXT_PRIMARY},
-  allFundsCount: {fontSize: 14, color: Colors.GREY, marginTop: 2},
+    recentRow: {flexDirection: 'row', paddingHorizontal: 16, gap: 12, marginBottom: 18},
+    recentCard: {
+      flex: 1,
+      backgroundColor: card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: border,
+      padding: 12,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    recentLogo: {width: 34, height: 34, borderRadius: 10, marginTop: 2},
+    recentTextCol: {flex: 1, paddingLeft: 0, minWidth: 0},
+    recentName: {...Textstyles.medium, fontSize: 13, fontWeight: '500', color: colors.textPrimary, lineHeight: 18, flexShrink: 1},
+    recentMetricsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 6,
+      gap: 8,
+      minHeight: 36,
+    },
+    recentMetricsSpacer: {flex: 1, minWidth: 0},
+    recentRiskTxt: {...Textstyles.medium, fontSize: 12, color: colors.textSecondary, fontWeight: '500', flex: 1, minWidth: 0, marginRight: 8},
+    recentReturnCol: {alignItems: 'flex-end', flexShrink: 0},
+    recentReturn: {...Textstyles.medium, fontSize: 13, fontWeight: '500'},
+    recentPeriod: {fontSize: 11, color: colors.textSecondary, marginBottom: 2},
+    recentEmpty: {
+      flex: 1,
+      backgroundColor: card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: border,
+      padding: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    recentEmptyTxt: {fontSize: 13, color: colors.textSecondary, textAlign: 'center'},
+    bottomSpacer: {height: 24},
 
-  sortRightBtn: {paddingLeft: 10, paddingRight: 6, alignItems: 'flex-end'},
-  sortRightInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
-  sortRightTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  sortRightChevron: {width: 12, height: 12, tintColor: Colors.GREY},
-  sortDottedUnderline: {
-    marginTop: 6,
-    width: 120,
-    borderBottomWidth: 2,
-    borderBottomColor: '#D1D5DB',
-    borderStyle: 'dotted',
-  },
+    allFundsBlock: {paddingBottom: 18, paddingHorizontal: 16},
+    allFundsHeader: {
+      paddingHorizontal: 0,
+      paddingTop: 6,
+      paddingBottom: 10,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      gap: 12,
+    },
+    allFundsHeaderLeft: {flex: 1},
+    allFundsTitle: {fontSize: 16, marginBottom: 6, color: colors.textPrimary},
+    allFundsCount: {fontSize: 14, color: colors.textSecondary, marginTop: 2},
 
-  fundsListCard: {
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    overflow: 'visible',
-    marginHorizontal: 0,
-  },
+    sortRightBtn: {paddingLeft: 10, paddingRight: 6, alignItems: 'flex-end'},
+    sortRightInner: {flexDirection: 'row', alignItems: 'center', gap: 6},
+    sortRightTxt: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.textPrimary},
+    sortRightChevron: {width: 12, height: 12, tintColor: colors.textSecondary},
+    sortDottedUnderline: {
+      marginTop: 6,
+      width: 120,
+      borderBottomWidth: 2,
+      borderBottomColor: border,
+      borderStyle: 'dotted',
+    },
 
-  fundRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    borderRadius: 12,
-    backgroundColor: Colors.white,
-    marginBottom: 10,
-  },
-  fundRowLeft: {flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 10},
-  fundRowLogo: {width: 38, height: 38, borderRadius: 10, marginRight: 10},
-  fundRowText: {flex: 1, minWidth: 0},
-  fundRowName: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: Colors.TEXT_PRIMARY},
-  fundRowCat: {fontSize: 12, color: Colors.GREY, marginTop: 4},
-  fundRowStarLine: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
-  starTxt: {color: '#9CA3AF', fontSize: 12},
-  starVal: {...Textstyles.medium, color: '#9CA3AF', fontSize: 12, fontWeight: '500'},
+    fundsListCard: {
+      backgroundColor: 'transparent',
+      borderRadius: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      overflow: 'visible',
+      marginHorizontal: 0,
+    },
 
-  fundRowRight: {alignItems: 'flex-end', minWidth: 90},
-  returnBig: {...Textstyles.medium, fontSize: 13, fontWeight: '500'},
-  periodSmall: {fontSize: 11, color: Colors.GREY, marginTop: 4},
+    fundRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 12,
+      backgroundColor: card,
+      marginBottom: 10,
+    },
+    fundRowLeft: {flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 10},
+    fundRowLogo: {width: 38, height: 38, borderRadius: 10, marginRight: 10},
+    fundRowText: {flex: 1, minWidth: 0},
+    fundRowName: {...Textstyles.medium, fontSize: 14, fontWeight: '500', color: colors.textPrimary},
+    fundRowCat: {fontSize: 12, color: colors.textSecondary, marginTop: 4},
+    fundRowStarLine: {flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4},
+    starTxt: {color: colors.textSecondary, fontSize: 12},
+    starVal: {...Textstyles.medium, color: colors.textSecondary, fontSize: 12, fontWeight: '500'},
+    starPeriod: {fontSize: 11, color: colors.textSecondary, fontWeight: '500'},
 
-  filterBlock: {paddingHorizontal: 0, marginTop: 10, marginBottom: 12},
-  filterLabel: {fontSize: 13, color: Colors.GREY, marginLeft: 6, marginBottom: 8, marginTop: 6},
-  chipScroll: {marginBottom: 12, paddingHorizontal: 0, maxHeight: 40},
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.BORDER_GREY,
-    marginRight: 8,
-  },
-  chipSelected: {
-    backgroundColor: '#E0F2FE',
-    borderColor: Colors.themeBlue,
-  },
-  chipText: {...Textstyles.medium, fontSize: 12, color: Colors.TEXT_PRIMARY, fontWeight: '600'},
-  chipTextSelected: {...Textstyles.medium, color: Colors.themeBlue, fontWeight: '500'},
-});
+    fundRowRight: {alignItems: 'flex-end', minWidth: 90},
+    returnBig: {...Textstyles.medium, fontSize: 13, fontWeight: '500'},
+    periodSmall: {fontSize: 11, color: colors.textSecondary, marginTop: 4},
+
+    filterBlock: {paddingHorizontal: 0, marginTop: 10, marginBottom: 12},
+    filterLabel: {fontSize: 13, color: colors.textSecondary, marginLeft: 6, marginBottom: 8, marginTop: 6},
+    chipScroll: {marginBottom: 12, paddingHorizontal: 0, maxHeight: 40},
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 22,
+      backgroundColor: card,
+      borderWidth: 1,
+      borderColor: border,
+      marginRight: 8,
+    },
+    chipSelected: {
+      backgroundColor: chipSelBg,
+      borderColor: colors.primary,
+    },
+    chipText: {...Textstyles.medium, fontSize: 12, color: colors.textPrimary, fontWeight: '600'},
+    chipTextSelected: {...Textstyles.medium, color: colors.primary, fontWeight: '500'},
+  });
+}

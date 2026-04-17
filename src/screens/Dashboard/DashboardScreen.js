@@ -963,13 +963,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sipIconWrap: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sipEmoji: {width: 54, height: 54},
+  sipEmoji: {width: 44, height: 44},
   sipTextCol: {flex: 1},
   sipTitle: {fontSize: 15, color: Colors.TEXT_PRIMARY, lineHeight: 22, marginBottom: 14},
   sipButton: {

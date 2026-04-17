@@ -20,54 +20,36 @@ import {
 import {logout} from '../../store/slices/authSlice';
 import {clearAuthStorage} from '../../services/authStorage';
 import {appAlert} from '../../utils/appAlert';
-import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
+import {useAppTheme} from '../../theme/useAppTheme';
 
-function getThemePalette(isDark) {
-  if (isDark) {
-    return {
-      pageBg: '#0F1116',
-      cardBg: '#171A21',
-      cardBorder: '#1F2937',
-      iconBg: '#262B35',
-      iconTint: '#1E81F2',
-      textPrimary: '#F3F4F6',
-      textSecondary: '#9CA3AF',
-      textMuted: '#6B7280',
-      rowBorder: '#334155',
-      chevron: '#94A3B8',
-      toggleBg: '#0F172A',
-      toggleActiveBg: '#2563EB',
-      toggleInactiveText: '#94A3B8',
-      white: '#FFFFFF',
-      verifyBadgeBg: '#14532D',
-      verifyBadgeText: '#86EFAC',
-      verifyPendingBg: '#422006',
-      verifyPendingText: '#FDBA74',
-      themeIconTint: '#94A3B8',
-    };
-  }
+/** Align Profile with app theme (`useAppTheme`) so light/dark toggle matches everywhere. */
+function getThemePalette(colors, isDark) {
   return {
-    pageBg: '#F3F4F6',
-    cardBg: '#FFFFFF',
-    cardBorder: '#E5E7EB',
-    iconBg: '#F3F4F6',
-    iconTint: '#1E81F2',
-    textPrimary: Colors.TEXT_PRIMARY,
-    textSecondary: '#6B7280',
-    textMuted: '#9CA3AF',
-    rowBorder: '#E5E7EB',
-    chevron: '#9CA3AF',
-    toggleBg: '#F1F5F9',
-    toggleActiveBg: '#2563EB',
-    toggleInactiveText: '#6B7280',
+    /** Light: pure white; dark: theme background */
+    safeAreaBg: isDark ? colors.background : '#FFFFFF',
+    pageBg: colors.background,
+    cardBg: colors.card,
+    cardBorder: colors.border,
+    iconBg: isDark ? '#262B35' : '#F3F4F6',
+    iconTint: colors.primary,
+    textPrimary: colors.textPrimary,
+    textSecondary: colors.textSecondary,
+    textMuted: colors.muted,
+    rowBorder: colors.border,
+    chevron: colors.textSecondary,
+    toggleBg: isDark ? '#0F172A' : '#F1F5F9',
+    toggleActiveBg: colors.primary,
+    toggleInactiveText: colors.textSecondary,
     white: '#FFFFFF',
-    verifyBadgeBg: '#DCFCE7',
-    verifyBadgeText: '#166534',
-    verifyPendingBg: '#FFFBEB',
-    verifyPendingText: '#B45309',
-    themeIconTint: '#64748B',
+    verifyBadgeBg: isDark ? '#14532D' : '#DCFCE7',
+    verifyBadgeText: isDark ? '#86EFAC' : '#166534',
+    verifyPendingBg: isDark ? '#422006' : '#FFFBEB',
+    verifyPendingText: isDark ? '#FDBA74' : '#B45309',
+    themeIconTint: colors.textSecondary,
+    danger: colors.danger,
+    success: colors.success,
   };
 }
 function getInitials(user) {
@@ -192,9 +174,9 @@ export default function ProfileScreen() {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   const [signingOut, setSigningOut] = useState(false);
-  const isDark = useSelector(s => s.theme.mode) === 'dark';
-  const palette = useMemo(() => getThemePalette(isDark), [isDark]);
-  const styles = useMemo(() => createStyles(palette), [palette]);
+  const {colors, isDark} = useAppTheme();
+  const palette = useMemo(() => getThemePalette(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => createStyles(palette, isDark), [palette, isDark]);
 
   const initials = useMemo(() => getInitials(user), [user]);
   const displayName = useMemo(() => getDisplayName(user), [user]);
@@ -383,7 +365,7 @@ export default function ProfileScreen() {
           disabled={signingOut}
           activeOpacity={0.75}>
           {signingOut ? (
-            <ActivityIndicator color={Colors.themeRed} />
+            <ActivityIndicator size="small" color={palette.danger} />
           ) : (
             <>
               <Image source={Icons.LogoutIcon} style={styles.logoutIconImg} resizeMode="contain" />
@@ -396,9 +378,9 @@ export default function ProfileScreen() {
   );
 }
 
-const createStyles = palette =>
+const createStyles = (palette, isDark) =>
   StyleSheet.create({
-  safe: {flex: 1, backgroundColor: 'white'},
+  safe: {flex: 1, backgroundColor: palette.safeAreaBg},
   scroll: {flex: 1},
   scrollContent: {paddingBottom: 32, paddingHorizontal: 0},
   pageTitle: {
@@ -420,9 +402,9 @@ const createStyles = palette =>
     marginTop: 0,
     marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: isDark ? 'transparent' : '#000',
     shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.06,
+    shadowOpacity: isDark ? 0 : 0.06,
     shadowRadius: 10,
   },
   profileGlowOne: {
@@ -447,8 +429,8 @@ const createStyles = palette =>
   },
   profileAccentBar: {
     height: 4,
-    // backgroundColor: Colors.themeBlue,
-    opacity: 0.6,
+    // backgroundColor: palette.toggleActiveBg,
+    opacity: 0.55,
   },
   profileHeaderInner: {
     paddingHorizontal: 16,
@@ -460,18 +442,18 @@ const createStyles = palette =>
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.LIGHT_GREY,
+    backgroundColor: palette.iconBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
     borderWidth: 2,
     borderColor: palette.cardBg,
   },
-  avatarTxt: {fontSize: 22, color: Colors.themeColor},
+  avatarTxt: {fontSize: 22, color: palette.iconTint},
   profileTextCol: {flex: 1, minWidth: 0},
   displayName: {
     fontSize: 19,
-    color: palette.themeIconTint,
+    color: palette.textPrimary,
     marginBottom: 2,
     fontWeight: '700',
     letterSpacing: -0.2,
@@ -536,9 +518,9 @@ const createStyles = palette =>
     marginHorizontal: 16,
     marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: isDark ? 'transparent' : '#000',
     shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
+    shadowOpacity: isDark ? 0 : 0.08,
     shadowRadius: 8,
     // elevation: 3,
   },
@@ -571,7 +553,7 @@ const createStyles = palette =>
   rowIconImg: {width: 20, height: 20},
   rowIconImgThin: {width: 18, height: 18, opacity: 0.92},
   rowLabel: {flex: 1, fontSize: 16, color: palette.textPrimary, fontWeight: '500'},
-  rowLabelDestructive: {color: '#DC2626'},
+  rowLabelDestructive: {color: palette.danger},
   chevron: {width: 14, height: 14, tintColor: palette.chevron},
   logoutCard: {
     flexDirection: 'row',
@@ -584,7 +566,7 @@ const createStyles = palette =>
     marginHorizontal: 16,
     paddingVertical: 16,
   },
-  logoutIconImg: {width: 20, height: 20, marginRight: 8},
-  logoutText: {fontSize: 16, fontWeight: '500', color: '#EF4444'},
+  logoutIconImg: {width: 20, height: 20, marginRight: 8, tintColor: palette.danger},
+  logoutText: {fontSize: 16, fontWeight: '500', color: palette.danger},
   profileSettingsIconImg: {width: 20, height: 20, tintColor: palette.iconTint},
 });
