@@ -11,13 +11,14 @@ import {
   Image,
   StatusBar,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppTabHeader from '../../components/AppTabHeader';
 import {useNavigation} from '@react-navigation/native';
 import {navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {groupHoldingsByFolio} from '../../utils/groupHoldingsByFolio';
 import {usePortfolioData} from '../../hooks/usePortfolioData';
+import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
@@ -135,23 +136,26 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
               <Text style={[styles.durationBadge, {color: colors.textSecondary}]}>{duration}</Text>
             ) : null}
           </View>
-          <View style={styles.xirrCorner}>
-            <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>XIRR</Text>
-            <Text style={[styles.metricValueDark, {color: colors.textPrimary}]}>
-              {xirr != null ? `${xirr.toFixed(2)}%` : '—'}
-            </Text>
-          </View>
+          <TouchableOpacity style={styles.goCorner} onPress={() => onOpenFund(item)} activeOpacity={0.75}>
+            <Image source={Icons.GoIcon} style={[styles.goIcon, {tintColor: 'grey'}]} resizeMode="contain" />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.metrics2Col}>
-          <View style={styles.metricCol}>
+        <View style={styles.metrics3Col}>
+          <View style={[styles.metricCol, styles.metricColLeft]}>
             <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Invested Value</Text>
             <Text style={[styles.metricValueDark, {color: colors.textPrimary}]}>{formatInr(item.amount)}</Text>
           </View>
-          <View style={styles.metricCol}>
+          <View style={[styles.metricCol, styles.metricColCenter]}>
             <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>Gain/Loss</Text>
             <Text style={[styles.metricValueGl, {color: glColor}]} numberOfLines={2}>
               {glText}
+            </Text>
+          </View>
+          <View style={[styles.metricCol, styles.metricColRight]}>
+            <Text style={[styles.metricLabel, {color: colors.textSecondary}]}>XIRR</Text>
+            <Text style={[styles.metricValueDark, {color: colors.textPrimary}]}>
+              {xirr != null ? `${xirr.toFixed(2)}%` : '—'}
             </Text>
           </View>
         </View>
@@ -177,8 +181,10 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
 
 export default function MyFoliosScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const {colors, isDark} = useAppTheme();
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
+  useRefetchOnReconnect(refetch);
   const [search, setSearch] = useState('');
 
   const filteredHoldings = useMemo(() => {
@@ -272,7 +278,15 @@ export default function MyFoliosScreen() {
     <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
       <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       {error ? (
-        <View style={[styles.errorBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              marginTop: insets.top + 8,
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} hitSlop={8}>
             <Text style={[styles.retry, {color: colors.primary}]}>Retry</Text>
@@ -382,7 +396,15 @@ const styles = StyleSheet.create({
   cardTap: {padding: 14},
   cardTopRow: {flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14},
   cardTitleBlock: {flex: 1, minWidth: 0, marginRight: 8},
-  xirrCorner: {alignItems: 'flex-end', justifyContent: 'flex-start', minWidth: 64, paddingTop: 2},
+  goCorner: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    marginTop: 2,
+  },
+  goIcon: {width: 13, height: 13},
   fundLogo: {width: 40, height: 40, borderRadius: 8, marginRight: 10},
   fundLogoPh: {
     backgroundColor: '#F3F4F6',
@@ -401,8 +423,11 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   durationBadge: {...Textstyles.medium, fontSize: 12, fontWeight: '600', marginTop: 4},
-  metrics2Col: {flexDirection: 'row', justifyContent: 'space-between', gap: 12},
+  metrics3Col: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
   metricCol: {flex: 1, minWidth: 0},
+  metricColLeft: {alignItems: 'flex-start'},
+  metricColCenter: {alignItems: 'center'},
+  metricColRight: {alignItems: 'flex-end'},
   metricLabel: {fontSize: 12, color: LABEL_GRAY, marginBottom: 6},
   metricValueDark: {...Textstyles.medium, fontSize: 15, fontWeight: '500', color: Colors.TEXT_PRIMARY},
   metricValueGl: {...Textstyles.medium, fontSize: 13, fontWeight: '500', lineHeight: 18},

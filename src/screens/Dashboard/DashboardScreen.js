@@ -23,6 +23,7 @@ import {HeaderActionCluster} from '../../components/AppTabHeader';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {pickHoldingCurrentValue, pickHoldingFolio, pickHoldingUnits} from '../../utils/holdingRedeem';
 import {usePortfolioData} from '../../hooks/usePortfolioData';
+import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
@@ -84,8 +85,8 @@ function splitGrowthType(raw) {
 
 const SORT_ORDER = ['Day', 'Returns', 'Current'];
 const SORT_MODE_LABEL = {
-  Day: '1D Returns',
-  Returns: 'Total Returns',
+  Day: '1D Returns (%)',
+  Returns: 'Total Returns (%)',
   Current: 'Current Invested',
 };
 
@@ -241,6 +242,7 @@ export default function DashboardScreen() {
   const [holdingActionFund, setHoldingActionFund] = useState(null);
 
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
+  useRefetchOnReconnect(refetch);
   const portfolio = data?.portfolio;
   const holdings = data?.holdings ?? [];
 
@@ -378,7 +380,7 @@ export default function DashboardScreen() {
 
         <View style={styles.statsCol}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>1D Returns</Text>
+            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>1D Returns (%)</Text>
             <Text
               style={[
                 Textstyles.medium,
@@ -392,7 +394,7 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Total Returns</Text>
+            <Text style={[styles.statLabel, {color: colors.textSecondary}]}>Total Returns (%)</Text>
             <Text
               style={[
                 Textstyles.medium,
@@ -478,7 +480,15 @@ export default function DashboardScreen() {
     <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
       <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
       {error ? (
-        <View style={[styles.errorBanner, {backgroundColor: isDark ? '#3B1D1D' : '#FEF2F2', borderColor: isDark ? '#7F1D1D' : '#FECACA'}]}>
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              marginTop: insets.top + 8,
+              backgroundColor: isDark ? '#3B1D1D' : '#FEF2F2',
+              borderColor: isDark ? '#7F1D1D' : '#FECACA',
+            },
+          ]}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
             <Text style={[styles.retryText, {color: colors.primary}]}>Retry</Text>
@@ -508,14 +518,21 @@ export default function DashboardScreen() {
             activeOpacity={0.85}
             onPress={cycleSortMode}>
             <View style={styles.sortLeft}>
-              <Text style={[styles.sortIcon, {color: colors.textSecondary}]}>⇅</Text>
-              <Text style={[styles.sortLabel, {color: colors.textPrimary}]}>Sort</Text>
+              <View style={styles.sortLeftRow}>
+                <Text style={[styles.sortLabel, {color: colors.textPrimary}]}>Sort</Text>
+                <Image source={Icons.filterIcon} style={[styles.sortIcon, {tintColor: colors.textSecondary}]} resizeMode="contain" />
+              </View>
+              <Text style={[styles.sortDots, {color: colors.textSecondary}]}>············</Text>
             </View>
 
             <View style={styles.sortRight}>
-              <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
-              {sortMode === 'Current' ? <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text> : null}
-              <Image source={Icons.DropDown} style={[styles.sortCaret, {tintColor: colors.textSecondary}]} resizeMode="contain" />
+              <View style={styles.sortRightRow}>
+                {/* {sortMode === 'Current' ?  */}
+                <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text>
+                 {/* : null} */}
+                <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
+              </View>
+              <Text style={[styles.sortDots, {color: colors.textSecondary, right: 7}]}>································</Text>
             </View>
           </TouchableOpacity>
 
@@ -777,13 +794,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E8EBEF',
   },
-  sortLeft: {flexDirection: 'row', alignItems: 'center', gap: 8},
-  sortIcon: {fontSize: 18, color: Colors.GREY},
-  sortLabel: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
-  sortRight: {flexDirection: 'row', alignItems: 'center'},
-  sortValueText: {fontSize: 15, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginRight: 6},
+  sortLeft: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  sortLeftRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  sortIcon: {height: 16, right: 4, width: 16, color: Colors.GREY},
+  sortLabel: {fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '500'},
+  sortRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  sortRightRow: {flexDirection: 'row', alignItems: 'center'},
+  sortDots: {fontSize: 10, lineHeight: 10, marginTop: 2, letterSpacing: 0.6},
+  sortValueText: {fontSize: 13, color: Colors.TEXT_PRIMARY, fontWeight: '500', marginRight: 6},
   sortCaret: {width: 12, height: 12, marginLeft: 6},
-  sortAngle: {fontSize: 14, color: Colors.GREY},
+  sortAngle: {fontSize: 12, right:5, color: Colors.GREY},
   xirrLabelRow: {flexDirection: 'row', alignItems: 'center'},
   caretDown: {width: 12, height: 12, marginLeft: 6},
   holdingCard: {

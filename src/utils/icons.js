@@ -26,6 +26,7 @@ const Icons = {
   CnacelIcon: require('../assets/Icons/CnacelIcon.png'),
   addFovraotes: require('../assets/Icons/addFovraotes.png'),
   deleteIcon: require('../assets/Icons/deleteIcon.png'),
+  filterIcon: require('../assets/Icons/filterIcon.png'),
 
   // Small header/action icons
   RefreshIcon: require('../assets/Icons/refreshButtons.png'),

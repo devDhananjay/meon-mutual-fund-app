@@ -155,6 +155,14 @@ function createStyles(colors, isDark) {
       justifyContent: 'center',
     },
     footerSpacer: {height: 24},
+
+    listSearching: {
+      paddingVertical: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    listSearchingTxt: {...Textstyles.normal, fontSize: 14, color: colors.textSecondary},
   });
 }
 
@@ -168,7 +176,7 @@ export default function AllMutualFundsScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const [sortPeriodKey, setSortPeriodKey] = useState('none'); // none | 3y | 5y | 7y
+  const [sortPeriodKey, setSortPeriodKey] = useState('none'); // none | 1y | 3y | 5y | 7y
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedRisk, setSelectedRisk] = useState('');
 
@@ -243,15 +251,21 @@ export default function AllMutualFundsScreen() {
     return list;
   }, [apiFunds, sortPeriodKey]);
 
+  /** While typing, debouncedSearch lags — do not show the previous query's rows. */
+  const isSearchOutOfSync = searchTerm.trim() !== debouncedSearch;
+  const displayFunds = isSearchOutOfSync ? [] : sortedFunds;
+
   const sortLabel = useMemo(() => {
     if (sortPeriodKey === 'none') {
-      return 'Sort';
+      return 'Default';
     }
-    return sortPeriodKey === '5y'
-      ? '5Y Returns'
-      : sortPeriodKey === '7y'
-        ? '7Y Returns'
-        : '3Y Returns';
+    return sortPeriodKey === '1y'
+      ? '1Y Returns'
+      : sortPeriodKey === '5y'
+        ? '5Y Returns'
+        : sortPeriodKey === '7y'
+          ? '7Y Returns'
+          : '3Y Returns';
   }, [sortPeriodKey]);
 
   const totalCount = data?.count ?? sortedFunds.length;
@@ -272,7 +286,7 @@ export default function AllMutualFundsScreen() {
   }, [debouncedSearch, selectedCategory, selectedRisk]);
 
   const handleEndReached = useCallback(() => {
-    if (!hasMore || isLoading || loadMoreLock.current) {
+    if (isSearchOutOfSync || !hasMore || isLoading || loadMoreLock.current) {
       return;
     }
     loadMoreLock.current = true;
@@ -282,7 +296,7 @@ export default function AllMutualFundsScreen() {
     if (nextVisible + LOAD_MORE_STEP > apiFunds.length && fetchCount < totalCount) {
       setFetchCount(c => Math.min(c + 20, totalCount));
     }
-  }, [hasMore, isLoading, totalCount, showMoreCount, apiFunds.length, fetchCount]);
+  }, [isSearchOutOfSync, hasMore, isLoading, totalCount, showMoreCount, apiFunds.length, fetchCount]);
 
   const onPressFund = useCallback(
     fund => {
@@ -296,12 +310,21 @@ export default function AllMutualFundsScreen() {
   );
 
   const onPressSort = useCallback(key => {
-    if (key === '3y' || key === '5y' || key === '7y') {
+    if (key === 'none' || key === '1y' || key === '3y' || key === '5y' || key === '7y') {
       setSortPeriodKey(key);
     }
   }, []);
 
   const returnPeriodKey = sortPeriodKey === 'none' ? '1y' : sortPeriodKey;
+
+  const showBlockingLoader = !isSearchOutOfSync && isLoading && sortedFunds.length === 0;
+  const listEmptySearching =
+    isSearchOutOfSync && searchTerm.trim().length > 0 ? (
+      <View style={styles.listSearching}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={styles.listSearchingTxt}>Searching…</Text>
+      </View>
+    ) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -339,8 +362,9 @@ export default function AllMutualFundsScreen() {
         ) : null}
 
         <FilterBar
-          count={totalCount}
+          count={isSearchOutOfSync ? undefined : totalCount}
           sortLabel={sortLabel}
+          selectedSortKey={sortPeriodKey}
           onPressSort={onPressSort}
           categoryOptions={categoryOptions}
           selectedCategory={selectedCategory}
@@ -352,13 +376,13 @@ export default function AllMutualFundsScreen() {
         />
       </View>
 
-      {isLoading && sortedFunds.length === 0 ? (
+      {showBlockingLoader ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={sortedFunds.slice(0, showMoreCount)}
+          data={displayFunds.slice(0, showMoreCount)}
           keyExtractor={item => String(item?.id ?? item?.scheme_code ?? item?.name)}
           renderItem={({item}) => (
             <View style={styles.fundItemWrap}>
@@ -372,8 +396,9 @@ export default function AllMutualFundsScreen() {
           }}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.35}
+          ListEmptyComponent={listEmptySearching}
           ListFooterComponent={
-            hasMore && isLoading && sortedFunds.length > 0 ? (
+            hasMore && isLoading && displayFunds.length > 0 ? (
               <View style={styles.footerLoading}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>

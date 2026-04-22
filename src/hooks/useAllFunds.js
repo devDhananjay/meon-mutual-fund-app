@@ -18,13 +18,24 @@ export function useAllFunds({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const requestIdRef = useRef(0);
+  /** Last successful fetch for this search + filters (not page_size). Used to avoid showing stale rows while a new query loads. */
+  const appliedFilterKeyRef = useRef(null);
 
   const fetchFunds = useCallback(async () => {
+    const q = debouncedSearch?.trim?.() ?? '';
+    const filterKey = `${q}\u0000${selectedCategory || ''}\u0000${selectedRisk || ''}`;
+
     const reqId = ++requestIdRef.current;
+    const prevApplied = appliedFilterKeyRef.current;
+    const filterOnlyChanged = prevApplied !== null && prevApplied !== filterKey;
+
+    if (filterOnlyChanged) {
+      setData(null);
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      const q = debouncedSearch?.trim?.() ?? '';
       // Match web curl params closely (keys must be present even if empty).
       const params = {
         page: isMobile ? 1 : page + 1,
@@ -42,12 +53,14 @@ export function useAllFunds({
       } else {
         setData({results: [], count: 0});
       }
+      appliedFilterKeyRef.current = filterKey;
     } catch (e) {
       if (reqId !== requestIdRef.current) {
         return;
       }
       setError(e?.message || 'Failed to load funds');
       setData({results: [], count: 0});
+      appliedFilterKeyRef.current = filterKey;
     } finally {
       if (reqId === requestIdRef.current) {
         setIsLoading(false);

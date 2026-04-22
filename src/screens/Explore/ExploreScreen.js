@@ -61,6 +61,7 @@ function mapResultsToFunds(data) {
       return1yr: scheme?.returns?.['1y'],
       return3yr: scheme?.returns?.['3y'],
       return5yr: scheme?.returns?.['5y'],
+      return7yr: scheme?.returns?.['7y'],
       logo_url: scheme?.logo_url,
       groww_rating:
         scheme?.groww_rating ??
@@ -100,7 +101,7 @@ export default function ExploreScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedRisk, setSelectedRisk] = useState('');
-  const [listSortMode, setListSortMode] = useState('3y');
+  const [listSortMode, setListSortMode] = useState('none');
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
@@ -200,12 +201,22 @@ export default function ExploreScreen() {
     if (sortKey === '5y') {
       return 'return5yr';
     }
+    if (sortKey === '7y') {
+      return 'return7yr';
+    }
     return 'return3yr';
   };
 
-  const listPeriodLabel = listSortMode === '1y' ? '1Y' : listSortMode === '5y' ? '5Y' : '3Y';
+  const listPeriodLabel =
+    listSortMode === '1y' ? '1Y' : listSortMode === '5y' ? '5Y' : listSortMode === '7y' ? '7Y' : '3Y';
+
+  const displaySortMode = listSortMode === 'none' ? '1y' : listSortMode;
+  const displayPeriodLabel = displaySortMode === '1y' ? '1Y' : displaySortMode === '5y' ? '5Y' : displaySortMode === '7y' ? '7Y' : '3Y';
 
   const sortedAllFunds = useMemo(() => {
+    if (listSortMode === 'none') {
+      return allFunds;
+    }
     const field = getReturnField(listSortMode);
     const list = [...allFunds];
     list.sort((a, b) => {
@@ -407,13 +418,15 @@ export default function ExploreScreen() {
               style={styles.sortRightBtn}
               activeOpacity={0.85}
               onPress={() => {
-                const order = ['1y', '3y', '5y'];
+                const order = ['none', '1y', '3y', '5y', '7y'];
                 const idx = order.indexOf(listSortMode);
                 const next = order[(idx + 1) % order.length];
                 setListSortMode(next);
               }}>
               <View style={styles.sortRightInner}>
-                <Text style={styles.sortRightTxt}>{listPeriodLabel} Returns</Text>
+                <Text style={styles.sortRightTxt}>
+                  {listSortMode === 'none' ? 'Default' : `${listPeriodLabel} Returns`}
+                </Text>
                 <Image source={Icons.DropDown} style={styles.sortRightChevron} resizeMode="contain" />
               </View>
               <View style={styles.sortDottedUnderline} />
@@ -450,7 +463,7 @@ export default function ExploreScreen() {
 
           <View style={styles.fundsListCard}>
             {sortedAllFunds.slice(0, 10).map((f, idx) => {
-              const field = getReturnField(listSortMode);
+              const field = getReturnField(displaySortMode);
               const raw = f?.[field];
               const ratingNum = f?.groww_rating != null ? Number(f.groww_rating) : null;
               const ratingText = ratingNum === null || Number.isNaN(ratingNum) ? '—' : ratingNum;
@@ -478,7 +491,7 @@ export default function ExploreScreen() {
                       </Text>
                       <View style={styles.fundRowStarLine}>
                         <Text style={[styles.starVal, {color: returnColor(raw)}]}>{formatSignedPct(raw)}</Text>
-                        <Text style={styles.starPeriod}>{listPeriodLabel}</Text>
+                        <Text style={styles.starPeriod}>{displayPeriodLabel}</Text>
                       </View>
                     </View>
                   </View>

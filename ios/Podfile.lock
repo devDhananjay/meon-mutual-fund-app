@@ -1336,6 +1336,8 @@ PODS:
     - ReactCommon/turbomodule/core
   - react-native-date-picker (5.0.13):
     - React-Core
+  - react-native-netinfo (12.0.1):
+    - React-Core
   - react-native-safe-area-context (5.7.0):
     - React-Core
   - react-native-slider (5.1.2):
@@ -1809,6 +1811,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-date-picker (from `../node_modules/react-native-date-picker`)
+  - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
   - react-native-version-check (from `../node_modules/react-native-version-check`)
@@ -1936,6 +1939,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-date-picker:
     :path: "../node_modules/react-native-date-picker"
+  react-native-netinfo:
+    :path: "../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-slider:
@@ -2058,6 +2063,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: c04fcda1c6281fc0a6824c7dcc1633dd217ac1ec
   React-microtasksnativemodule: ca2804a25fdcefffa0aa942aa23ab53b99614a34
   react-native-date-picker: b64721d6278b52708457292c218196b383b553b1
+  react-native-netinfo: b54effb58887516971e6c273ee0ff0dd853021d3
   react-native-safe-area-context: 37b720094bcaa36abcd593e08f2ad16507a94769
   react-native-slider: 28eb4ea255fb797bfef3e3b7a551b61890dd44a4
   react-native-version-check: 54a471d70dadf0f72fc142e70f16e4bf473a91a5

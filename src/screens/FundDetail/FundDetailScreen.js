@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
   TextInput,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -995,29 +996,44 @@ export default function FundDetailScreen() {
 
             <View style={styles.innerTableCard}>
               <View style={styles.hTableHeadRow}>
-                <Text style={[styles.hTableHeadCell, styles.hCellName, {flex: 2.2}]}>Name</Text>
-                <Text style={[styles.hTableHeadCell, {flex: 1}]}>Sector</Text>
-                <Text style={[styles.hTableHeadCell, {flex: 1}]}>Instrument</Text>
-                <Text style={[styles.hTableHeadCell, {flex: 0.9, textAlign: 'right'}]}>Assets</Text>
+                <View style={styles.hColName}>
+                  <Text style={[styles.hTableHeadCell, styles.hHeadCellStretch]}>Name</Text>
+                </View>
+                <View style={styles.hColSector}>
+                  <Text style={[styles.hTableHeadCell, styles.hHeadCellStretch, styles.hHeadTextCenter]}>Sector</Text>
+                </View>
+                <View style={styles.hColInstrument}>
+                  <Text style={[styles.hTableHeadCell, styles.hHeadCellStretch, styles.hHeadTextCenter]}>Instrument</Text>
+                </View>
+                <View style={styles.hColAssets}>
+                  <Text style={[styles.hTableHeadCell, styles.hHeadCellStretch, styles.hHeadTextRight]}>Assets</Text>
+                </View>
               </View>
 
-              <ScrollView style={styles.holdingsScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.holdingsScroll}
+                contentContainerStyle={styles.holdingsScrollContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                bounces={false}>
                 {holdingsList.map((h, idx) => (
                   <View key={idx} style={styles.hTableRow}>
-                    <Text style={[styles.hCellName, {flex: 2.2}]} numberOfLines={2}>
-                      {h.company_name || '—'}
-                    </Text>
-                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={2}>
-                      {h.sector_name || '—'}
-                    </Text>
-                    <Text style={[styles.hCellCenter, {flex: 1}]} numberOfLines={2}>
-                      {h.instrument_name || '—'}
-                    </Text>
-                    <Text style={[styles.hCellRight, {flex: 0.9}]} numberOfLines={2}>
-                      {h.corpus_per != null && !Number.isNaN(Number(h.corpus_per))
-                        ? `${Number(h.corpus_per).toFixed(2)}%`
-                        : '—'}
-                    </Text>
+                    <View style={styles.hColName}>
+                      <Text style={styles.hCellName}>{h.company_name || '—'}</Text>
+                    </View>
+                    <View style={styles.hColSector}>
+                      <Text style={styles.hCellCenter}>{h.sector_name || '—'}</Text>
+                    </View>
+                    <View style={styles.hColInstrument}>
+                      <Text style={styles.hCellInstrument}>{h.instrument_name || '—'}</Text>
+                    </View>
+                    <View style={styles.hColAssets}>
+                      <Text style={styles.hCellRight}>
+                        {h.corpus_per != null && !Number.isNaN(Number(h.corpus_per))
+                          ? `${Number(h.corpus_per).toFixed(2)}%`
+                          : '—'}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </ScrollView>
@@ -1469,6 +1485,12 @@ function getFundDetailStyles(colors, isDark) {
   },
   holdingsScroll: {
     maxHeight: 420,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  holdingsScrollContent: {
+    width: '100%',
+    flexGrow: 0,
   },
   innerTableCard: {
     borderWidth: 1,
@@ -1479,21 +1501,48 @@ function getFundDetailStyles(colors, isDark) {
   },
   hTableHeadRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    width: '100%',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: isDark ? '#252525' : '#F9FAFB',
     borderBottomWidth: 1,
     borderBottomColor: c.border,
   },
   hTableHeadCell: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '600'},
+  hHeadCellStretch: {width: '100%'},
+  hHeadTextCenter: {textAlign: 'center'},
+  hHeadTextRight: {textAlign: 'right'},
+  hColName: {
+    flex: 2.2,
+    minWidth: 0,
+    paddingRight: 4,
+  },
+  hColSector: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 2,
+  },
+  hColInstrument: {
+    flex: 1.20,
+    minWidth: 0,
+    paddingHorizontal: 2,
+  },
+  hColAssets: {
+    flex: 0.85,
+    minWidth: 0,
+    paddingLeft: 2,
+  },
   hCellName: {
     ...Textstyles.medium,
     fontSize: 13,
     color: c.textPrimary,
     fontWeight: '600',
+    width: '100%',
     flexShrink: 1,
     minWidth: 0,
+    ...Platform.select({android: {includeFontPadding: false}}),
+    lineHeight: 18,
   },
   hCellCenter: {
     ...Textstyles.medium,
@@ -1501,8 +1550,23 @@ function getFundDetailStyles(colors, isDark) {
     color: c.textPrimary,
     textAlign: 'center',
     fontWeight: '600',
+    width: '100%',
     flexShrink: 1,
     minWidth: 0,
+    ...Platform.select({android: {includeFontPadding: false}}),
+    lineHeight: 18,
+  },
+  hCellInstrument: {
+    ...Textstyles.medium,
+    fontSize: 13,
+    color: c.textPrimary,
+    textAlign: 'center',
+    fontWeight: '600',
+    width: '100%',
+    flexShrink: 1,
+    minWidth: 0,
+    ...Platform.select({android: {includeFontPadding: false}}),
+    lineHeight: 18,
   },
   hCellRight: {
     ...Textstyles.medium,
@@ -1510,14 +1574,18 @@ function getFundDetailStyles(colors, isDark) {
     color: c.textPrimary,
     textAlign: 'right',
     fontWeight: '600',
+    width: '100%',
     flexShrink: 1,
     minWidth: 0,
+    ...Platform.select({android: {includeFontPadding: false}}),
+    lineHeight: 18,
   },
   hTableRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    width: '100%',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: c.border,
   },

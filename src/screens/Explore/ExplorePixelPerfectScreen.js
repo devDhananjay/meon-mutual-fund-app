@@ -11,12 +11,13 @@ import {
   FlatList,
   useWindowDimensions,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import AppTabHeader from '../../components/AppTabHeader';
 
 import {navigateToFundDetail, navigateToAllFundsSIP} from '../../navigation/navigationRef';
 import {useAllFunds} from '../../hooks/useAllFunds';
+import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import Textstyles from '../../utils/text';
 import {Colors} from '../../utils/AppConstant';
@@ -209,6 +210,7 @@ function mapApiResultsToFunds(apiData) {
 
 export default function ExplorePixelPerfectScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const {colors, isDark} = useAppTheme();
   const {width: windowWidth} = useWindowDimensions();
   /** Same inner width as Popular grid column (padding 16 each side, 4px gutter). */
@@ -217,16 +219,21 @@ export default function ExplorePixelPerfectScreen() {
     [windowWidth],
   );
 
-  const [sortPeriodKey, setSortPeriodKey] = useState('3y'); // 1y | 3y | 5y
+  const [sortPeriodKey, setSortPeriodKey] = useState('none'); // none | 1y | 3y | 5y | 7y
   const [selectedCategory, setSelectedCategory] = useState(''); // '' means All categories
   const [selectedRisk, setSelectedRisk] = useState(''); // '' means All risks
 
   const sortLabel = useMemo(() => {
-    return sortPeriodKey === '5y'
-      ? '5Y Returns'
-      : sortPeriodKey === '7y'
-        ? '7Y Returns'
-        : '3Y Returns';
+    if (sortPeriodKey === 'none') {
+      return 'Default';
+    }
+    return sortPeriodKey === '1y'
+      ? '1Y Returns'
+      : sortPeriodKey === '5y'
+        ? '5Y Returns'
+        : sortPeriodKey === '7y'
+          ? '7Y Returns'
+          : '3Y Returns';
   }, [sortPeriodKey]);
 
   const categoryOptions = useMemo(
@@ -251,7 +258,7 @@ export default function ExplorePixelPerfectScreen() {
   );
 
   // Home query (Popular/Recent) - ONLY unfiltered (so category/risk filters don't affect these sections).
-  const {data: homeData, isLoading: homeLoading} = useAllFunds({
+  const {data: homeData, isLoading: homeLoading, refetch: refetchHome} = useAllFunds({
     page: 0,
     rowsPerPage: 10,
     showMoreCount: 10,
@@ -275,6 +282,12 @@ export default function ExplorePixelPerfectScreen() {
   const homeFunds = useMemo(() => mapApiResultsToFunds(homeData), [homeData]);
   const listFunds = useMemo(() => mapApiResultsToFunds(listData), [listData]);
 
+  const refetchExploreData = useCallback(() => {
+    refetchHome?.();
+    refetchList?.();
+  }, [refetchHome, refetchList]);
+  useRefetchOnReconnect(refetchExploreData);
+
   const hasActiveListQuery = Boolean(selectedCategory) || Boolean(selectedRisk);
 
   const popularFunds = useMemo(() => {
@@ -295,7 +308,10 @@ export default function ExplorePixelPerfectScreen() {
         : hasActiveListQuery || listLoading
           ? []
           : MOCK_ALL_FUNDS;
-  const getVal = item => {
+    if (sortPeriodKey === 'none') {
+      return list;
+    }
+    const getVal = item => {
       const raw =
         sortPeriodKey === '1y'
           ? item?.return1y
@@ -315,14 +331,11 @@ export default function ExplorePixelPerfectScreen() {
 
   const count = listData?.count ?? sortedListFunds.length;
 
-  const onPressSort = useCallback(
-    key => {
-      if (key === '3y' || key === '5y' || key === '7y') {
-        setSortPeriodKey(key);
-      }
-    },
-    [],
-  );
+  const onPressSort = useCallback(key => {
+    if (key === 'none' || key === '1y' || key === '3y' || key === '5y' || key === '7y') {
+      setSortPeriodKey(key);
+    }
+  }, []);
 
   const onPressFund = useCallback(
     fund => {
@@ -347,6 +360,8 @@ export default function ExplorePixelPerfectScreen() {
 
   const listRows = useMemo(() => sortedListFunds.slice(0, 20), [sortedListFunds]);
 
+  const listReturnPeriodKey = sortPeriodKey === 'none' ? '1y' : sortPeriodKey;
+
   const renderFundRow = useCallback(
     ({item}) => (
       <View
@@ -354,10 +369,10 @@ export default function ExplorePixelPerfectScreen() {
           styles.allFundsItemWrap,
           {backgroundColor: colors.card, borderColor: colors.border},
         ]}>
-        <FundListItem fund={item} returnPeriodKey={sortPeriodKey} onPress={() => onPressFund(item)} />
+        <FundListItem fund={item} returnPeriodKey={listReturnPeriodKey} onPress={() => onPressFund(item)} />
       </View>
     ),
-    [sortPeriodKey, onPressFund, colors.card, colors.border],
+    [listReturnPeriodKey, onPressFund, colors.card, colors.border],
   );
 
   const keyExtractor = useCallback((item, index) => String(item.id ?? item.scheme_code ?? `fund-${index}`), []);
@@ -380,15 +395,6 @@ export default function ExplorePixelPerfectScreen() {
             Search funds...
           </Text>
         </TouchableOpacity>
-
-        {listError ? (
-          <View style={[styles.errorBanner, {borderColor: colors.border, backgroundColor: colors.card}]}>
-            <Text style={[Textstyles.normal, {color: colors.danger, flex: 1}]}>{listError}</Text>
-            <TouchableOpacity onPress={() => refetchList()} hitSlop={8}>
-              <Text style={[Textstyles.medium, {color: colors.primary}]}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
 
         <View style={[styles.sipBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
@@ -456,6 +462,7 @@ export default function ExplorePixelPerfectScreen() {
         <FilterBar
           count={count}
           sortLabel={sortLabel}
+          selectedSortKey={sortPeriodKey}
           onPressSort={onPressSort}
           categoryOptions={categoryOptions}
           selectedCategory={selectedCategory}
@@ -483,11 +490,11 @@ export default function ExplorePixelPerfectScreen() {
       colors,
       isDark,
       popularColumnWidth,
-      listError,
       popularFunds,
       recentlyViewed,
       count,
       sortLabel,
+      sortPeriodKey,
       onPressSort,
       categoryOptions,
       selectedCategory,
@@ -496,7 +503,6 @@ export default function ExplorePixelPerfectScreen() {
       listLoading,
       hasActiveListQuery,
       listRows.length,
-      refetchList,
       onStartSIP,
       onPressSearchBar,
       onPressFund,
@@ -525,6 +531,22 @@ export default function ExplorePixelPerfectScreen() {
   return (
     <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['left', 'right']}>
       <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      {listError ? (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              marginTop: insets.top + 8,
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+            },
+          ]}>
+          <Text style={[Textstyles.normal, {color: colors.danger, flex: 1}]}>{listError}</Text>
+          <TouchableOpacity onPress={() => refetchList()} hitSlop={8}>
+            <Text style={[Textstyles.medium, {color: colors.primary}]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
       <View style={[styles.fixedHeaderWrap, {backgroundColor: colors.background}]}>
         <AppTabHeader title="Explore" />
       </View>

@@ -24,6 +24,7 @@ function Chip({label, selected, onPress}) {
 export default function FilterBar({
   count,
   sortLabel,
+  selectedSortKey,
   onPressSort,
   categoryOptions,
   selectedCategory,
@@ -42,6 +43,8 @@ export default function FilterBar({
 
   const returnOptions = useMemo(
     () => [
+      {key: 'none', label: 'Default'},
+      {key: '1y', label: '1Y Returns'},
       {key: '3y', label: '3Y Returns'},
       {key: '5y', label: '5Y Returns'},
       {key: '7y', label: '7Y Returns'},
@@ -70,7 +73,7 @@ export default function FilterBar({
   return (
     <View style={[styles.wrap, containerStyle]}>
       <View style={styles.headerRow}>
-        <Text style={styles.countTxt}>{count} Funds</Text>
+        <Text style={styles.countTxt}>{count == null ? '…' : `${count} Funds`}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.sortValueBtn}
@@ -100,7 +103,7 @@ export default function FilterBar({
         isBottomSheet
         maxHeight={'60%'}>
         {returnOptions.map(opt => {
-          const active = opt.label === sortLabel;
+          const active = opt.key === selectedSortKey;
           return (
             <TouchableOpacity
               key={opt.key}
