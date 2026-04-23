@@ -53,11 +53,8 @@ export default function FundCard({fund, variant = 'popular', onPress, cardWidth}
   const isRecent = variant === 'recent';
   const logoSize = 32;
 
-  const widthStyle = isRecent
-    ? cardWidth != null
-      ? {width: cardWidth, alignSelf: 'flex-start'}
-      : styles.cardRecent
-    : null;
+  const widthStyle =
+    cardWidth != null ? {width: cardWidth, alignSelf: 'flex-start'} : isRecent ? styles.cardRecent : null;
 
   return (
     <TouchableOpacity

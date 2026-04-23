@@ -209,6 +209,36 @@ function mapApiResultsToFunds(apiData) {
   });
 }
 
+function getFundUniqueKey(fund, index) {
+  const schemeCode = fund?.scheme_code != null ? String(fund.scheme_code).trim() : '';
+  if (schemeCode) {
+    return `scheme:${schemeCode.toLowerCase()}`;
+  }
+  const id = fund?.id != null ? String(fund.id).trim() : '';
+  if (id) {
+    return `id:${id.toLowerCase()}`;
+  }
+  const name = fund?.name != null ? String(fund.name).trim() : '';
+  if (name) {
+    return `name:${name.toLowerCase()}`;
+  }
+  return `idx:${index}`;
+}
+
+function uniqueFunds(list) {
+  const seen = new Set();
+  const out = [];
+  list.forEach((fund, index) => {
+    const key = getFundUniqueKey(fund, index);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    out.push(fund);
+  });
+  return out;
+}
+
 export default function ExplorePixelPerfectScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -301,15 +331,16 @@ export default function ExplorePixelPerfectScreen() {
 
   const hasActiveListQuery = Boolean(selectedCategory) || Boolean(selectedRisk);
 
-  const popularFunds = useMemo(() => {
+  const popularAndRecentSource = useMemo(() => {
     const list = homeFunds.length ? homeFunds : MOCK_ALL_FUNDS;
-    return list.slice(0, 4);
+    return uniqueFunds(list);
   }, [homeFunds]);
 
+  const popularFunds = useMemo(() => popularAndRecentSource.slice(0, 4), [popularAndRecentSource]);
+
   const recentlyViewed = useMemo(() => {
-    const list = homeFunds.length ? homeFunds : MOCK_ALL_FUNDS;
-    return list.slice(4, 6);
-  }, [homeFunds]);
+    return popularAndRecentSource.slice(4, 6);
+  }, [popularAndRecentSource]);
 
   const sortedListFunds = useMemo(() => {
     // Never substitute mock data when the user is searching or filtering — empty API = empty list.
@@ -438,9 +469,9 @@ export default function ExplorePixelPerfectScreen() {
               key={f.id ?? idx}
               style={[
                 styles.gridItemBase,
-                idx % 2 === 0 ? styles.gridItemLeft : styles.gridItemRight,
+                {width: popularColumnWidth},
               ]}>
-              <FundCard fund={f} variant="popular" onPress={() => onPressFund(f)} />
+              <FundCard fund={f} variant="popular" cardWidth={popularColumnWidth} onPress={() => onPressFund(f)} />
             </View>
           ))}
         </View>
@@ -680,16 +711,14 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 16,
     alignItems: 'flex-start',
   },
   gridItemBase: {
-    width: '50%',
-    paddingBottom: 10,
+    marginBottom: 10,
   },
-  gridItemLeft: {paddingRight: 4},
-  gridItemRight: {paddingRight: 0},
 
   recentScroll: {marginTop: 4, marginBottom: 18},
   recentContent: {paddingHorizontal: 16, gap: 12},
