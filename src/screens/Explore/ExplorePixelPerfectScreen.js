@@ -10,6 +10,7 @@ import {
   StatusBar,
   FlatList,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -287,6 +288,16 @@ export default function ExplorePixelPerfectScreen() {
     refetchList?.();
   }, [refetchHome, refetchList]);
   useRefetchOnReconnect(refetchExploreData);
+
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const onPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      await Promise.all([refetchHome?.(), refetchList?.()]);
+    } finally {
+      setPullRefreshing(false);
+    }
+  }, [refetchHome, refetchList]);
 
   const hasActiveListQuery = Boolean(selectedCategory) || Boolean(selectedRisk);
 
@@ -569,6 +580,9 @@ export default function ExplorePixelPerfectScreen() {
           listError,
           listRowsLen: listRows.length,
         }}
+        refreshControl={
+          <RefreshControl refreshing={pullRefreshing} onRefresh={onPullRefresh} tintColor={colors.primary} />
+        }
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

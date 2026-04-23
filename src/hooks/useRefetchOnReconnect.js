@@ -1,8 +1,22 @@
 import {useEffect, useRef} from 'react';
 import NetInfo from '@react-native-community/netinfo';
 
+function computeOnline(state) {
+  if (!state) {
+    return false;
+  }
+  if (state.isConnected === false) {
+    return false;
+  }
+  if (state.isInternetReachable === false) {
+    return false;
+  }
+  return true;
+}
+
 /**
- * Auto-refetch data when connectivity returns after being offline.
+ * Refetch when connectivity changes (offline → online or online → offline).
+ * Offline refetch lets API fail so hooks set `error` immediately without manual refresh.
  */
 export function useRefetchOnReconnect(refetch, {enabled = true} = {}) {
   const wasOnlineRef = useRef(null);
@@ -13,16 +27,25 @@ export function useRefetchOnReconnect(refetch, {enabled = true} = {}) {
       return undefined;
     }
 
-    const computeOnline = state => Boolean(state?.isConnected && (state?.isInternetReachable ?? true));
+    const throttledRefetch = () => {
+      const now = Date.now();
+      if (now - lastRefetchAtRef.current > 1500) {
+        lastRefetchAtRef.current = now;
+        refetch();
+      }
+    };
 
-    const maybeRefetch = isOnline => {
-      if (wasOnlineRef.current === false && isOnline) {
-        const now = Date.now();
-        // Guard against duplicate reconnect events firing in quick succession.
-        if (now - lastRefetchAtRef.current > 1500) {
-          lastRefetchAtRef.current = now;
-          refetch();
-        }
+    const onConnectivityChange = state => {
+      const isOnline = computeOnline(state);
+      const prev = wasOnlineRef.current;
+
+      if (prev === null) {
+        wasOnlineRef.current = isOnline;
+        return;
+      }
+
+      if (prev !== isOnline) {
+        throttledRefetch();
       }
       wasOnlineRef.current = isOnline;
     };
@@ -31,11 +54,8 @@ export function useRefetchOnReconnect(refetch, {enabled = true} = {}) {
       wasOnlineRef.current = computeOnline(state);
     });
 
-    const unsubscribe = NetInfo.addEventListener(state => {
-      maybeRefetch(computeOnline(state));
-    });
+    const unsubscribe = NetInfo.addEventListener(onConnectivityChange);
 
     return unsubscribe;
   }, [enabled, refetch]);
 }
-

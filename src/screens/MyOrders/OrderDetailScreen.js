@@ -1351,8 +1351,9 @@ function getOrderDetailStyles(colors, isDark) {
   kvRow: {
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    backgroundColor: isDark ? c.border : '#F3F4F6',
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: isDark ? c.border : 'white',
+    borderRadius:12
   },
   kvLabel: {fontSize: 12, color: c.textSecondary, marginBottom: 4},
   kvVal: {fontSize: 15, fontWeight: '600', color: c.textPrimary},

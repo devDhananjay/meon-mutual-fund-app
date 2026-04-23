@@ -4,7 +4,7 @@
  */
 
 import React, {useEffect} from 'react';
-import {StyleSheet, LogBox, Alert, Linking, Platform} from 'react-native';
+import {StyleSheet, LogBox, Linking, Platform} from 'react-native';
 import {Provider, useDispatch} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -17,6 +17,7 @@ import {STORAGE_KEYS} from './src/constants/storageKeys';
 import AppContainer from './src/route/AppContainer';
 import {ThemeProvider} from './src/theme/ThemeProvider';
 import AppAlertHost from './src/components/AppAlertHost';
+import {appAlert} from './src/utils/appAlert';
 
 export {navigate} from './src/navigation/navigationRef';
 
@@ -83,7 +84,7 @@ function AppVersionGate() {
           return;
         }
 
-        const updateInfo = VersionCheck.needUpdate({
+        const updateInfo = await VersionCheck.needUpdate({
           currentVersion,
           latestVersion,
         });
@@ -92,7 +93,14 @@ function AppVersionGate() {
           return;
         }
 
-        Alert.alert(
+        const storeUrl =
+          typeof updateInfo?.storeUrl === 'string' && updateInfo.storeUrl.length > 0
+            ? updateInfo.storeUrl
+            : Platform.OS === 'android'
+              ? ANDROID_STORE_URL
+              : IOS_STORE_URL;
+
+        appAlert(
           'Update Available',
           'A new version of Meon MF is available. Please update to continue.',
           [
@@ -100,16 +108,13 @@ function AppVersionGate() {
               text: 'Update Now',
               onPress: async () => {
                 try {
-                  await Linking.openURL(
-                    Platform.OS === 'android' ? ANDROID_STORE_URL : IOS_STORE_URL,
-                  );
+                  await Linking.openURL(storeUrl);
                 } catch {
-                  Alert.alert('Error', 'Unable to open app store link right now.');
+                  appAlert('Error', 'Unable to open app store link right now.');
                 }
               },
             },
           ],
-          {cancelable: false},
         );
       } catch {
         // Silent fail: app should continue even if version check fails.

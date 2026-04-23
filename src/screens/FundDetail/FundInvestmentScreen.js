@@ -1334,6 +1334,7 @@ function getFundInvestmentStyles(colors, isDark) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    bottom:10
   },
   addCartLink: {
     flex: 1,

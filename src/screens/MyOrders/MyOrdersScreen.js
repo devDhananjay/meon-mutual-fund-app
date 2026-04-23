@@ -127,21 +127,28 @@ function createMyOrdersStyles(colors, isDark) {
     cardChev: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 4},
     cardGrid: {
       flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
       marginTop: 14,
       paddingTop: 14,
       borderTopWidth: 1,
       borderTopColor: c.border,
     },
-    cardCell: {flex: 1, minWidth: 0, paddingRight: 6},
+    cardColLeft: {flex: 1, minWidth: 0, alignItems: 'flex-start', paddingRight: 6},
+    cardColCenter: {flex: 1, minWidth: 0, alignItems: 'center', paddingHorizontal: 4},
+    cardColRight: {flex: 1, minWidth: 0, alignItems: 'flex-end', paddingLeft: 6},
     cellLabel: {fontSize: 10, color: c.textSecondary, textTransform: 'uppercase', marginBottom: 6},
+    cellLabelCenter: {textAlign: 'center', alignSelf: 'center'},
+    cellLabelRight: {textAlign: 'right', alignSelf: 'stretch'},
     cellType: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary},
     cellAmt: {fontSize: 14, ...Textstyles.medium, fontWeight: '500', color: c.textPrimary, marginTop: 2},
     cellVal: {fontSize: 13, ...Textstyles.medium, fontWeight: '600', color: c.textPrimary},
+    cellValCenter: {textAlign: 'center'},
+    statusBadgeWrap: {width: '100%', alignItems: 'flex-end', marginTop: 0},
     statusPill: {
       paddingHorizontal: 8,
       paddingVertical: 5,
       borderRadius: 8,
-      alignSelf: 'center',
       maxWidth: '100%',
     },
     statusPillTxt: {...Textstyles.medium, fontSize: 11, fontWeight: '500'},
@@ -479,18 +486,20 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}
         <Image source={Icons.GoIcon} style={styles.cardChev} resizeMode="contain" />
       </View>
       <View style={styles.cardGrid}>
-        <View style={styles.cardCell}>
+        <View style={styles.cardColLeft}>
           <Text style={styles.cellLabel}>Type & Amount</Text>
           <Text style={styles.cellType}>{typeLabel}</Text>
           <Text style={styles.cellAmt}>{amount}</Text>
         </View>
-        <View style={styles.cardCell}>
-          <Text style={styles.cellLabel}>Investment Date</Text>
-          <Text style={styles.cellVal}>{investDate}</Text>
+        <View style={styles.cardColCenter}>
+          <Text style={[styles.cellLabel, styles.cellLabelCenter]}>Investment Date</Text>
+          <Text style={[styles.cellVal, styles.cellValCenter]}>{investDate}</Text>
         </View>
-        <View style={styles.cardCell}>
-          <Text style={[styles.cellLabel, {alignSelf: 'center'}]}>Status</Text>
-          <StatusBadge label={status} styles={styles} isDark={isDark} />
+        <View style={styles.cardColRight}>
+          <Text style={[styles.cellLabel, styles.cellLabelRight]}>Status</Text>
+          <View style={styles.statusBadgeWrap}>
+            <StatusBadge label={status} styles={styles} isDark={isDark} />
+          </View>
         </View>
       </View>
       {canPayNow ? (
