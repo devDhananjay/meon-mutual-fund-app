@@ -429,11 +429,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   faqPlus: {
     ...Textstyles.medium,
     fontSize: 20,
-    lineHeight: 22,
+    lineHeight: 20,
+    includeFontPadding: false,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    transform: [{translateY: -1}],
   },
   faqBody: {
     ...Textstyles.normal,

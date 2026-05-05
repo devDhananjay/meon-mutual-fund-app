@@ -1102,9 +1102,28 @@ export default function FundInvestmentScreen() {
 
   if (loading && !folioData) {
     return (
-      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={styles.center}>
-          <ActivityIndicator size="small" color={colors.primary} />
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
+        <View style={styles.scrollContent}>
+          <View style={styles.headerRow}>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={14} style={styles.backHit} />
+            <TouchableOpacity onPress={openCart} hitSlop={12} style={styles.cartHit}>
+              <View style={styles.cartWrap}>
+                <Image source={Icons.CartIcon} style={styles.cartIconImg} resizeMode="contain" />
+                {cartCount > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.screenTitle, {marginBottom: 12}]} numberOfLines={3}>
+            {displayName}
+          </Text>
+          <View style={[styles.loadingBox, styles.loadingBoxInline]}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingHint}>Loading fund details…</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -1895,6 +1914,23 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   paymentCancelBtnTxt: {...Textstyles.medium, color: c.textSecondary, fontSize: 14},
   modalLoader: {marginVertical: 12},
+  loadingBox: {
+    marginHorizontal: 16,
+    marginTop: 24,
+    minHeight: 96,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingBoxInline: {
+    marginHorizontal: 0,
+    marginTop: 8,
+  },
+  loadingHint: {fontSize: 13, color: c.textSecondary},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
 });

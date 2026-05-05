@@ -22,13 +22,13 @@ import { useAppTheme } from '../theme/useAppTheme';
 
 const Tab = createBottomTabNavigator();
 const ACTIVE_BLUE = '#1E81F2';
-const TAB_BOX_SIZE = 74;
+const TAB_BOX_SIZE = Platform.OS === 'ios' ? 74 : 64;
 
 // ─── Liquid Glass Tab Bar ─────────────────────────────────────────────────────
 function LiquidGlassTabBar({ state, descriptors, navigation }) {
   const { isDark, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const tabBarBottomPad = Math.max(insets.bottom, 10);
+  const tabBarBottomPad = Platform.OS === 'android' ? Math.max(insets.bottom, 2) : Math.max(insets.bottom, 10);
 
   const tabIcons = {
     // Use single source per tab + tint color change to prevent image-source flicker.
@@ -218,7 +218,7 @@ export default function MainTabNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     overflow: 'hidden',
-    height: 95,
+    height:Platform.OS === 'ios' ? 95 : 70,
   },
   tabBarTopEdge: {
     position: 'absolute',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
 
   tabRow: {
     flexDirection: 'row',
-    paddingTop: 10,
+    paddingTop: Platform.OS === 'ios' ? 10 : 6,
     paddingHorizontal: 8,
   },
 
