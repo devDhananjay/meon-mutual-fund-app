@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {useOrdersData} from '../../hooks/useOrdersData';
 import Textstyles from '../../utils/text';
@@ -607,6 +607,18 @@ export default function MyOrdersScreen() {
   );
 
   const {data, isPending, error, refreshing, refetch} = useOrdersData(listParams);
+
+  const skipFocusRefetchOnceRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFocusRefetchOnceRef.current) {
+        skipFocusRefetchOnceRef.current = false;
+        return;
+      }
+      refetch();
+    }, [refetch]),
+  );
+
   const rawOrders = data?.results ?? EMPTY_ORDERS;
   const orders = useMemo(
     () =>

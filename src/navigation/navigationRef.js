@@ -131,6 +131,26 @@ export function navigateToOrderDetail(navigation, params) {
   navigation?.navigate?.('OrderDetail', params);
 }
 
+/** Root stack — folio detail (scheme holding + transactions). */
+export function navigateToFolioDetail(navigation, params) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('FolioDetail', params);
+    return;
+  }
+  const rootNav = navigation?.getParent?.()?.getParent?.();
+  if (rootNav?.dispatch) {
+    rootNav.dispatch(
+      CommonActions.navigate({
+        name: 'FolioDetail',
+        params,
+        merge: true,
+      }),
+    );
+    return;
+  }
+  navigation?.navigate?.('FolioDetail', params);
+}
+
 export function navigateToWatchlist(navigation) {
   if (navigationRef.isReady()) {
     navigationRef.navigate('Watchlist');

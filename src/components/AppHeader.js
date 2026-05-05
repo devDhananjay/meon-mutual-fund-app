@@ -52,7 +52,7 @@ export default function AppHeader({title, onBack, right, subtitle, backgroundCol
 const styles = StyleSheet.create({
   wrap: {paddingHorizontal: 16, paddingBottom: 6},
   row: {flexDirection: 'row', alignItems: 'center', minHeight: 44},
-  side: {width: 44, alignItems: 'center', justifyContent: 'center'},
+  side: {minWidth: 44, paddingHorizontal: 2, alignItems: 'center', justifyContent: 'center'},
   sideHidden: {opacity: 0},
   backImg: {width: 18, height: 18, right:15},
   center: {flex: 1, alignItems: 'center', paddingHorizontal: 6},

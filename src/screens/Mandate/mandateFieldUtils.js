@@ -143,6 +143,20 @@ export function pickEndDateDD(item) {
   );
 }
 
+/**
+ * Mandates eligible for Choose Mandate / SIP / lump-sum debit: **ACTIVE** only (legacy behaviour).
+ * Reads `status`, then `mandate_status`, then `approval_status`.
+ */
+export function filterActiveMandatesForOrders(rawList) {
+  const list = Array.isArray(rawList) ? rawList : [];
+  return list.filter(item => {
+    const s = String(item?.status ?? item?.mandate_status ?? item?.approval_status ?? '')
+      .trim()
+      .toUpperCase();
+    return s === 'ACTIVE';
+  });
+}
+
 /** Display id e.g. #6562299 */
 export function pickMandateListId(item) {
   const id =

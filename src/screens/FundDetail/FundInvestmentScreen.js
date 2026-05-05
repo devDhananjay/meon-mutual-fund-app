@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   AppState,
+  Switch,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
@@ -41,6 +42,8 @@ import {useAppTheme} from '../../theme/useAppTheme';
 import {pickMaxSipInvestment, pickMinSipInvestment} from '../../utils/schemeLimits';
 import {typeScale} from '../../theme/typography';
 import {appAlert} from '../../utils/appAlert';
+import {fetchCompanyProfileSettings, normalizeSipPlaceOrderDayDiff} from '../../services/companyService';
+import {filterActiveMandatesForOrders} from '../Mandate/mandateFieldUtils';
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -73,6 +76,35 @@ function isSipDateWithinAllowedRange(d) {
   }
   const day = d.getDate();
   return day >= 1 && day <= 28;
+}
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function addCalendarDays(base, days) {
+  const x = startOfDay(base);
+  x.setDate(x.getDate() + Number(days));
+  return x;
+}
+
+/** Monthly SIP: calendar day 1–28 and not before minDate. */
+function alignMonthlySipDate(current, minDate) {
+  let d = startOfDay(new Date(Math.max(startOfDay(current).getTime(), startOfDay(minDate).getTime())));
+  for (let i = 0; i < 400; i++) {
+    if (d.getDate() > 28) {
+      const nd = new Date(d);
+      nd.setDate(28);
+      d = nd;
+    }
+    if (d.getTime() >= startOfDay(minDate).getTime()) {
+      return d;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return startOfDay(minDate);
 }
 
 function pickMandateLabel(item) {
@@ -261,12 +293,26 @@ export default function FundInvestmentScreen() {
     () => fundInfo?.scheme_name || fundInfo?.base_scheme_name || paramName || 'Fund',
     [fundInfo?.base_scheme_name, fundInfo?.scheme_name, paramName],
   );
+  const fundMetaTags = useMemo(() => {
+    if (!fundInfo) {
+      return [];
+    }
+    const out = [];
+    if (fundInfo.scheme_plan) {
+      out.push({key: 'plan', label: String(fundInfo.scheme_plan)});
+    }
+    if (fundInfo.scheme_type) {
+      out.push({key: 'type', label: String(fundInfo.scheme_type)});
+    }
+    const risk = fundInfo?.holdings?.nfo_risk;
+    if (risk) {
+      out.push({key: 'risk', label: `${risk} risk`});
+    }
+    return out;
+  }, [fundInfo]);
+  /** Choose Mandate modal + validations: **ACTIVE** mandates only (pehle wala behaviour). */
   const mandates = useMemo(
-    () =>
-      (mandateData?.results ?? []).filter(item => {
-        const status = String(item?.status ?? '').toUpperCase();
-        return status === 'ACTIVE';
-      }),
+    () => filterActiveMandatesForOrders(mandateData?.results),
     [mandateData?.results],
   );
 
@@ -276,10 +322,24 @@ export default function FundInvestmentScreen() {
   const [sipFrequency, setSipFrequency] = useState('Monthly');
   const [sipDurationYears, setSipDurationYears] = useState('1');
   const [sipDate, setSipDate] = useState(() => new Date());
-  const [showSipDatePicker, setShowSipDatePicker] = useState(false);
+  const [dailySipStartDate, setDailySipStartDate] = useState(() => new Date());
+  const [dailySipEndDate, setDailySipEndDate] = useState(() => {
+    const x = new Date();
+    x.setDate(x.getDate() + 30);
+    return x;
+  });
+  const [placeFirstInstallmentToday, setPlaceFirstInstallmentToday] = useState(false);
+  const [sipDayDiffSettings, setSipDayDiffSettings] = useState({
+    daysWithFirst: 9,
+    daysWithoutFirst: 33,
+  });
+  /** null | 'monthly' | 'dailyStart' | 'dailyEnd' */
+  const [sipPickerKind, setSipPickerKind] = useState(null);
   const [mandateModalVisible, setMandateModalVisible] = useState(false);
   const [freqModalVisible, setFreqModalVisible] = useState(false);
   const [selectedMandate, setSelectedMandate] = useState(null);
+  /** Lump-sum only: include `mandate_id` on `/order/place/` when true (web “Use Mandate”). */
+  const [useMandateForPurchase, setUseMandateForPurchase] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [pendingStatusLookupId, setPendingStatusLookupId] = useState(null);
   const [pendingTransactionNumber, setPendingTransactionNumber] = useState(null);
@@ -304,16 +364,89 @@ export default function FundInvestmentScreen() {
     : 'Select your preferred mandate option';
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchCompanyProfileSettings();
+        if (cancelled || !res?.success) {
+          return;
+        }
+        setSipDayDiffSettings(normalizeSipPlaceOrderDayDiff(res.data));
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeSipDaysDiff = placeFirstInstallmentToday
+    ? sipDayDiffSettings.daysWithFirst
+    : sipDayDiffSettings.daysWithoutFirst;
+  const computedMinSipDate = useMemo(
+    () => addCalendarDays(new Date(), activeSipDaysDiff),
+    [activeSipDaysDiff],
+  );
+
+  const dailyEndMinimum = useMemo(() => {
+    const start = startOfDay(dailySipStartDate);
+    const policy = startOfDay(computedMinSipDate);
+    const dayAfterStart = addCalendarDays(start, 1);
+    return new Date(Math.max(dayAfterStart.getTime(), policy.getTime()));
+  }, [dailySipStartDate, computedMinSipDate]);
+
+  useEffect(() => {
+    if (orderType !== 'SIP' || sipFrequency === 'Daily') {
+      return;
+    }
+    setSipDate(prev => alignMonthlySipDate(prev, computedMinSipDate));
+  }, [orderType, sipFrequency, computedMinSipDate]);
+
+  useEffect(() => {
+    if (orderType !== 'SIP' || sipFrequency !== 'Daily') {
+      return;
+    }
+    const min = startOfDay(computedMinSipDate);
+    setDailySipStartDate(prev => {
+      const p = startOfDay(prev);
+      return p.getTime() < min.getTime() ? new Date(min) : prev;
+    });
+  }, [orderType, sipFrequency, computedMinSipDate]);
+
+  useEffect(() => {
+    if (orderType !== 'SIP' || sipFrequency !== 'Daily') {
+      return;
+    }
+    setDailySipEndDate(prev => {
+      const p = startOfDay(prev);
+      const minE = dailyEndMinimum;
+      return p.getTime() < minE.getTime() ? new Date(minE) : prev;
+    });
+  }, [orderType, sipFrequency, dailyEndMinimum]);
+
+  useEffect(() => {
     if (mandates.length === 0) {
       setSelectedMandate(null);
+      setUseMandateForPurchase(false);
       return;
     }
     const selectedId = selectedMandate?.id ?? selectedMandate?.mandate_id;
-    const exists = mandates.some(m => (m?.id ?? m?.mandate_id) === selectedId);
-    if (!exists) {
-      setSelectedMandate(mandates[0]);
+    const exists = selectedMandate && mandates.some(m => (m?.id ?? m?.mandate_id) === selectedId);
+    if (selectedMandate && !exists) {
+      setSelectedMandate(null);
     }
   }, [mandates, selectedMandate]);
+
+  const toggleUseMandateForPurchase = useCallback(() => {
+    setUseMandateForPurchase(prev => {
+      const next = !prev;
+      if (!next) {
+        setSelectedMandate(null);
+      }
+      return next;
+    });
+  }, []);
 
   const parseOrderAmount = useCallback(() => {
     const parsed = Number(String(orderAmount).replace(/[^0-9]/g, ''));
@@ -359,6 +492,55 @@ export default function FundInvestmentScreen() {
     navigateToCart(navigation);
   }, [navigation]);
 
+  const validateSipMetaForSubmit = useCallback(() => {
+    if (orderType !== 'SIP') {
+      return true;
+    }
+    if (String(sipFrequency).toLowerCase() === 'daily') {
+      const start = startOfDay(dailySipStartDate);
+      const end = startOfDay(dailySipEndDate);
+      const pol = startOfDay(computedMinSipDate);
+      if (start.getTime() < pol.getTime()) {
+        appAlert('Invalid SIP date', `Start date must be on or after ${formatSipDateDisplay(pol)}.`);
+        return false;
+      }
+      if (end.getTime() < pol.getTime()) {
+        appAlert('Invalid SIP date', `End date must be on or after ${formatSipDateDisplay(pol)}.`);
+        return false;
+      }
+      if (end.getTime() <= start.getTime()) {
+        appAlert('Invalid SIP dates', 'SIP end date must be after start date.');
+        return false;
+      }
+      return true;
+    }
+    if (!isSipDateWithinAllowedRange(sipDate)) {
+      appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+      return false;
+    }
+    const y = Number(sipDurationYears);
+    if (!Number.isFinite(y) || y < 1 || y > 25) {
+      appAlert('SIP duration', 'SIP duration must be between 1 and 25 years.');
+      return false;
+    }
+    if (startOfDay(sipDate).getTime() < startOfDay(computedMinSipDate).getTime()) {
+      appAlert(
+        'Invalid SIP date',
+        `Choose a date on or after ${formatSipDateDisplay(computedMinSipDate)} (per policy).`,
+      );
+      return false;
+    }
+    return true;
+  }, [
+    orderType,
+    sipFrequency,
+    dailySipStartDate,
+    dailySipEndDate,
+    computedMinSipDate,
+    sipDate,
+    sipDurationYears,
+  ]);
+
   const onAddToCart = useCallback(() => {
     if (!fundInfo?.scheme_code) {
       appAlert('Error', 'Fund data not loaded');
@@ -369,24 +551,39 @@ export default function FundInvestmentScreen() {
       return;
     }
     const amount = raw;
-    if (orderType === 'SIP' && !isSipDateWithinAllowedRange(sipDate)) {
-      appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+    if (orderType === 'SIP' && !validateSipMetaForSubmit()) {
       return;
     }
-    if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      appAlert('Select mandate', 'Please choose a mandate for SIP.');
+    if (orderType === 'SIP' && (!selectedMandate || mandates.length === 0)) {
+      appAlert('Select mandate', 'Please choose a mandate under Choose Mandate Method to start SIP.');
       return;
     }
+    if (orderType === 'ONE_TIME' && useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
+      appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
+      return;
+    }
+    const isDaily = orderType === 'SIP' && String(sipFrequency).toLowerCase() === 'daily';
+    const sipDateStr = orderType === 'SIP' ? (isDaily ? formatDDMMYYYY(dailySipStartDate) : formatDDMMYYYY(sipDate)) : undefined;
+    const sipEndStr = orderType === 'SIP' && isDaily ? formatDDMMYYYY(dailySipEndDate) : undefined;
     dispatch(
       addToCart({
         fund: fundInfo,
         amount,
         isSIP: orderType === 'SIP',
         sipFrequency: orderType === 'SIP' ? sipFrequency : undefined,
-        sipDate: orderType === 'SIP' ? formatDDMMYYYY(sipDate) : undefined,
-        sipDurationYears: orderType === 'SIP' ? sipDurationYears : undefined,
-        mandateId: orderType === 'SIP' ? selectedMandate?.id ?? selectedMandate?.mandate_id : undefined,
-        mandateLabel: orderType === 'SIP' ? selectedMandateLabel : undefined,
+        sipDate: sipDateStr,
+        sipEndDate: sipEndStr,
+        sipDurationYears: orderType === 'SIP' && !isDaily ? sipDurationYears : undefined,
+        mandateId:
+          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
+            ? selectedMandate?.id ?? selectedMandate?.mandate_id
+            : undefined,
+        mandateLabel:
+          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
+            ? selectedMandateLabel
+            : undefined,
+        useMandate: orderType === 'ONE_TIME' && useMandateForPurchase,
+        firstOrderToday: orderType === 'SIP' ? placeFirstInstallmentToday : undefined,
         logo_url: logoUrl,
       }),
     );
@@ -398,12 +595,17 @@ export default function FundInvestmentScreen() {
     logoUrl,
     mandates.length,
     validateAmountForSubmit,
+    validateSipMetaForSubmit,
     orderType,
     selectedMandate,
     selectedMandateLabel,
     sipDate,
     sipDurationYears,
     sipFrequency,
+    dailySipStartDate,
+    dailySipEndDate,
+    placeFirstInstallmentToday,
+    useMandateForPurchase,
   ]);
 
   const onPlaceOrder = useCallback(async () => {
@@ -416,30 +618,43 @@ export default function FundInvestmentScreen() {
       return;
     }
     const amount = raw;
-    if (orderType === 'SIP' && !isSipDateWithinAllowedRange(sipDate)) {
-      appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+    if (orderType === 'SIP' && !validateSipMetaForSubmit()) {
       return;
     }
-    if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
-      appAlert('Select mandate', 'Please choose a mandate for SIP.');
+    if (orderType === 'SIP' && (!selectedMandate || mandates.length === 0)) {
+      appAlert('Select mandate', 'Please choose a mandate under Choose Mandate Method to start SIP.');
+      return;
+    }
+    if (orderType === 'ONE_TIME' && useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
+      appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
       return;
     }
     try {
       setPlacingOrder(true);
+      const isDailySip = orderType === 'SIP' && String(sipFrequency).toLowerCase() === 'daily';
+      const sipDateForApi =
+        orderType === 'SIP' ? (isDailySip ? formatDDMMYYYY(dailySipStartDate) : formatDDMMYYYY(sipDate)) : '';
+      const sipEndForApi = orderType === 'SIP' && isDailySip ? formatDDMMYYYY(dailySipEndDate) : undefined;
       const payload =
         orderType === 'SIP'
           ? buildSipRegisterPayload({
               schemeCode: fundInfo.scheme_code,
               amount,
               sipFrequency,
-              sipDate: formatDDMMYYYY(sipDate),
+              sipDate: sipDateForApi,
               sipDurationYears: Number(sipDurationYears),
+              sipEndDate: sipEndForApi,
+              mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+              firstOrderToday: placeFirstInstallmentToday,
+              folioNo: fundInfo?.folio_number ?? fundInfo?.folio_no,
+              euin: user?.euin,
             })
           : buildOrderPlacePayload({
               schemeCode: fundInfo.scheme_code,
               amount,
               isSip: false,
               mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+              useMandate: useMandateForPurchase,
             });
       console.log('[FundInvestment:onPlaceOrder] request payload', payload);
       const res =
@@ -504,11 +719,17 @@ export default function FundInvestmentScreen() {
     navigation,
     orderType,
     validateAmountForSubmit,
+    validateSipMetaForSubmit,
     selectedMandate,
     mandates.length,
     sipFrequency,
     sipDate,
     sipDurationYears,
+    dailySipStartDate,
+    dailySipEndDate,
+    placeFirstInstallmentToday,
+    user?.euin,
+    useMandateForPurchase,
   ]);
 
   const onAuthenticateAndContinue = useCallback(async () => {
@@ -757,20 +978,92 @@ export default function FundInvestmentScreen() {
     await onPayNow(selectedPaymentMode, selectedPaymentMode === 'NEFT' ? neftUtr : '');
   }, [neftUtr, onPayNow, selectedPaymentMode, upiVpa]);
 
-  const onConfirmSipDate = useCallback(date => {
-    if (!isSipDateWithinAllowedRange(date)) {
-      setShowSipDatePicker(false);
-      setTimeout(() => {
-        appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
-      }, 0);
-      return;
+  const sipPickerDate = useMemo(() => {
+    if (sipPickerKind === 'monthly') {
+      return sipDate;
     }
-    setSipDate(date);
-    setShowSipDatePicker(false);
-  }, []);
+    if (sipPickerKind === 'dailyStart') {
+      return dailySipStartDate;
+    }
+    if (sipPickerKind === 'dailyEnd') {
+      return dailySipEndDate;
+    }
+    return new Date();
+  }, [sipPickerKind, sipDate, dailySipStartDate, dailySipEndDate]);
 
-  const onCancelSipDate = useCallback(() => {
-    setShowSipDatePicker(false);
+  const sipPickerMinimumDate = useMemo(() => {
+    if (sipPickerKind === 'dailyEnd') {
+      return dailyEndMinimum;
+    }
+    return computedMinSipDate;
+  }, [sipPickerKind, dailyEndMinimum, computedMinSipDate]);
+
+  const onConfirmSipPicker = useCallback(
+    date => {
+      const picked = startOfDay(date);
+      const pol = startOfDay(computedMinSipDate);
+      if (sipPickerKind === 'monthly') {
+        if (picked.getTime() < pol.getTime()) {
+          setSipPickerKind(null);
+          setTimeout(() => {
+            appAlert(
+              'Invalid SIP date',
+              `Choose a date on or after ${formatSipDateDisplay(computedMinSipDate)} (per policy).`,
+            );
+          }, 0);
+          return;
+        }
+        if (!isSipDateWithinAllowedRange(date)) {
+          setSipPickerKind(null);
+          setTimeout(() => {
+            appAlert('Invalid SIP date', 'SIP date must be between 1 and 28.');
+          }, 0);
+          return;
+        }
+        setSipDate(picked);
+      } else if (sipPickerKind === 'dailyStart') {
+        if (picked.getTime() < pol.getTime()) {
+          setSipPickerKind(null);
+          setTimeout(() => {
+            appAlert(
+              'Invalid SIP date',
+              `Choose a date on or after ${formatSipDateDisplay(computedMinSipDate)} (per policy).`,
+            );
+          }, 0);
+          return;
+        }
+        setDailySipStartDate(picked);
+      } else if (sipPickerKind === 'dailyEnd') {
+        const minE = startOfDay(dailyEndMinimum);
+        if (picked.getTime() < pol.getTime()) {
+          setSipPickerKind(null);
+          setTimeout(() => {
+            appAlert(
+              'Invalid SIP date',
+              `Choose a date on or after ${formatSipDateDisplay(computedMinSipDate)} (per policy).`,
+            );
+          }, 0);
+          return;
+        }
+        if (picked.getTime() < minE.getTime()) {
+          setSipPickerKind(null);
+          setTimeout(() => {
+            appAlert(
+              'Invalid SIP date',
+              `End date must be after start date (on or after ${formatSipDateDisplay(minE)}).`,
+            );
+          }, 0);
+          return;
+        }
+        setDailySipEndDate(picked);
+      }
+      setSipPickerKind(null);
+    },
+    [sipPickerKind, computedMinSipDate, dailyEndMinimum],
+  );
+
+  const onCancelSipPicker = useCallback(() => {
+    setSipPickerKind(null);
   }, []);
 
   const primaryCtaLabel = useMemo(() => {
@@ -779,6 +1072,13 @@ export default function FundInvestmentScreen() {
     }
     return orderType === 'SIP' ? 'Start SIP' : 'Continue to Invest';
   }, [orderType, placingOrder]);
+
+  /** SIP requires an explicit mandate pick; lump-sum with “Use Mandate” requires mandate when active mandates exist. */
+  const isPrimaryCtaDisabled =
+    (orderType === 'SIP' && (mandateLoading || mandates.length === 0 || !selectedMandate)) ||
+    (orderType === 'ONE_TIME' &&
+      useMandateForPurchase &&
+      (mandateLoading || mandates.length === 0 || !selectedMandate));
 
   const onPrimaryCtaPress = useCallback(() => {
     console.log('[FundInvestment:primaryCta] clicked', {
@@ -821,7 +1121,7 @@ export default function FundInvestmentScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -844,9 +1144,28 @@ export default function FundInvestmentScreen() {
               </View>
             </TouchableOpacity>
           </View>
-          <Text style={styles.screenTitle} numberOfLines={3}>
+          <Text
+            style={[styles.screenTitle, {marginBottom: fundMetaTags.length > 0 ? 6 : 16}]}
+            numberOfLines={3}>
             {displayName}
           </Text>
+          {fundMetaTags.length > 0 ? (
+            <View style={styles.fundTagsRow}>
+              {fundMetaTags.map(t => (
+                <View
+                  key={t.key}
+                  style={[
+                    styles.fundTag,
+                    {
+                      backgroundColor: isDark ? 'rgba(30, 129, 242, 0.16)' : 'rgba(30, 129, 242, 0.08)',
+                      borderColor: colors.primary,
+                    },
+                  ]}>
+                  <Text style={[styles.fundTagTxt, {color: colors.primary}]}>{t.label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {pendingOrderId ? (
             <View style={styles.card}>
@@ -897,6 +1216,7 @@ export default function FundInvestmentScreen() {
                   onPress={() => {
                     setOrderType('SIP');
                     setAmountError(null);
+                    setUseMandateForPurchase(false);
                   }}>
                   <Text style={[styles.orderTabTxt, orderType === 'SIP' && styles.orderTabTxtActive]}>SIP</Text>
                 </TouchableOpacity>
@@ -939,12 +1259,56 @@ export default function FundInvestmentScreen() {
                 ))}
               </View>
 
+              {orderType === 'ONE_TIME' && mandateLoading ? (
+                <View
+                  style={[
+                    styles.useMandateRow,
+                    {borderColor: colors.border, backgroundColor: isDark ? colors.inputBg : '#F9FAFB'},
+                  ]}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.useMandateLabel, {color: colors.textSecondary}]}>Loading mandates…</Text>
+                </View>
+              ) : orderType === 'ONE_TIME' ? (
+                <TouchableOpacity
+                  style={[
+                    styles.useMandateRow,
+                    {borderColor: colors.border, backgroundColor: isDark ? colors.inputBg : '#F9FAFB'},
+                  ]}
+                  onPress={toggleUseMandateForPurchase}
+                  activeOpacity={0.85}>
+                  <View
+                    style={[
+                      styles.useMandateCheck,
+                      useMandateForPurchase && {backgroundColor: '#22C55E', borderColor: '#22C55E'},
+                      !useMandateForPurchase && {borderColor: isDark ? '#6B7280' : '#9CA3AF'},
+                    ]}>
+                    {useMandateForPurchase ? <Text style={styles.useMandateTick}>✓</Text> : null}
+                  </View>
+                  <Text style={[styles.useMandateLabel, {color: colors.textPrimary}]}>Use Mandate</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {orderType === 'ONE_TIME' && useMandateForPurchase ? (
+                <TouchableOpacity
+                  style={styles.mandateSelectCard}
+                  activeOpacity={0.85}
+                  onPress={() => setMandateModalVisible(true)}>
+                  <View style={styles.mandateTextWrap}>
+                    <Text style={styles.mandateTitle}>Choose Mandate Method</Text>
+                    <Text style={styles.mandateSub} numberOfLines={2}>
+                      {selectedMandateLabel}
+                    </Text>
+                  </View>
+                  <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
+                </TouchableOpacity>
+              ) : null}
+
               {orderType === 'SIP' ? (
                 <>
-                <View style={{marginTop:10}}>
-                  <Text style={styles.fieldLabel}>SIP frequency</Text>
-                  <TouchableOpacity
-                    style={styles.dropdownField}
+                  <View style={{marginTop: 10}}>
+                    <Text style={styles.fieldLabel}>SIP frequency</Text>
+                    <TouchableOpacity
+                      style={styles.dropdownField}
                       onPress={() => setFreqModalVisible(true)}
                       activeOpacity={0.85}>
                       <Text style={styles.dropdownValue}>{sipFrequency}</Text>
@@ -952,27 +1316,56 @@ export default function FundInvestmentScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
-                  <TouchableOpacity
-                    style={styles.dropdownField}
-                    onPress={() => setShowSipDatePicker(true)}
-                    activeOpacity={0.85}>
-                    <Text style={styles.dropdownValue}>{formatSipDateDisplay(sipDate)}</Text>
-                    <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
-                  </TouchableOpacity>
-
-                  <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP Duration (Years)</Text>
-                  <View style={styles.sipOptionRow}>
-                    {['1', '3', '5'].map(y => (
+                  {String(sipFrequency).toLowerCase() === 'daily' ? (
+                    <>
+                      <View style={styles.sipDateRow}>
+                        <View style={styles.sipDateCol}>
+                          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
+                          <TouchableOpacity
+                            style={styles.dropdownField}
+                            onPress={() => setSipPickerKind('dailyStart')}
+                            activeOpacity={0.85}>
+                            <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipStartDate)}</Text>
+                            <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.sipDateCol}>
+                          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP end date</Text>
+                          <TouchableOpacity
+                            style={styles.dropdownField}
+                            onPress={() => setSipPickerKind('dailyEnd')}
+                            activeOpacity={0.85}>
+                            <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipEndDate)}</Text>
+                            <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
                       <TouchableOpacity
-                        key={y}
-                        style={[styles.inlineChip, sipDurationYears === y && styles.inlineChipOn]}
-                        onPress={() => setSipDurationYears(y)}
+                        style={styles.dropdownField}
+                        onPress={() => setSipPickerKind('monthly')}
                         activeOpacity={0.85}>
-                        <Text style={[styles.inlineChipTxt, sipDurationYears === y && styles.inlineChipTxtOn]}>{y}</Text>
+                        <Text style={styles.dropdownValue}>{formatSipDateDisplay(sipDate)}</Text>
+                        <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
                       </TouchableOpacity>
-                    ))}
-                  </View>
+
+                      <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP Duration (Years)</Text>
+                      <View style={styles.sipOptionRow}>
+                        {['1', '3', '5'].map(y => (
+                          <TouchableOpacity
+                            key={y}
+                            style={[styles.inlineChip, sipDurationYears === y && styles.inlineChipOn]}
+                            onPress={() => setSipDurationYears(y)}
+                            activeOpacity={0.85}>
+                            <Text style={[styles.inlineChipTxt, sipDurationYears === y && styles.inlineChipTxtOn]}>{y}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
 
                   <TouchableOpacity
                     style={styles.mandateSelectCard}
@@ -986,6 +1379,16 @@ export default function FundInvestmentScreen() {
                     </View>
                     <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
                   </TouchableOpacity>
+
+                  <View style={styles.firstOrderRow}>
+                    <Text style={styles.firstOrderLabel}>Place first order installment today</Text>
+                    <Switch
+                      value={placeFirstInstallmentToday}
+                      onValueChange={setPlaceFirstInstallmentToday}
+                      trackColor={{false: isDark ? '#3A3A3C' : '#E5E7EB', true: '#86EFAC'}}
+                      thumbColor={placeFirstInstallmentToday ? '#16A34A' : isDark ? '#8E8E93' : '#F4F4F5'}
+                    />
+                  </View>
                 </>
               ) : null}
 
@@ -1009,10 +1412,13 @@ export default function FundInvestmentScreen() {
               <Text style={styles.addCartLinkTxt}>Add to cart</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.primaryCta, placingOrder && styles.primaryCtaDisabled]}
+              style={[
+                styles.primaryCta,
+                (placingOrder || isPrimaryCtaDisabled) && styles.primaryCtaDisabled,
+              ]}
               onPress={onPrimaryCtaPress}
               activeOpacity={0.92}
-              disabled={placingOrder}>
+              disabled={placingOrder || isPrimaryCtaDisabled}>
               <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>{primaryCtaLabel}</Text>
             </TouchableOpacity>
           </View>
@@ -1053,13 +1459,19 @@ export default function FundInvestmentScreen() {
         title="SIP frequency"
         isBottomSheet={false}
         maxHeight={'55%'}>
-        {['Monthly', 'Quarterly'].map(freq => (
+        {['Monthly', 'Daily'].map(freq => (
           <TouchableOpacity
             key={freq}
             style={[styles.modalRow, sipFrequency === freq && styles.modalRowActive]}
             onPress={() => {
               setSipFrequency(freq);
+              if (freq === 'Daily') {
+                const minD = startOfDay(computedMinSipDate);
+                setDailySipStartDate(new Date(minD));
+                setDailySipEndDate(addCalendarDays(minD, 30));
+              }
               setFreqModalVisible(false);
+              setSipPickerKind(null);
             }}
             activeOpacity={0.9}>
             <Text style={[styles.modalRowTxt, sipFrequency === freq && styles.modalRowTxtActive]}>{freq}</Text>
@@ -1144,15 +1556,15 @@ export default function FundInvestmentScreen() {
         </TouchableOpacity>
       </AppModal>
 
-      {showSipDatePicker ? (
+      {sipPickerKind ? (
         <DatePicker
           modal
-          open={showSipDatePicker}
-          date={sipDate}
+          open={!!sipPickerKind}
+          date={sipPickerDate}
           mode="date"
-          minimumDate={new Date()}
-          onConfirm={onConfirmSipDate}
-          onCancel={onCancelSipDate}
+          minimumDate={sipPickerMinimumDate}
+          onConfirm={onConfirmSipPicker}
+          onCancel={onCancelSipPicker}
         />
       ) : null}
     </SafeAreaView>
@@ -1196,7 +1608,23 @@ function getFundInvestmentStyles(colors, isDark) {
     lineHeight: 22,
     color: c.textPrimary,
     marginTop: 8,
-    marginBottom: 16,
+  },
+  fundTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 14,
+    gap: 8,
+  },
+  fundTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  fundTagTxt: {
+    ...Textstyles.normal,
+    fontSize: 12,
+    fontWeight: '500',
   },
   card: {
     backgroundColor: c.card,
@@ -1305,6 +1733,28 @@ function getFundInvestmentStyles(colors, isDark) {
   inlineChipOn: {backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : '#EAF4FF', borderColor: c.primary},
   inlineChipTxt: {...Textstyles.medium, fontSize: 14, color: c.textPrimary, fontWeight: '600'},
   inlineChipTxtOn: {color: c.primary},
+  useMandateRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+    alignSelf: 'flex-start',
+  },
+  useMandateCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  useMandateTick: {color: '#FFFFFF', fontSize: 13, fontWeight: '800'},
+  useMandateLabel: {...Textstyles.medium, fontSize: 15, fontWeight: '600'},
   mandateSelectCard: {
     marginTop: 16,
     borderRadius: 12,
@@ -1321,41 +1771,59 @@ function getFundInvestmentStyles(colors, isDark) {
   mandateTextWrap: {flex: 1},
   mandateSub: {fontSize: 13, color: c.textSecondary, marginTop: 4},
   mandateArrow: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 8},
+  sipDateRow: {flexDirection: 'row', gap: 10, marginTop: 4},
+  sipDateCol: {flex: 1, minWidth: 0},
+  firstOrderRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  firstOrderLabel: {...Textstyles.medium, flex: 1, fontSize: 14, color: c.textPrimary, fontWeight: '600'},
   minAmtHint: {marginTop: 14, color: c.textSecondary, fontSize: 13},
   viewCart: {marginTop: 18, alignItems: 'center', paddingVertical: 8},
   viewCartTxt: {...Textstyles.medium, color: c.primary, fontSize: 16, fontWeight: '600'},
   scrollBottomPad: {height: 24},
   footer: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 8,
+    paddingBottom: 16,
     backgroundColor: c.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    bottom:10
+    gap: 10,
   },
   addCartLink: {
     flex: 1,
-    minHeight: 54,
-    borderRadius: 14,
+    minHeight: 46,
+    borderRadius: 12,
     backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  addCartLinkTxt: {...Textstyles.medium, fontSize: 16, color: c.primary, fontWeight: '600'},
+  addCartLinkTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, color: c.primary, fontWeight: '500'},
   primaryCta: {
-    minHeight: 54,
+    minHeight: 46,
     borderRadius: 12,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#1E81F2',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 3},
+    elevation: 4,
   },
-  primaryCtaDisabled: {opacity: 0.65},
+  primaryCtaDisabled: {opacity: 0.65, shadowOpacity: 0, elevation: 0},
   primaryCtaTxt: {...Textstyles.heading, fontSize: typeScale.bodyLg, color: '#FFFFFF'},
   authSummaryWrap: {paddingVertical: 4},
   authSummaryLabel: {fontSize: 13, color: c.textSecondary, marginBottom: 6},

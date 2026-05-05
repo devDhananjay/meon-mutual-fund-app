@@ -10,11 +10,24 @@ const cartSlice = createSlice({
       state.items = action.payload;
     },
     addToCart(state, action) {
-      const {fund, amount, isSIP, sipFrequency, sipDate, sipDurationYears, mandateId, mandateLabel, logo_url} =
-        action.payload;
+      const {
+        fund,
+        amount,
+        isSIP,
+        sipFrequency,
+        sipDate,
+        sipEndDate,
+        sipDurationYears,
+        mandateId,
+        mandateLabel,
+        firstOrderToday,
+        logo_url,
+        useMandate,
+      } = action.payload;
       const idx = state.items.findIndex(
         item => item.fund.scheme_code === fund.scheme_code,
       );
+      const lumpUseMandate = !isSIP && !!useMandate;
       const entry = {
         id: idx >= 0 ? state.items[idx].id : Date.now().toString(),
         fund,
@@ -22,9 +35,12 @@ const cartSlice = createSlice({
         isSIP: !!isSIP,
         sipFrequency: isSIP ? sipFrequency : undefined,
         sipDate: isSIP ? sipDate : undefined,
+        sipEndDate: isSIP ? sipEndDate : undefined,
         sipDurationYears: isSIP ? sipDurationYears : undefined,
-        mandateId: isSIP ? mandateId : undefined,
-        mandateLabel: isSIP ? mandateLabel : undefined,
+        useMandate: lumpUseMandate,
+        mandateId: isSIP ? mandateId : lumpUseMandate ? mandateId : undefined,
+        mandateLabel: isSIP ? mandateLabel : lumpUseMandate ? mandateLabel : undefined,
+        firstOrderToday: isSIP && firstOrderToday ? true : false,
         addedAt: idx >= 0 ? state.items[idx].addedAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         logo_url: logo_url ?? fund?.logo_url,
@@ -40,19 +56,39 @@ const cartSlice = createSlice({
       state.items = state.items.filter(item => item.fund.scheme_code !== code);
     },
     updateCartItem(state, action) {
-      const {fundCode, amount, isSIP, sipFrequency, sipDate, sipDurationYears, mandateId, mandateLabel} =
-        action.payload;
+      const {
+        fundCode,
+        amount,
+        isSIP,
+        sipFrequency,
+        sipDate,
+        sipEndDate,
+        sipDurationYears,
+        mandateId,
+        mandateLabel,
+        firstOrderToday,
+        useMandate,
+      } = action.payload;
       const idx = state.items.findIndex(item => item.fund.scheme_code === fundCode);
       if (idx >= 0) {
+        const prev = state.items[idx];
+        const nextIsSip = !!isSIP;
+        const lumpUseMandate = !nextIsSip && (useMandate !== undefined ? !!useMandate : !!prev.useMandate);
+        const resolvedMandateId = mandateId !== undefined ? mandateId : prev.mandateId;
+        const resolvedMandateLabel = mandateLabel !== undefined ? mandateLabel : prev.mandateLabel;
         state.items[idx] = {
-          ...state.items[idx],
+          ...prev,
           amount,
-          isSIP: !!isSIP,
-          sipFrequency: isSIP ? sipFrequency : undefined,
-          sipDate: isSIP ? sipDate : undefined,
-          sipDurationYears: isSIP ? sipDurationYears : undefined,
-          mandateId: isSIP ? mandateId : undefined,
-          mandateLabel: isSIP ? mandateLabel : undefined,
+          isSIP: nextIsSip,
+          sipFrequency: nextIsSip ? sipFrequency : undefined,
+          sipDate: nextIsSip ? sipDate : undefined,
+          sipEndDate: nextIsSip ? sipEndDate : undefined,
+          sipDurationYears: nextIsSip ? sipDurationYears : undefined,
+          useMandate: nextIsSip ? false : lumpUseMandate,
+          mandateId: nextIsSip ? resolvedMandateId : lumpUseMandate ? resolvedMandateId : undefined,
+          mandateLabel: nextIsSip ? resolvedMandateLabel : lumpUseMandate ? resolvedMandateLabel : undefined,
+          firstOrderToday:
+            !nextIsSip ? false : firstOrderToday !== undefined ? !!firstOrderToday : !!prev.firstOrderToday,
           updatedAt: new Date().toISOString(),
         };
       }

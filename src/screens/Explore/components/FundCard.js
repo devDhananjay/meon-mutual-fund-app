@@ -31,6 +31,9 @@ function riskColor(label, colors) {
   return colors.textSecondary;
 }
 
+/** Same footprint for Popular grid + Recently Viewed horizontal row when `cardWidth` is set. */
+const EXPLORE_CARD_MIN_HEIGHT = 102;
+
 function FundLogo({logoUrl, name, size, s}) {
   if (logoUrl) {
     return <Image source={{uri: logoUrl}} style={[s.logo, {width: size, height: size}]} resizeMode="contain" />;
@@ -53,14 +56,25 @@ export default function FundCard({fund, variant = 'popular', onPress, cardWidth}
   const isRecent = variant === 'recent';
   const logoSize = 32;
 
-  const widthStyle =
-    cardWidth != null ? {width: cardWidth, alignSelf: 'flex-start'} : isRecent ? styles.cardRecent : null;
+  const layoutStyle =
+    cardWidth != null
+      ? {
+          width: cardWidth,
+          alignSelf: 'flex-start',
+          minHeight: EXPLORE_CARD_MIN_HEIGHT,
+          justifyContent: 'space-between',
+        }
+      : isRecent
+        ? styles.cardRecent
+        : styles.cardPopular;
+
+  const surfaceShadow = !isDark && !isRecent ? shadows.card : null;
 
   return (
     <TouchableOpacity
       activeOpacity={0.78}
       onPress={onPress}
-      style={[styles.card, !isRecent && styles.cardPopular, widthStyle]}>
+      style={[styles.card, surfaceShadow, layoutStyle]}>
       <View style={styles.topRow}>
         <FundLogo logoUrl={fund?.logo_url} name={name} size={logoSize} s={styles} />
         <View style={styles.nameCol}>
@@ -92,11 +106,10 @@ const getStyles = (colors, isDark) =>
       borderRadius: radius.card,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 12,
-      /* Match flat list rows in dark mode (border-only, no glow). */
-      ...(isDark ? {} : shadows.card),
+      paddingVertical: 10,
+      paddingHorizontal: 10,
     },
-    /** Grid: natural height (no stretch to row); same width as cell */
+    /** Grid fallback when `cardWidth` is not passed */
     cardPopular: {
       alignSelf: 'flex-start',
     },
@@ -116,12 +129,12 @@ const getStyles = (colors, isDark) =>
     nameCol: {flex: 1, minWidth: 0},
     fundName: {fontSize: 12, fontWeight: '500', color: colors.textPrimary, lineHeight: 15},
     metricsRow: {
-      marginTop: 8,
+      marginTop: 6,
       flexDirection: 'row',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
-      gap: 8,
-      minHeight: 28,
+      gap: 6,
+      minHeight: 24,
     },
     returnCol: {alignItems: 'flex-start', flexShrink: 0},
     period: {fontSize: 10, color: colors.textSecondary, fontWeight: '500'},

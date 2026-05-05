@@ -62,7 +62,11 @@ export function buildOrderPlacePayload({
   sipDate,
   sipDurationYears,
   mandateId,
+  /** Lump-sum (`transaction_code: NEW`): only send `mandate_id` when user opts in (web “Use Mandate”). */
+  useMandate = false,
 }) {
+  const mandateStr = mandateId != null && String(mandateId).trim() !== '' ? String(mandateId).trim() : '';
+  const mandate_id = isSip ? mandateStr || undefined : useMandate && mandateStr ? mandateStr : undefined;
   return {
     transaction_code: isSip ? 'SIP' : 'NEW',
     scheme_code: schemeCode,
@@ -78,7 +82,7 @@ export function buildOrderPlacePayload({
     sip_frequency: isSip ? sipFrequency : undefined,
     sip_date: isSip ? sipDate : undefined,
     sip_duration_years: isSip ? sipDurationYears : undefined,
-    mandate_id: isSip ? mandateId : undefined,
+    mandate_id,
   };
 }
 
@@ -156,24 +160,90 @@ export async function createSingleOrder(body) {
   return res;
 }
 
+function mapSipFrequencyUiToApi(sipFrequency) {
+  const s = String(sipFrequency || '')
+    .trim()
+    .toLowerCase();
+  if (s === 'daily') {
+    return 'DAILY';
+  }
+  if (s === 'monthly') {
+    return 'MONTHLY';
+  }
+  const u = String(sipFrequency || '')
+    .trim()
+    .toUpperCase();
+  if (u === 'DAILY' || u === 'MONTHLY' || u === 'QUARTERLY') {
+    return u;
+  }
+  return 'MONTHLY';
+}
+
+function parseDDMMYYYYToDate(str) {
+  const parts = String(str || '').trim().split('/');
+  if (parts.length !== 3) {
+    return null;
+  }
+  const d = Number(parts[0]);
+  const m = Number(parts[1]) - 1;
+  const y = Number(parts[2]);
+  if (!Number.isFinite(d) || !Number.isFinite(m) || !Number.isFinite(y)) {
+    return null;
+  }
+  const dt = new Date(y, m, d);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+/** Inclusive day count between SIP start and end (DD/MM/YYYY). */
+export function sipDailyInstallmentCount(startStr, endStr) {
+  const a = parseDDMMYYYYToDate(startStr);
+  const b = parseDDMMYYYYToDate(endStr || startStr);
+  if (!a || !b) {
+    return 1;
+  }
+  const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const end = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  const diff = Math.round((end - start) / 86400000);
+  return Math.max(1, diff + 1);
+}
+
+/** Web `handleSipOrder`: ceil(day diff), minimum 1. */
+export function sipDailyNoOfInstallmentsCeil(startStr, endStr) {
+  const a = parseDDMMYYYYToDate(startStr);
+  const b = parseDDMMYYYYToDate(endStr || startStr);
+  if (!a || !b) {
+    return 1;
+  }
+  const start = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const end = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  const diff = Math.ceil((end - start) / 86400000);
+  return Math.max(1, diff);
+}
+
 export function buildSipRegisterPayload({
   schemeCode,
   amount,
   sipDate,
   sipFrequency,
   sipDurationYears,
+  sipEndDate,
+  mandateId,
+  firstOrderToday = false,
+  folioNo,
+  euin,
 }) {
-  const normalizedFrequency = String(sipFrequency || '')
-    .trim()
-    .toUpperCase();
-  const safeYears = Math.max(1, Number(sipDurationYears) || 1);
-  const installments =
+  const normalizedFrequency = mapSipFrequencyUiToApi(sipFrequency);
+  const safeYears = Math.max(1, Math.min(25, Number(sipDurationYears) || 1));
+  let installments =
     normalizedFrequency === 'QUARTERLY' ? safeYears * 4 : safeYears * 12;
+  if (normalizedFrequency === 'DAILY') {
+    installments = sipDailyNoOfInstallmentsCeil(sipDate, sipEndDate || sipDate);
+  }
 
-  return {
+  const payload = {
     scheme_code: schemeCode,
     start_date: sipDate,
-    frequency_type: normalizedFrequency || 'MONTHLY',
+    frequency_type: normalizedFrequency,
     installment_amount: Number(amount),
     trans_mode: 'P',
     dp_txn_mode: 'P',
@@ -185,7 +255,31 @@ export function buildSipRegisterPayload({
     param2: '',
     param3: '',
     no_of_installments: installments,
+    first_order_today: firstOrderToday ? 'Y' : 'N',
   };
+
+  const mandate = mandateId != null ? String(mandateId).trim() : '';
+  if (mandate) {
+    payload.mandate_id = mandate;
+  }
+
+  const folio = folioNo != null ? String(folioNo).trim() : '';
+  if (folio) {
+    payload.folio_no = folio;
+  }
+
+  const euinStr = euin != null ? String(euin).trim() : '';
+  if (euinStr) {
+    payload.euin = euinStr;
+    payload.euin_flag = 'Y';
+  }
+
+  if (normalizedFrequency === 'DAILY' && sipEndDate) {
+    payload.sip_end_date = sipEndDate;
+    payload.param3 = sipEndDate;
+  }
+
+  return payload;
 }
 
 export async function createSipRegistration(body) {
@@ -234,7 +328,7 @@ export function buildOrderCancelPayload(order) {
     scheme_code: root?.scheme_code ?? root?.schemeCode ?? root?.schemeCode?.scheme_code,
     buy_sell: root?.buy_sell ?? root?.buySell ?? 'P',
     buy_sell_type: root?.buy_sell_type ?? root?.buySellType ?? 'FRESH',
-    dp_txn: root?.dp_txn ?? 'P',
+    dp_txn: root?.dp_txn ?? root?.dp_trans ?? 'P',
     all_redeem: root?.all_redeem ?? 'N',
     amount: Number(amountRaw),
     folio_number: root?.folio_number ?? root?.folio_no ?? '',
@@ -246,8 +340,128 @@ export function buildOrderCancelPayload(order) {
   };
 }
 
-export async function createCancelOrder(order) {
-  const body = buildOrderCancelPayload(order);
+/** `YYYY-MM-DD` or ISO → `DD/MM/YYYY` for SIP cancel (web parity). */
+export function formatSipCancelStartDate(dateStr) {
+  if (dateStr == null || dateStr === '') {
+    return '';
+  }
+  const s = String(dateStr).trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    return s;
+  }
+  const ymd = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = d.getFullYear();
+      return `${dd}/${mm}/${yy}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return s;
+}
+
+/** Use `/sip/register/` cancel path when order is SIP / XSIP registration (web parity). */
+export function isSipOrderForCancel(order) {
+  if (!order || typeof order !== 'object') {
+    return false;
+  }
+  const bs = String(order.buy_sell ?? order.buySell ?? '').toUpperCase();
+  if (bs === 'SIP') {
+    return true;
+  }
+  const raw = String(
+    order.transaction_type ?? order.txn_type ?? order.order_type ?? order.buy_sell_display ?? order.product_type ?? '',
+  ).toUpperCase();
+  if (raw.includes('SIP') || raw.includes('XSIP')) {
+    return true;
+  }
+  if (order.isSIP || order.is_sip) {
+    return true;
+  }
+  if (order.xsip_reg_id != null && String(order.xsip_reg_id).trim() !== '') {
+    return true;
+  }
+  const hasSipMeta =
+    (order.sip_frequency_type != null && String(order.sip_frequency_type).trim() !== '') ||
+    (order.sip_frequency != null && String(order.sip_frequency).trim() !== '') ||
+    (order.sip_start_date != null && String(order.sip_start_date).trim() !== '') ||
+    (order.sip_date != null && String(order.sip_date).trim() !== '');
+  if (hasSipMeta && bs !== 'R') {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * SIP / XSIP cancellation — POST `/api/journey/mf/sip/register/` with `transaction_code: CXL` (web parity).
+ */
+export function buildSipCancelPayload(order, extras = {}) {
+  const base = buildOrderCancelPayload(order);
+  const root = order ?? {};
+  const allRedeem = String(base.all_redeem ?? root.all_redeem ?? 'N').toUpperCase();
+  const installmentRaw =
+    allRedeem === 'Y'
+      ? '1'
+      : root.amount ?? root.order_amount ?? root.installment_amount ?? base.amount ?? '';
+  const installment_amount =
+    installmentRaw === '' || installmentRaw == null ? String(base.amount ?? '') : String(installmentRaw);
+
+  const frequencyRaw = root.sip_frequency_type ?? root.sip_frequency ?? root.frequency_type ?? 'MONTHLY';
+  const frequency_type = String(frequencyRaw).trim().toUpperCase() || 'MONTHLY';
+
+  const startRaw = root.sip_start_date ?? root.sip_date ?? root.start_date ?? '';
+  const start_date = formatSipCancelStartDate(startRaw);
+
+  return {
+    ...base,
+    buy_sell: 'SIP',
+    euin: extras.euin ?? root.euin ?? '',
+    frequency_type,
+    installment_amount,
+    start_date,
+  };
+}
+
+export async function createCancelOrder(order, extras = {}) {
+  const euin = extras.euin ?? '';
+
+  if (isSipOrderForCancel(order)) {
+    const body = buildSipCancelPayload(order, {euin});
+    if (__DEV__) {
+      console.log('[order/sip-cancel] request', {
+        endpoint: SIP_REGISTER_ENDPOINT,
+        payload: body,
+      });
+    }
+    const res = await apiClient.post(SIP_REGISTER_ENDPOINT, body);
+    const root = res?.data?.data ?? res?.data ?? {};
+    const st = String(root?.status ?? '').trim();
+    const stUp = st.toUpperCase();
+    const stLo = st.toLowerCase();
+    const ok = stUp === 'CANCELLED' || stUp === 'SUCCESS' || stLo === 'success';
+    if (__DEV__) {
+      console.log('[order/sip-cancel] response', {
+        success: res?.success,
+        status: root?.status,
+        data: root,
+      });
+    }
+    if (!ok) {
+      const msg = root?.message ?? root?.bse_remarks ?? 'Failed to cancel order';
+      throw new Error(msg);
+    }
+    return res;
+  }
+
+  const body = {...buildOrderCancelPayload(order), euin};
   if (__DEV__) {
     console.log('[order/cancel] request', {
       endpoint: ORDER_PLACE_ENDPOINT,

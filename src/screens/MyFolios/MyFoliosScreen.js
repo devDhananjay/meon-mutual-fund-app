@@ -14,10 +14,10 @@ import {
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import AppTabHeader from '../../components/AppTabHeader';
 import {useNavigation} from '@react-navigation/native';
-import {navigateToFundDetail} from '../../navigation/navigationRef';
+import {navigateToFolioDetail, navigateToInvestment} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {groupHoldingsByFolio} from '../../utils/groupHoldingsByFolio';
-import {usePortfolioData} from '../../hooks/usePortfolioData';
+import {useDetailedFolioData} from '../../hooks/useDetailedFolioData';
 import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
@@ -113,7 +113,7 @@ function FundLogo({name, uri, colors, isDark}) {
   );
 }
 
-function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
+function FolioHoldingRow({item, onOpenFolioDetail, onInvestMore, colors, isDark}) {
   const rawName = item.scheme_name ?? item.base_scheme_name ?? 'Fund';
   const name = typeof rawName === 'string' ? rawName.trim() : String(rawName);
   const logo = item.logo_url ?? item.logo;
@@ -125,7 +125,7 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
 
   return (
     <View style={[styles.folioCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-      <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenFund(item)} style={styles.cardTap}>
+      <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenFolioDetail(item)} style={styles.cardTap}>
         <View style={styles.cardTopRow}>
           <FundLogo name={name} uri={logo} colors={colors} isDark={isDark} />
           <View style={styles.cardTitleBlock}>
@@ -136,7 +136,7 @@ function FolioHoldingRow({item, onOpenFund, onInvestMore, colors, isDark}) {
               <Text style={[styles.durationBadge, {color: colors.textSecondary}]}>{duration}</Text>
             ) : null}
           </View>
-          <TouchableOpacity style={styles.goCorner} onPress={() => onOpenFund(item)} activeOpacity={0.75}>
+          <TouchableOpacity style={styles.goCorner} onPress={() => onOpenFolioDetail(item)} activeOpacity={0.75}>
             <Image source={Icons.GoIcon} style={[styles.goIcon, {tintColor: 'grey'}]} resizeMode="contain" />
           </TouchableOpacity>
         </View>
@@ -183,7 +183,7 @@ export default function MyFoliosScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const {colors, isDark} = useAppTheme();
-  const {data, isPending, error, refreshing, refetch} = usePortfolioData();
+  const {data, isPending, error, refreshing, refetch} = useDetailedFolioData();
   useRefetchOnReconnect(refetch);
   const [search, setSearch] = useState('');
 
@@ -201,25 +201,25 @@ export default function MyFoliosScreen() {
 
   const sections = useMemo(() => groupHoldingsByFolio(filteredHoldings), [filteredHoldings]);
 
-  const onOpenFund = useCallback(
-    fund => {
-      const code = pickSchemeCode(fund);
-      if (!code) {
-        return;
-      }
-      navigateToFundDetail(navigation, {
-        schemeCode: code,
-        schemeName: fund?.scheme_name ?? fund?.base_scheme_name,
-      });
+  const onOpenFolioDetail = useCallback(
+    folio => {
+      navigateToFolioDetail(navigation, {folio});
     },
     [navigation],
   );
 
   const onInvestMore = useCallback(
     fund => {
-      onOpenFund(fund);
+      const code = pickSchemeCode(fund);
+      if (!code) {
+        return;
+      }
+      navigateToInvestment(navigation, {
+        schemeCode: code,
+        schemeName: fund?.scheme_name ?? fund?.base_scheme_name,
+      });
     },
-    [onOpenFund],
+    [navigation],
   );
 
   const renderSectionHeader = useCallback(
@@ -244,9 +244,9 @@ export default function MyFoliosScreen() {
 
   const renderItem = useCallback(
     ({item}) => (
-      <FolioHoldingRow item={item} onOpenFund={onOpenFund} onInvestMore={onInvestMore} colors={colors} isDark={isDark} />
+      <FolioHoldingRow item={item} onOpenFolioDetail={onOpenFolioDetail} onInvestMore={onInvestMore} colors={colors} isDark={isDark} />
     ),
-    [colors, isDark, onOpenFund, onInvestMore],
+    [colors, isDark, onOpenFolioDetail, onInvestMore],
   );
 
   const tabHeader = useMemo(() => <AppTabHeader title="My Folios" />, []);

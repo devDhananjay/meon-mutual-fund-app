@@ -48,6 +48,7 @@ import {
 } from '../../utils/schemeLimits';
 import {typeScale} from '../../theme/typography';
 import {appAlert} from '../../utils/appAlert';
+import {filterActiveMandatesForOrders} from '../Mandate/mandateFieldUtils';
 
 function formatDate(iso) {
   if (!iso) {
@@ -418,6 +419,8 @@ export default function FundDetailScreen() {
   const [showSipDatePicker, setShowSipDatePicker] = useState(false);
   const [mandateModalVisible, setMandateModalVisible] = useState(false);
   const [selectedMandate, setSelectedMandate] = useState(null);
+  /** One-time purchase: send `mandate_id` on place order when true (web “Use Mandate”). */
+  const [useMandateForPurchase, setUseMandateForPurchase] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [pendingOrderAmount, setPendingOrderAmount] = useState(null);
   const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
@@ -468,7 +471,10 @@ export default function FundDetailScreen() {
   }, [schemeId, debouncedAmount, returnRefreshTick]);
 
   const displayName = fundInfo?.scheme_name || fundInfo?.base_scheme_name || paramName || 'Fund';
-  const mandates = mandateData?.results ?? [];
+  const mandates = useMemo(
+    () => filterActiveMandatesForOrders(mandateData?.results),
+    [mandateData?.results],
+  );
   const selectedMandateLabel = selectedMandate ? pickMandateLabel(selectedMandate) : 'Select your preferred mandate option';
 
   useEffect(() => {
@@ -544,6 +550,16 @@ export default function FundDetailScreen() {
     }
   }, [mandates, selectedMandate]);
 
+  useEffect(() => {
+    if (mandates.length === 0) {
+      setUseMandateForPurchase(false);
+    }
+  }, [mandates.length]);
+
+  const toggleUseMandateForPurchase = useCallback(() => {
+    setUseMandateForPurchase(v => !v);
+  }, []);
+
   const onWishlist = useCallback(async () => {
     if (!fundInfo?.scheme_code) {
       return;
@@ -586,6 +602,14 @@ export default function FundDetailScreen() {
       appAlert('Select mandate', 'Please choose a mandate for SIP.');
       return;
     }
+    if (
+      orderType === 'ONE_TIME' &&
+      useMandateForPurchase &&
+      (mandateLoading || mandates.length === 0 || !selectedMandate)
+    ) {
+      appAlert('Select mandate', 'Choose an active mandate or turn off Use Mandate.');
+      return;
+    }
     dispatch(
       addToCart({
         fund: fundInfo,
@@ -594,8 +618,15 @@ export default function FundDetailScreen() {
         sipFrequency: orderType === 'SIP' ? sipFrequency : undefined,
         sipDate: orderType === 'SIP' ? formatDDMMYYYY(sipDate) : undefined,
         sipDurationYears: orderType === 'SIP' ? sipDurationYears : undefined,
-        mandateId: orderType === 'SIP' ? selectedMandate?.id ?? selectedMandate?.mandate_id : undefined,
-        mandateLabel: orderType === 'SIP' ? selectedMandateLabel : undefined,
+        mandateId:
+          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
+            ? selectedMandate?.id ?? selectedMandate?.mandate_id
+            : undefined,
+        mandateLabel:
+          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
+            ? selectedMandateLabel
+            : undefined,
+        useMandate: orderType === 'ONE_TIME' && useMandateForPurchase,
         logo_url: logoUrl,
       }),
     );
@@ -614,6 +645,8 @@ export default function FundDetailScreen() {
     sipDate,
     sipDurationYears,
     sipFrequency,
+    useMandateForPurchase,
+    mandateLoading,
   ]);
 
   const onPlaceOrder = useCallback(async () => {
@@ -624,6 +657,14 @@ export default function FundDetailScreen() {
     const amount = Math.max(minOrderAmount, parseOrderAmount());
     if (orderType === 'SIP' && !selectedMandate && mandates.length > 0) {
       appAlert('Select mandate', 'Please choose a mandate for SIP.');
+      return;
+    }
+    if (
+      orderType === 'ONE_TIME' &&
+      useMandateForPurchase &&
+      (mandateLoading || mandates.length === 0 || !selectedMandate)
+    ) {
+      appAlert('Select mandate', 'Choose an active mandate or turn off Use Mandate.');
       return;
     }
     try {
@@ -637,6 +678,7 @@ export default function FundDetailScreen() {
           sipDate: formatDDMMYYYY(sipDate),
           sipDurationYears: Number(sipDurationYears),
           mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+          useMandate: orderType === 'ONE_TIME' && useMandateForPurchase,
         }),
       };
       const res = await createSingleOrder(payload);
@@ -684,6 +726,8 @@ export default function FundDetailScreen() {
     sipDate,
     sipDurationYears,
     navigation,
+    useMandateForPurchase,
+    mandateLoading,
   ]);
 
   const onAuthenticateAndContinue = useCallback(async () => {
@@ -1211,7 +1255,10 @@ export default function FundDetailScreen() {
             <TouchableOpacity
               style={[styles.orderTabBtn, orderType === 'SIP' && styles.orderTabBtnActive]}
               activeOpacity={0.85}
-              onPress={() => setOrderType('SIP')}>
+              onPress={() => {
+                setOrderType('SIP');
+                setUseMandateForPurchase(false);
+              }}>
               <Text style={[styles.orderTabTxt, orderType === 'SIP' && styles.orderTabTxtActive]}>SIP</Text>
             </TouchableOpacity>
           </View>
@@ -1235,6 +1282,58 @@ export default function FundDetailScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          {orderType === 'ONE_TIME' && mandateLoading ? (
+            <View
+              style={[
+                styles.useMandateRow,
+                {borderColor: colors.border, backgroundColor: isDark ? colors.inputBg : '#F9FAFB'},
+              ]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.useMandateLabel, {color: colors.textSecondary}]}>Loading mandates…</Text>
+            </View>
+          ) : orderType === 'ONE_TIME' ? (
+            <TouchableOpacity
+              style={[
+                styles.useMandateRow,
+                {borderColor: colors.border, backgroundColor: isDark ? colors.inputBg : '#F9FAFB'},
+              ]}
+              onPress={toggleUseMandateForPurchase}
+              activeOpacity={0.85}>
+              <View
+                style={[
+                  styles.useMandateCheck,
+                  useMandateForPurchase && styles.useMandateCheckOn,
+                  !useMandateForPurchase && {borderColor: isDark ? '#6B7280' : '#9CA3AF'},
+                ]}>
+                {useMandateForPurchase ? <Text style={styles.useMandateTick}>✓</Text> : null}
+              </View>
+              <Text style={[styles.useMandateLabel, {color: colors.textPrimary}]}>Use Mandate</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {orderType === 'ONE_TIME' && useMandateForPurchase ? (
+            <TouchableOpacity
+              style={styles.mandateSelectCard}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (__DEV__) {
+                  console.log('[FundDetail] Choose Mandate (lump + use mandate)', {
+                    mandateLoading,
+                    mandatesCount: mandates.length,
+                  });
+                }
+                setMandateModalVisible(true);
+              }}>
+              <View style={{flex: 1}}>
+                <Text style={styles.mandateTitle}>Choose Mandate Method</Text>
+                <Text style={styles.mandateSub} numberOfLines={2}>
+                  {selectedMandateLabel}
+                </Text>
+              </View>
+              <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
+            </TouchableOpacity>
+          ) : null}
 
           {orderType === 'SIP' ? (
             <>
@@ -1310,7 +1409,17 @@ export default function FundDetailScreen() {
               <TouchableOpacity style={styles.addedToCartBtn} onPress={onAddToCart} activeOpacity={0.9}>
                 <Text style={styles.addedToCartTxt}>Added to Cart</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.buyNowBtn} onPress={onPlaceOrder} activeOpacity={0.9} disabled={placingOrder}>
+              <TouchableOpacity
+                style={styles.buyNowBtn}
+                onPress={onPlaceOrder}
+                activeOpacity={0.9}
+                disabled={
+                  placingOrder ||
+                  (orderType === 'SIP' && mandates.length > 0 && !selectedMandate) ||
+                  (orderType === 'ONE_TIME' &&
+                    useMandateForPurchase &&
+                    (mandateLoading || mandates.length === 0 || !selectedMandate))
+                }>
                 <Text style={styles.buyNowTxt}>
                   {placingOrder ? 'Placing order...' : orderType === 'SIP' ? 'Start SIP' : 'Buy Now'}
                 </Text>
@@ -1779,6 +1888,30 @@ function getFundDetailStyles(colors, isDark) {
   },
   sipPickerValue: {fontSize: typeScale.bodyMd, color: c.textPrimary},
   sipPickerArrow: {width: 12, height: 12, tintColor: c.textSecondary},
+  useMandateRow: {
+    marginHorizontal: 14,
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+    alignSelf: 'center',
+  },
+  useMandateCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  useMandateCheckOn: {backgroundColor: '#22C55E', borderColor: '#22C55E'},
+  useMandateTick: {color: '#FFFFFF', fontSize: 13, fontWeight: '800'},
+  useMandateLabel: {...Textstyles.medium, fontSize: 15, fontWeight: '600'},
   mandateSelectCard: {
     marginHorizontal: 14,
     marginTop: 14,

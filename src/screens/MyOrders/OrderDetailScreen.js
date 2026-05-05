@@ -501,7 +501,7 @@ export default function OrderDetailScreen() {
     }
     try {
       setTimelineActionLoading(true);
-      await createCancelOrder(order);
+      await createCancelOrder(order, {euin: user?.euin ?? ''});
       appAlert('Order cancelled', 'Your order has been cancelled.');
       navigation.navigate('MyOrders');
     } catch (e) {
@@ -509,7 +509,7 @@ export default function OrderDetailScreen() {
     } finally {
       setTimelineActionLoading(false);
     }
-  }, [navigation, order]);
+  }, [navigation, order, user?.euin]);
 
   const onTimelineContinue = useCallback(async () => {
     if (!orderNumber) {

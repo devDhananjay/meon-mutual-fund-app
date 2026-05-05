@@ -160,8 +160,12 @@ function CartLineItem({item, onRemove, onChangeAmount, onToggleSip, styles}) {
       </Text>
       {item.isSIP ? (
         <Text style={styles.sipMeta}>
-          {`SIP: ${item.sipFrequency || 'Monthly'}${item.sipDate ? ` • Date ${item.sipDate}` : ''}${
-            item.sipDurationYears ? ` • ${item.sipDurationYears}Y` : ''
+          {`SIP: ${item.sipFrequency || 'Monthly'}${item.sipDate ? ` • ${item.sipDate}` : ''}${
+            String(item.sipFrequency || '').toLowerCase() === 'daily' && item.sipEndDate
+              ? ` → ${item.sipEndDate}`
+              : item.sipDurationYears
+                ? ` • ${item.sipDurationYears}Y`
+                : ''
           }`}
         </Text>
       ) : null}
@@ -181,6 +185,7 @@ export default function CartScreen() {
   const dispatch = useDispatch();
   const items = useSelector(selectCartItems);
   const total = useSelector(selectCartTotal);
+  const user = useSelector(s => s.auth.user);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -246,10 +251,17 @@ export default function CartScreen() {
       const responses = [];
       for (const item of items) {
         const amount = Number(item?.amount) || minAmountForItem(item);
-        if (item?.isSIP && !isSipDateWithinAllowedRange(item?.sipDate)) {
+        const isDailySipItem = item?.isSIP && String(item?.sipFrequency || '').toLowerCase() === 'daily';
+        if (item?.isSIP && !isDailySipItem && !isSipDateWithinAllowedRange(item?.sipDate)) {
           throw {
             message: `Invalid SIP date for ${item?.fund?.scheme_code || 'fund'}. SIP date must be between 1 and 28.`,
             data: {sip_date: ['SIP date must be between 1 and 28.']},
+          };
+        }
+        if (isDailySipItem && (!item?.sipDate || !item?.sipEndDate)) {
+          throw {
+            message: `Add start and end SIP dates for ${item?.fund?.scheme_code || 'fund'} (Daily SIP).`,
+            data: {sip_date: ['SIP start and end dates required.']},
           };
         }
 
@@ -260,12 +272,18 @@ export default function CartScreen() {
               sipFrequency: item?.sipFrequency || 'Monthly',
               sipDate: item?.sipDate,
               sipDurationYears: Number(item?.sipDurationYears) || 1,
+              sipEndDate: item?.sipEndDate,
+              mandateId: item?.mandateId,
+              firstOrderToday: !!item?.firstOrderToday,
+              folioNo: item?.fund?.folio_number ?? item?.fund?.folio_no,
+              euin: user?.euin,
             })
           : buildOrderPlacePayload({
               schemeCode: item?.fund?.scheme_code,
               amount,
               isSip: false,
               mandateId: item?.mandateId,
+              useMandate: !!item?.useMandate,
             });
 
         console.log('[cart:onCheckout] placing item', {
@@ -311,7 +329,7 @@ export default function CartScreen() {
     } finally {
       setCheckoutLoading(false);
     }
-  }, [items, navigation]);
+  }, [items, navigation, user?.euin]);
 
   const onAuthenticateAndContinue = useCallback(async () => {
     if (pendingGatewayUrl) {

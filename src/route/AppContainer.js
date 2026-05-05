@@ -26,6 +26,7 @@ import MandateAuthWebViewScreen from '../screens/Mandate/MandateAuthWebViewScree
 import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import RedeemScreen from '../screens/Redeem/RedeemScreen';
 import FundInvestmentScreen from '../screens/FundDetail/FundInvestmentScreen';
+import FolioDetailScreen from '../screens/MyFolios/FolioDetailScreen';
 import SupportArticleScreen from '../screens/Profile/SupportArticleScreen';
 import DeleteAccountScreen from '../screens/Profile/DeleteAccountScreen';
 import ProfileSettingsScreen from '../screens/Profile/ProfileSettingsScreen';
@@ -88,6 +89,7 @@ export default function AppContainer() {
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Redeem" component={RedeemScreen} />
         <Stack.Screen name="FundInvestment" component={FundInvestmentScreen} />
+        <Stack.Screen name="FolioDetail" component={FolioDetailScreen} />
         <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
         <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
         <Stack.Screen name="AllFundsSIP" component={AllMutualFundsScreen} />

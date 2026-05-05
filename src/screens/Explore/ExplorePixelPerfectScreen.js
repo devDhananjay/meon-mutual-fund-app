@@ -244,10 +244,17 @@ export default function ExplorePixelPerfectScreen() {
   const insets = useSafeAreaInsets();
   const {colors, isDark} = useAppTheme();
   const {width: windowWidth} = useWindowDimensions();
-  /** Same inner width as Popular grid column (padding 16 each side, 4px gutter). */
+  const explorePadH = 16;
+  const exploreRowInnerWidth = windowWidth - explorePadH * 2;
+  /** Same width as each Popular grid cell (`space-between` row). */
   const popularColumnWidth = useMemo(
-    () => Math.max(140, Math.floor((windowWidth - 32) / 2 - 4)),
-    [windowWidth],
+    () => Math.max(140, Math.floor(exploreRowInnerWidth / 2 - 4)),
+    [exploreRowInnerWidth],
+  );
+  /** Matches Popular row gutter: innerWidth − 2×column (not a fixed 12). */
+  const popularRowGutter = useMemo(
+    () => Math.max(0, exploreRowInnerWidth - 2 * popularColumnWidth),
+    [exploreRowInnerWidth, popularColumnWidth],
   );
 
   const [sortPeriodKey, setSortPeriodKey] = useState('none'); // none | 1y | 3y | 5y | 7y
@@ -481,9 +488,13 @@ export default function ExplorePixelPerfectScreen() {
           <View />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentScroll} contentContainerStyle={styles.recentContent}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.recentScroll}
+          contentContainerStyle={[styles.recentContent, {gap: popularRowGutter}]}>
           {recentlyViewed.map((f, idx) => (
-            <View key={f.id ?? idx} style={styles.recentItem}>
+            <View key={f.id ?? idx} style={[styles.recentItem, {width: popularColumnWidth}]}>
               <FundCard
                 fund={f}
                 variant="recent"
@@ -532,6 +543,7 @@ export default function ExplorePixelPerfectScreen() {
       colors,
       isDark,
       popularColumnWidth,
+      popularRowGutter,
       popularFunds,
       recentlyViewed,
       count,
@@ -721,7 +733,7 @@ const styles = StyleSheet.create({
   },
 
   recentScroll: {marginTop: 4, marginBottom: 18},
-  recentContent: {paddingHorizontal: 16, gap: 12},
+  recentContent: {paddingHorizontal: 16},
   recentItem: {flexShrink: 0},
 
   allFundsHeadRow: {
