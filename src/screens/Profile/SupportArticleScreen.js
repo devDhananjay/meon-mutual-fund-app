@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   searchIcon: {width: 18, height: 18},
-  searchInput: {flex: 1, fontSize: 15, paddingVertical: 10},
+  searchInput: {...Textstyles.normal, flex: 1, fontSize: 15, paddingVertical: 10},
   sectionLabel: {...Textstyles.medium, fontSize: 13, marginTop: 6},
   suggestionList: {gap: 10},
   suggestionPill: {
@@ -431,15 +431,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   faqPlus: {
+    ...Textstyles.medium,
     fontSize: 20,
     lineHeight: 22,
   },
   faqBody: {
+    ...Textstyles.normal,
     marginTop: 10,
     fontSize: 14,
     lineHeight: 21,
   },
-  emptyFaq: {padding: 16, textAlign: 'center', fontSize: 14},
+  emptyFaq: {...Textstyles.normal, padding: 16, textAlign: 'center', fontSize: 14},
   contactPairRow: {
     flexDirection: 'row',
     gap: 10,
@@ -455,17 +457,20 @@ const styles = StyleSheet.create({
   },
   contactLabel: {...Textstyles.medium, fontSize: 13, fontWeight: '700'},
   contactValue: {...Textstyles.medium, fontSize: 13, fontWeight: '600'},
-  helpIntro: {fontSize: 13, lineHeight: 20, marginTop: 14},
+  helpIntro: {...Textstyles.normal, fontSize: 13, lineHeight: 20, marginTop: 14},
   helpTitle: {
+    ...Textstyles.medium,
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 12,
   },
   inputLabel: {
+    ...Textstyles.medium,
     fontSize: 13,
     marginBottom: 6,
   },
   input: {
+    ...Textstyles.normal,
     borderWidth: 1,
     borderRadius: 12,
     minHeight: 44,
@@ -494,6 +499,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   updatedLine: {
+    ...Textstyles.normal,
     fontSize: 12,
     marginBottom: 10,
   },

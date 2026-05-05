@@ -6,7 +6,7 @@ export default function MailEnvelopeIcon({size = 22, tintColor = '#FFFFFF', circ
   const outer = size + 10;
   return (
     <View style={[styles.circle, {width: outer, height: outer, borderRadius: outer / 2, backgroundColor: circleColor}]}>
-      <Image source={Icons.EmailSend} style={{width: size * 0.55, height: size * 0.55, tintColor}} resizeMode="contain" />
+      <Image source={Icons.MailEnvelope} style={{width: size * 0.55, height: size * 0.55, tintColor}} resizeMode="contain" />
     </View>
   );
 }

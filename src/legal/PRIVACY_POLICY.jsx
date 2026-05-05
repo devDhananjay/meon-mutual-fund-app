@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plus: {
+    ...Textstyles.medium,
     fontSize: 20,
     lineHeight: 22,
   },

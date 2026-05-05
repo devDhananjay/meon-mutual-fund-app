@@ -54,6 +54,8 @@ const Icons = {
   UserRounded: require('../assets/Icons/UserRounded.png'),
   VerifiedIcon: require('../assets/Icons/verifiedIcon.png'),
   DarkModeIcon: require('../assets/Icons/DarkMode.png'),
+  PhoneCalling: require('../assets/Icons/PhoneCalling.png'),
+  MailEnvelope: require('../assets/Icons/MailEnvelope.png'),
 
   // Profile screen icons
   MyOrdersIcon: require('../assets/Icons/MyOrders-f83910e4-9906-41cc-91b7-2ea1381b2ae1.png'),
