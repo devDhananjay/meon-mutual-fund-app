@@ -13,6 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {navigateToAllFundsSIP, navigateToFundDetail} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import Textstyles from '../../utils/text';
@@ -23,6 +24,8 @@ import {
   extractOrderAuthUrl,
   fetchOrderStatus,
   processOrderPayment,
+  formatPaymentProcessUserMessage,
+  getPaymentProcessErrorMessage,
 } from '../../services/ordersService';
 import {
   pickOrderTitle,
@@ -195,6 +198,7 @@ export default function OrderDetailScreen() {
   const {colors, isDark} = useAppTheme();
   const styles = useMemo(() => getOrderDetailStyles(colors, isDark), [colors, isDark]);
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
   const routeOrder = route.params?.order;
   const [resolvedOrder, setResolvedOrder] = useState(routeOrder || null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -373,35 +377,28 @@ export default function OrderDetailScreen() {
         vpaId: mode === 'UPI' ? upiVpa : '',
         neftReference: mode === 'NEFT' ? neftReferenceOverride : '',
       });
-      const apiStatus = String(res?.data?.status ?? res?.status ?? '').toLowerCase();
-      const responseString =
-        res?.data?.data?.responsestring ??
-        res?.data?.data?.ResponseString ??
-        res?.data?.message ??
-        '';
+      const paymentError = getPaymentProcessErrorMessage(res);
+      if (paymentError) {
+        setPaymentBoxStatus('PAYMENT_REQUIRED');
+        setPaymentModeModalVisible(false);
+        setPaymentModeStep('method');
+        setTimeout(() => {
+          appAlert('Payment', paymentError);
+        }, 350);
+        return;
+      }
 
       const url = extractOrderAuthUrl(res?.data);
       if (__DEV__) {
         console.log('[OrderDetail] pay-now response', {orderNumber, hasUrl: !!url, data: res?.data});
       }
 
-      // If API says pending, show error/pending message and DO NOT show "payment link has been generated".
-      if (apiStatus === 'pending') {
-        appAlert('Payment', responseString || 'Payment is pending. Please try again.');
-        setPaymentBoxStatus('PAYMENT_REQUIRED');
-        setPaymentModeModalVisible(false);
-        setPaymentModeStep('method');
-        return;
-      }
-
       // Web parity:
       // DIRECT opens gateway in a webview; UPI/NEFT usually just generates/sends a payment link.
       if (url) {
         navigation.navigate('MandateAuthWebview', {uri: url, title: 'Complete payment'});
-      }
-      // If gateway URL isn't returned, still show the API message (UPI request, mapping issues, etc).
-      if (!url && responseString) {
-        appAlert('Payment', responseString);
+      } else {
+        appAlert('Payment', formatPaymentProcessUserMessage(res) || 'Payment completed.');
       }
       setPaymentBoxStatus('PAYMENT_CONFIRMATION_REQUIRED');
       setPaymentModeModalVisible(false);
@@ -512,7 +509,7 @@ export default function OrderDetailScreen() {
   }, [navigation, order, user?.euin]);
 
   const onTimelineContinue = useCallback(async () => {
-    if (!orderNumber) {
+    if (!canPostToBse || !orderNumber) {
       return;
     }
     try {
@@ -530,7 +527,7 @@ export default function OrderDetailScreen() {
     } finally {
       setTimelineActionLoading(false);
     }
-  }, [navigation, orderNumber, refreshResolvedOrder, timelineStatus]);
+  }, [canPostToBse, navigation, orderNumber, refreshResolvedOrder, timelineStatus]);
 
   const onPullRefresh = useCallback(async () => {
     setPullRefreshing(true);
@@ -952,6 +949,7 @@ export default function OrderDetailScreen() {
             timelineStatus={timelineStatus}
             loading={timelineActionLoading}
             paymentLoading={paymentLoading}
+            continueDisabled={!canPostToBse}
             onContinue={onTimelineContinue}
             onCancel={onTimelineCancel}
             formatDateTime={formatDateTime}

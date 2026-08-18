@@ -64,14 +64,17 @@ export function buildOrderPlacePayload({
   mandateId,
   /** Lump-sum (`transaction_code: NEW`): only send `mandate_id` when user opts in (web “Use Mandate”). */
   useMandate = false,
+  folioNumber,
+  buySellType,
 }) {
   const mandateStr = mandateId != null && String(mandateId).trim() !== '' ? String(mandateId).trim() : '';
   const mandate_id = isSip ? mandateStr || undefined : useMandate && mandateStr ? mandateStr : undefined;
-  return {
+  const folio = folioNumber != null ? String(folioNumber).trim() : '';
+  const payload = {
     transaction_code: isSip ? 'SIP' : 'NEW',
     scheme_code: schemeCode,
     buy_sell: 'P',
-    buy_sell_type: 'FRESH',
+    buy_sell_type: buySellType || (folio ? 'ADDITIONAL' : 'FRESH'),
     dp_txn: 'P',
     all_redeem: 'N',
     kyc_status: 'Y',
@@ -84,6 +87,10 @@ export function buildOrderPlacePayload({
     sip_duration_years: isSip ? sipDurationYears : undefined,
     mandate_id,
   };
+  if (folio) {
+    payload.folio_number = folio;
+  }
+  return payload;
 }
 
 /**
@@ -542,12 +549,11 @@ export async function processOrderPayment({
   neftReference = '',
   totalAmount,
 }) {
-  const numericOrder = Number(orderNumber);
   const numericAmount = Number(totalAmount);
   const payload = {
     client_code: clientCode,
     mode_of_payment: modeOfPayment,
-    order_numbers: Number.isFinite(numericOrder) ? numericOrder : orderNumber,
+    order_numbers: orderNumber == null ? orderNumber : String(orderNumber),
     vpa_id: vpaId,
     NEFTReference: neftReference || undefined,
     total_amount: Number.isFinite(numericAmount) ? numericAmount : totalAmount,
@@ -566,6 +572,57 @@ export async function processOrderPayment({
     });
   }
   return res;
+}
+
+export function extractPaymentProcessMessage(resData) {
+  if (resData == null) {
+    return '';
+  }
+  const layers = [resData, resData?.data, resData?.data?.data];
+  for (const layer of layers) {
+    if (!layer || typeof layer !== 'object') {
+      continue;
+    }
+    const msg =
+      layer.responsestring ?? layer.ResponseString ?? layer.response_string ?? layer.message;
+    if (msg != null && String(msg).trim() !== '') {
+      return String(msg).trim();
+    }
+  }
+  return '';
+}
+
+export function isPaymentProcessPending(resData) {
+  const layers = [resData, resData?.data, resData?.data?.data];
+  return layers.some(layer => String(layer?.status ?? '').toLowerCase() === 'pending');
+}
+
+/** Map BSE payment errors to a user-facing message. */
+export function formatPaymentProcessUserMessage(resData) {
+  const raw = extractPaymentProcessMessage(resData);
+  const normalized = raw.replace(/\s+/g, ' ').toUpperCase();
+  if (normalized.includes('INVALID ORDER NO')) {
+    return 'A payment link has already been generated';
+  }
+  return raw;
+}
+
+/** Returns an alert message when payment/process should be treated as an error. */
+export function getPaymentProcessErrorMessage(res) {
+  const body = res?.data ?? res;
+  const raw = extractPaymentProcessMessage(res) || extractPaymentProcessMessage(body);
+  const mapped = formatPaymentProcessUserMessage(res) || formatPaymentProcessUserMessage(body);
+  const code = String(
+    body?.data?.statuscode ?? body?.statuscode ?? res?.data?.data?.statuscode ?? '',
+  );
+  const pending = isPaymentProcessPending(res) || isPaymentProcessPending(body);
+  if (pending || /INVALID ORDER NO/i.test(raw) || code === '101') {
+    if (/INVALID ORDER NO/i.test(raw) || code === '101') {
+      return 'A payment link has already been generated';
+    }
+    return mapped || 'Payment is pending. Please try again.';
+  }
+  return null;
 }
 
 export function isAuthenticatedOrderState(raw) {

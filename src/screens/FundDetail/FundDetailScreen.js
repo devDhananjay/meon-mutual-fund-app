@@ -33,6 +33,7 @@ import {
   isAuthenticatedOrderState,
 } from '../../services/ordersService';
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {navigateToCart, navigateToInvestment} from '../../navigation/navigationRef';
 import NavLineChart from '../../components/FundDetail/NavLineChart';
 import AppBackButton from '../../components/AppBackButton';
@@ -346,6 +347,7 @@ export default function FundDetailScreen() {
   const styles = useMemo(() => getFundDetailStyles(colors, isDark), [colors, isDark]);
   const cartCount = useSelector(selectCartItemCount);
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
 
   useEffect(() => {
     if (__DEV__) {
@@ -846,12 +848,18 @@ export default function FundDetailScreen() {
   );
 
   const onPressOneTimeInvestment = useCallback(() => {
+    if (!canPostToBse) {
+      return;
+    }
     openInvestmentForType('ONE_TIME');
-  }, [openInvestmentForType]);
+  }, [canPostToBse, openInvestmentForType]);
 
   const onPressSipInvestment = useCallback(() => {
+    if (!canPostToBse) {
+      return;
+    }
     openInvestmentForType('SIP');
-  }, [openInvestmentForType]);
+  }, [canPostToBse, openInvestmentForType]);
 
   const header = useMemo(
     () => (
@@ -1477,10 +1485,22 @@ export default function FundDetailScreen() {
         <View style={{height: 20}} />
       </ScrollView>
       <View style={styles.stickyInvestWrap}>
-        <TouchableOpacity style={[styles.stickyInvestBtn, styles.stickyInvestBtnGhost]} onPress={onPressOneTimeInvestment} activeOpacity={0.9}>
+        <TouchableOpacity
+          style={[
+            styles.stickyInvestBtn,
+            styles.stickyInvestBtnGhost,
+            !canPostToBse && styles.stickyInvestBtnDisabled,
+          ]}
+          onPress={onPressOneTimeInvestment}
+          activeOpacity={0.9}
+          disabled={!canPostToBse}>
           <Text style={[styles.stickyInvestTxt, styles.stickyInvestTxtGhost, Textstyles.medium]}>One-time</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.stickyInvestBtn} onPress={onPressSipInvestment} activeOpacity={0.9}>
+        <TouchableOpacity
+          style={[styles.stickyInvestBtn, !canPostToBse && styles.stickyInvestBtnDisabled]}
+          onPress={onPressSipInvestment}
+          activeOpacity={0.9}
+          disabled={!canPostToBse}>
           <Text style={[styles.stickyInvestTxt, Textstyles.medium]}>Start SIP</Text>
         </TouchableOpacity>
       </View>
@@ -2029,5 +2049,6 @@ function getFundDetailStyles(colors, isDark) {
   },
   stickyInvestTxt: {fontSize: typeScale.bodyLg, color: '#FFFFFF'},
   stickyInvestTxtGhost: {color: c.primary},
+  stickyInvestBtnDisabled: {opacity: 0.45},
 });
 }

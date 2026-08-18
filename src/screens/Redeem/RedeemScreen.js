@@ -13,6 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {buildRedeemPlacePayload, createSingleOrder, extractOrderId} from '../../services/ordersService';
 import {getSchemeByCode} from '../../services/fundSchemeService';
 import {Colors} from '../../utils/AppConstant';
@@ -45,6 +46,7 @@ export default function RedeemScreen() {
   const route = useRoute();
   const {colors, isDark} = useAppTheme();
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
   const canRedeem = useMemo(() => {
     const v = user?.allow_redeem;
     if (v === undefined || v === null || v === '') {
@@ -140,6 +142,9 @@ export default function RedeemScreen() {
   }, [schemeDetail, route.params?.redemption_amount_min]);
 
   const onProceed = useCallback(async () => {
+    if (!canPostToBse) {
+      return;
+    }
     if (!schemeCode) {
       appAlert('Redeem', 'Missing scheme. Go back and try again.');
       return;
@@ -225,6 +230,7 @@ export default function RedeemScreen() {
       setSubmitting(false);
     }
   }, [
+    canPostToBse,
     schemeCode,
     folioNumber,
     redeemByAmount,
@@ -370,9 +376,13 @@ export default function RedeemScreen() {
         </Text>
 
         <TouchableOpacity
-          style={[styles.cta, {backgroundColor: colors.primary}, submitting && styles.ctaDisabled]}
+          style={[
+            styles.cta,
+            {backgroundColor: colors.primary},
+            (submitting || !canPostToBse) && styles.ctaDisabled,
+          ]}
           onPress={onProceed}
-          disabled={submitting}
+          disabled={submitting || !canPostToBse}
           activeOpacity={0.9}>
           {submitting ? (
             <ActivityIndicator color="#fff" />
@@ -468,6 +478,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaDisabled: {opacity: 0.7},
+  ctaDisabled: {opacity: 0.45},
   ctaTxt: {...Textstyles.heading, color: Colors.white, fontSize: typeScale.bodyLg},
 });

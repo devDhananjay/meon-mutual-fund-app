@@ -35,6 +35,7 @@ export default function StatusTimeline({
   onContinue,
   onCancel,
   formatDateTime,
+  continueDisabled = false,
 }) {
   const {colors, isDark} = useAppTheme();
   const dynamic = useMemo(
@@ -103,7 +104,11 @@ export default function StatusTimeline({
                     {loading ? 'Canceling...' : 'Cancel'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.continueBtn} onPress={onContinue} activeOpacity={0.9} disabled={paymentLoading || loading}>
+                <TouchableOpacity
+                  style={[styles.continueBtn, continueDisabled && styles.continueBtnDisabled]}
+                  onPress={onContinue}
+                  activeOpacity={0.9}
+                  disabled={paymentLoading || loading || continueDisabled}>
                   <Text style={styles.continueTxt}>{loading ? 'Please wait...' : 'Continue'}</Text>
                 </TouchableOpacity>
               </View>
@@ -112,7 +117,11 @@ export default function StatusTimeline({
 
           {step?.continueButton && timelineStatus !== 'SUBMITTED' ? (
             <View style={styles.tlActionWrap}>
-              <TouchableOpacity style={styles.continueBtn} onPress={onContinue} activeOpacity={0.9} disabled={paymentLoading || loading}>
+              <TouchableOpacity
+                style={[styles.continueBtn, continueDisabled && styles.continueBtnDisabled]}
+                onPress={onContinue}
+                activeOpacity={0.9}
+                disabled={paymentLoading || loading || continueDisabled}>
                 <Text style={styles.continueTxt}>
                   {loading ? 'Please wait...' : timelineStatus === 'FAILED' ? 'Retry' : 'Continue'}
                 </Text>
@@ -176,5 +185,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
   },
+  continueBtnDisabled: {opacity: 0.45},
   continueTxt: {...Textstyles.heading, fontSize: 13, color: '#FFFFFF', fontWeight: '700'},
 });

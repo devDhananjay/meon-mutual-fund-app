@@ -14,6 +14,7 @@ import {
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {
   navigateToAllFundsSIP,
   navigateToFundDetail,
@@ -219,6 +220,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
   const firstName = useMemo(() => {
     const raw = user?.full_name || user?.first_name || user?.name || '';
     const trimmed = String(raw).trim();
@@ -312,6 +314,27 @@ export default function DashboardScreen() {
           <HeaderActionCluster />
         </View>
 
+        {!canPostToBse ? (
+          <View
+            style={[
+              styles.opsWarningBanner,
+              {
+                backgroundColor: isDark ? 'rgba(253, 224, 71, 0.16)' : '#FEF9C3',
+                borderColor: isDark ? 'rgba(253, 224, 71, 0.35)' : '#FDE68A',
+              },
+            ]}>
+            <Text
+              style={[
+                Textstyles.normal,
+                styles.opsWarningTxt,
+                {color: isDark ? '#FDE68A' : '#854D0E'},
+              ]}>
+              You are currently unable to perform operations. However, you can continue to view your
+              account and investment details.
+            </Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity
           style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
           onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
@@ -323,7 +346,18 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
     ),
-    [colors.background, colors.border, colors.inputBg, colors.textPrimary, colors.textSecondary, firstName, headerPadTop, navigation],
+    [
+      canPostToBse,
+      colors.background,
+      colors.border,
+      colors.inputBg,
+      colors.textPrimary,
+      colors.textSecondary,
+      firstName,
+      headerPadTop,
+      isDark,
+      navigation,
+    ],
   );
 
   const holdingsCard = useMemo(
@@ -708,6 +742,20 @@ const styles = StyleSheet.create({
     color: Colors.TEXT_PRIMARY,
     lineHeight: 22,
     paddingRight: 4,
+  },
+  opsWarningBanner: {
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  opsWarningTxt: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#854D0E',
   },
   searchBar: {
     backgroundColor: Colors.white,

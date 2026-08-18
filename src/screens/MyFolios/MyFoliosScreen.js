@@ -17,6 +17,7 @@ import {useNavigation} from '@react-navigation/native';
 import {navigateToFolioDetail, navigateToInvestment} from '../../navigation/navigationRef';
 import {pickSchemeCode} from '../../utils/schemeCode';
 import {groupHoldingsByFolio} from '../../utils/groupHoldingsByFolio';
+import {collectHoldingFolioNumbers, pickHoldingFolio} from '../../utils/holdingRedeem';
 import {useDetailedFolioData} from '../../hooks/useDetailedFolioData';
 import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {Colors} from '../../utils/AppConstant';
@@ -214,9 +215,14 @@ export default function MyFoliosScreen() {
       if (!code) {
         return;
       }
+      const folioNumbers = collectHoldingFolioNumbers(fund);
+      const initialFolioNumber = pickHoldingFolio(fund) || folioNumbers[0] || '';
       navigateToInvestment(navigation, {
         schemeCode: code,
         schemeName: fund?.scheme_name ?? fund?.base_scheme_name,
+        folioNumbers,
+        initialFolioNumber,
+        additionalPurchase: true,
       });
     },
     [navigation],

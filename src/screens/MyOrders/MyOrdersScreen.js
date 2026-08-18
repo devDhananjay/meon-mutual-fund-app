@@ -13,6 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {useOrdersData} from '../../hooks/useOrdersData';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
@@ -20,6 +21,9 @@ import {
   extractOrderAuthUrl,
   isAuthenticatedOrderState,
   processOrderPayment,
+  formatPaymentProcessUserMessage,
+  isPaymentProcessPending,
+  getPaymentProcessErrorMessage,
 } from '../../services/ordersService';
 import {
   pickOrderTitle,
@@ -159,6 +163,7 @@ function createMyOrdersStyles(colors, isDark) {
       paddingVertical: 10,
       alignItems: 'center',
     },
+    payNowBtnDisabled: {opacity: 0.45},
     payNowTxt: {...Textstyles.medium, color: '#FFFFFF', fontSize: 14, fontWeight: '500'},
     errorBanner: {
       marginHorizontal: 16,
@@ -466,7 +471,7 @@ function canShowPayNow(item) {
   );
 }
 
-function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}) {
+function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark, canPostToBse}) {
   const name = pickOrderTitle(item);
   const typeLabel = formatOrderTypeLabel(pickOrderType(item));
   const amount = formatInr(pickOrderAmountRaw(item));
@@ -504,10 +509,10 @@ function OrderCard({item, onPressOrder, onPayNow, payingOrderId, styles, isDark}
       </View>
       {canPayNow ? (
         <TouchableOpacity
-          style={styles.payNowBtn}
+          style={[styles.payNowBtn, !canPostToBse && styles.payNowBtnDisabled]}
           onPress={() => onPayNow(item)}
           activeOpacity={0.9}
-          disabled={String(payingOrderId) === String(orderId)}>
+          disabled={!canPostToBse || String(payingOrderId) === String(orderId)}>
           <Text style={styles.payNowTxt}>
             {String(payingOrderId) === String(orderId) ? 'Processing...' : 'Pay Now'}
           </Text>
@@ -579,6 +584,7 @@ export default function MyOrdersScreen() {
   const styles = useMemo(() => createMyOrdersStyles(colors, isDark), [colors, isDark]);
   const showBack = navigation.canGoBack();
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -682,6 +688,9 @@ export default function MyOrdersScreen() {
 
   const onPayNow = useCallback(
     async item => {
+      if (!canPostToBse) {
+        return;
+      }
       const orderNumber = pickOrderNumber(item);
       const totalAmount = Number(String(pickOrderAmountRaw(item)).replace(/,/g, '')) || 0;
       const clientCode = user?.client_code ?? user?.ucc_code ?? user?.ucc;
@@ -711,16 +720,24 @@ export default function MyOrdersScreen() {
         if (__DEV__) {
           console.log('[MyOrders] pay-now response', {orderNumber, hasUrl: !!url, data: res?.data});
         }
+        if (isPaymentProcessPending(res) || getPaymentProcessErrorMessage(res)) {
+          appAlert(
+            'Payment',
+            getPaymentProcessErrorMessage(res) || 'Payment is pending. Please try again.',
+          );
+          return;
+        }
         if (url) {
           navigation.navigate('MandateAuthWebview', {uri: url, title: 'Complete payment'});
         } else {
-          appAlert('Pay Now', 'Payment URL not found for this order.');
+          const msg = formatPaymentProcessUserMessage(res?.data);
+          appAlert('Pay Now', msg || 'Payment URL not found for this order.');
         }
       } finally {
         setPayingOrderId(null);
       }
     },
-    [navigation, user],
+    [canPostToBse, navigation, user],
   );
 
   const renderItem = useCallback(
@@ -732,9 +749,10 @@ export default function MyOrdersScreen() {
         payingOrderId={payingOrderId}
         styles={styles}
         isDark={isDark}
+        canPostToBse={canPostToBse}
       />
     ),
-    [onPressOrder, onPayNow, payingOrderId, styles, isDark],
+    [onPressOrder, onPayNow, payingOrderId, styles, isDark, canPostToBse],
   );
 
   const listHeader = useMemo(

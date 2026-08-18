@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import {useSelector} from 'react-redux';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
 import {postMandateRegister} from '../../services/mandateService';
@@ -92,6 +93,7 @@ function Row({label, value, styles}) {
 
 export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}) {
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
   const {colors, isDark} = useAppTheme();
   const styles = useMemo(() => getAddMandateModalStyles(colors, isDark), [colors, isDark]);
   const [mandateType, setMandateType] = useState('eNACH');
@@ -147,6 +149,9 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
   }, [onClose, reset]);
 
   const handleSubmit = useCallback(async () => {
+    if (!canPostToBse) {
+      return;
+    }
     const amt = amount.trim();
     if (!amt || Number(amt) <= 0) {
       appAlert('Add mandate', 'Please enter a valid amount.');
@@ -188,7 +193,7 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
     } finally {
       setSubmitting(false);
     }
-  }, [amount, endDate, mandateType, onClose, onOpenWeb, onSuccess, reset, startDate]);
+  }, [amount, canPostToBse, endDate, mandateType, onClose, onOpenWeb, onSuccess, reset, startDate]);
 
   const onConfirmDatePicker = useCallback(
     date => {
@@ -331,10 +336,10 @@ export default function AddMandateModal({visible, onClose, onSuccess, onOpenWeb}
           <Text style={styles.btnCancelTxt}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.btnSubmit, submitting && styles.btnSubmitDisabled]}
+          style={[styles.btnSubmit, (submitting || !canPostToBse) && styles.btnSubmitDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.9}
-          disabled={submitting}>
+          disabled={submitting || !canPostToBse}>
           {submitting ? <ActivityIndicator color={colors.card} /> : <Text style={styles.btnSubmitTxt}>Submit</Text>}
         </TouchableOpacity>
       </View>
@@ -474,7 +479,7 @@ function getAddMandateModalStyles(colors, isDark) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    btnSubmitDisabled: {opacity: 0.7},
+    btnSubmitDisabled: {opacity: 0.45},
     btnSubmitTxt: {...Textstyles.medium, fontSize: 16, fontWeight: '500', color: '#FFFFFF'},
   });
 }

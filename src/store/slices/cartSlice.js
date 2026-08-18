@@ -23,6 +23,8 @@ const cartSlice = createSlice({
         firstOrderToday,
         logo_url,
         useMandate,
+        folioNumber,
+        additionalPurchase,
       } = action.payload;
       const idx = state.items.findIndex(
         item => item.fund.scheme_code === fund.scheme_code,
@@ -41,6 +43,8 @@ const cartSlice = createSlice({
         mandateId: isSIP ? mandateId : lumpUseMandate ? mandateId : undefined,
         mandateLabel: isSIP ? mandateLabel : lumpUseMandate ? mandateLabel : undefined,
         firstOrderToday: isSIP && firstOrderToday ? true : false,
+        folioNumber: folioNumber != null && String(folioNumber).trim() !== '' ? String(folioNumber).trim() : undefined,
+        additionalPurchase: !!additionalPurchase,
         addedAt: idx >= 0 ? state.items[idx].addedAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         logo_url: logo_url ?? fund?.logo_url,

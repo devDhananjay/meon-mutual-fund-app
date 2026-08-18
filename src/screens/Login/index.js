@@ -12,6 +12,7 @@ import CustomCheckbox from '../../components/auth/CustomCheckbox';
 import {login as loginAction} from '../../store/slices/authSlice';
 import {loginWithCredentials} from '../../services/authService';
 import {persistAuth, getRememberedUsername, setRememberedUsername} from '../../services/authStorage';
+import {isBsePostAllowed} from '../../utils/bsePostAllow';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
 
@@ -63,9 +64,11 @@ export default function Login() {
     try {
       const result = await loginWithCredentials(u, p);
       const body = result?.data;
+      console.log('userData', result);
       if (body?.status === 'success' && body?.data?.tokens && body?.data?.user) {
         const {access_token, refresh_token} = body.data.tokens;
-        const userData = body.data.user;
+        const bsePostAllow = isBsePostAllowed(body);
+        const userData = {...body.data.user, bse_post_allow: bsePostAllow};
         await persistAuth({
           accessToken: access_token,
           refreshToken: refresh_token,
@@ -81,6 +84,7 @@ export default function Login() {
             user: userData,
             accessToken: access_token,
             refreshToken: refresh_token,
+            bsePostAllow,
           }),
         );
         navigation.reset({index: 0, routes: [{name: 'MainTabs'}]});

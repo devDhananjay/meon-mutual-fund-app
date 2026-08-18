@@ -2,12 +2,14 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
+import {useSelector} from 'react-redux';
 import Textstyles from '../../utils/text';
 import {pickStatus} from './mandateFieldUtils';
 import {buildClientDataRows, buildBseDataRows, formatDetailTimestamp} from './mandateDetailLayout';
 import {authenticateMandate} from './mandateAuthFlow';
 import {useAppTheme} from '../../theme/useAppTheme';
 import AppBackButton from '../../components/AppBackButton';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 
 function StatusBadge({label, styles, isDark}) {
   const raw = label || '—';
@@ -89,6 +91,7 @@ export default function MandateDetailScreen() {
   const {colors, isDark} = useAppTheme();
   const styles = useMemo(() => getMandateDetailStyles(colors, isDark), [colors, isDark]);
   const mandate = route.params?.mandate;
+  const canPostToBse = useSelector(selectCanPostToBse);
 
   const [tab, setTab] = useState('client');
   const [authBusy, setAuthBusy] = useState(false);
@@ -102,7 +105,7 @@ export default function MandateDetailScreen() {
   const updated = useMemo(() => formatDetailTimestamp(mandate?.updated_at ?? mandate?.modified_at), [mandate]);
 
   const onAuth = useCallback(async () => {
-    if (!mandate) {
+    if (!mandate || !canPostToBse) {
       return;
     }
     setAuthBusy(true);
@@ -111,7 +114,7 @@ export default function MandateDetailScreen() {
     } finally {
       setAuthBusy(false);
     }
-  }, [mandate, navigation]);
+  }, [canPostToBse, mandate, navigation]);
 
   const tabTitle = tab === 'client' ? 'Client Data' : 'BSE Data';
 
@@ -140,11 +143,17 @@ export default function MandateDetailScreen() {
         </View>
         <Text style={styles.headerTitle}>Mandate Details</Text>
         <View style={[styles.topBarSide, styles.topBarSideRight]}>
-          <TouchableOpacity style={styles.authLink} onPress={onAuth} disabled={authBusy} hitSlop={8}>
+          <TouchableOpacity
+            style={[styles.authLink, !canPostToBse && styles.authLinkDisabled]}
+            onPress={onAuth}
+            disabled={authBusy || !canPostToBse}
+            hitSlop={8}>
             {authBusy ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={[styles.authLinkTxt, {color: colors.primary}]}>Authenticate</Text>
+              <Text style={[styles.authLinkTxt, {color: canPostToBse ? colors.primary : colors.textSecondary}]}>
+                Authenticate
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -196,6 +205,7 @@ function getMandateDetailStyles(colors, isDark) {
       marginHorizontal: 4,
     },
     authLink: {alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 4},
+    authLinkDisabled: {opacity: 0.45},
     authLinkTxt: {fontSize: 15, fontWeight: '500', color: c.primary},
     scroll: {flex: 1},
     scrollContent: {paddingHorizontal: 16, paddingBottom: 32},

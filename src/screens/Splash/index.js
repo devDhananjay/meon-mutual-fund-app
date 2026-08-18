@@ -9,6 +9,7 @@ import {restoreSession} from '../../store/slices/authSlice';
 import {loadStoredSession} from '../../services/authStorage';
 import {fetchAuthProfile} from '../../services/authService';
 import {persistAuth} from '../../services/authStorage';
+import {readBsePostAllowFlag} from '../../utils/bsePostAllow';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {baseUrl, Colors} from '../../utils/AppConstant';
 import { Textstyles } from '../../utils';
@@ -65,6 +66,7 @@ export default function Splash() {
             accessToken: session.accessToken,
             refreshToken: session.refreshToken,
             user: session.user,
+            bsePostAllow: session.user?.bse_post_allow !== false,
           }),
         );
 
@@ -73,7 +75,16 @@ export default function Splash() {
           const profileRes = await fetchAuthProfile();
           const profile = profileRes?.data?.data;
           if (profile && typeof profile === 'object') {
-            mergedUser = {...session.user, ...profile};
+            const profileFlag =
+              readBsePostAllowFlag(profileRes?.data) ?? readBsePostAllowFlag(profile);
+            mergedUser = {
+              ...session.user,
+              ...profile,
+              bse_post_allow:
+                profileFlag !== undefined
+                  ? profileFlag
+                  : session.user?.bse_post_allow !== false,
+            };
             await persistAuth({
               accessToken: session.accessToken,
               refreshToken: session.refreshToken,
@@ -93,6 +104,7 @@ export default function Splash() {
               accessToken: session.accessToken,
               refreshToken: session.refreshToken,
               user: mergedUser,
+              bsePostAllow: mergedUser?.bse_post_allow !== false,
             }),
           );
         }

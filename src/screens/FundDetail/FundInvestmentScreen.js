@@ -31,8 +31,10 @@ import {
   fetchOrderList,
   processOrderPayment,
   isAuthenticatedOrderState,
+  getPaymentProcessErrorMessage,
 } from '../../services/ordersService';
 import {addToCart, selectCartItemCount} from '../../store/slices/cartSlice';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {navigateToCart} from '../../navigation/navigationRef';
 import AppModal from '../../components/AppModal';
 import AppBackButton from '../../components/AppBackButton';
@@ -44,6 +46,23 @@ import {typeScale} from '../../theme/typography';
 import {appAlert} from '../../utils/appAlert';
 import {fetchCompanyProfileSettings, normalizeSipPlaceOrderDayDiff} from '../../services/companyService';
 import {filterActiveMandatesForOrders} from '../Mandate/mandateFieldUtils';
+
+function normalizeFolioNumberList(raw, fallback) {
+  const list = [];
+  const add = value => {
+    const s = value != null ? String(value).trim() : '';
+    if (s && !list.includes(s)) {
+      list.push(s);
+    }
+  };
+  if (Array.isArray(raw)) {
+    raw.forEach(add);
+  } else {
+    add(raw);
+  }
+  add(fallback);
+  return list;
+}
 
 function safeInr(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) {
@@ -279,11 +298,27 @@ export default function FundInvestmentScreen() {
   const styles = useMemo(() => getFundInvestmentStyles(colors, isDark), [colors, isDark]);
   const cartCount = useSelector(selectCartItemCount);
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
 
   const schemeCode =
     route.params?.schemeCode ?? route.params?.scheme_code ?? route.params?.code;
   const paramName = route.params?.schemeName ?? route.params?.scheme_name;
   const initialOrderType = route.params?.initialOrderType === 'SIP' ? 'SIP' : 'ONE_TIME';
+  const additionalPurchase = !!route.params?.additionalPurchase;
+  const folioOptions = useMemo(
+    () =>
+      normalizeFolioNumberList(
+        route.params?.folioNumbers ?? route.params?.folio_numbers,
+        route.params?.initialFolioNumber ?? route.params?.folioNumber ?? route.params?.folio_number,
+      ),
+    [
+      route.params?.folioNumbers,
+      route.params?.folio_numbers,
+      route.params?.initialFolioNumber,
+      route.params?.folioNumber,
+      route.params?.folio_number,
+    ],
+  );
 
   const {data: folioData, isLoading: loading, error} = useFundData(schemeCode);
   const {data: mandateData, isPending: mandateLoading} = useMandateData();
@@ -317,6 +352,13 @@ export default function FundInvestmentScreen() {
   );
 
   const [orderType, setOrderType] = useState(initialOrderType);
+  const [selectedFolioNumber, setSelectedFolioNumber] = useState(
+    () =>
+      String(route.params?.initialFolioNumber ?? route.params?.folioNumber ?? folioOptions[0] ?? '').trim() ||
+      folioOptions[0] ||
+      '',
+  );
+  const [folioModalVisible, setFolioModalVisible] = useState(false);
   const [orderAmount, setOrderAmount] = useState('');
   const [amountError, setAmountError] = useState(null);
   const [sipFrequency, setSipFrequency] = useState('Monthly');
@@ -562,6 +604,10 @@ export default function FundInvestmentScreen() {
       appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
       return;
     }
+    if (additionalPurchase && !String(selectedFolioNumber || '').trim()) {
+      appAlert('Select folio', 'Please choose a folio number to invest more.');
+      return;
+    }
     const isDaily = orderType === 'SIP' && String(sipFrequency).toLowerCase() === 'daily';
     const sipDateStr = orderType === 'SIP' ? (isDaily ? formatDDMMYYYY(dailySipStartDate) : formatDDMMYYYY(sipDate)) : undefined;
     const sipEndStr = orderType === 'SIP' && isDaily ? formatDDMMYYYY(dailySipEndDate) : undefined;
@@ -585,6 +631,8 @@ export default function FundInvestmentScreen() {
         useMandate: orderType === 'ONE_TIME' && useMandateForPurchase,
         firstOrderToday: orderType === 'SIP' ? placeFirstInstallmentToday : undefined,
         logo_url: logoUrl,
+        folioNumber: additionalPurchase ? String(selectedFolioNumber || '').trim() : undefined,
+        additionalPurchase,
       }),
     );
     appAlert('Cart', `${displayName} added to cart`);
@@ -606,6 +654,8 @@ export default function FundInvestmentScreen() {
     dailySipEndDate,
     placeFirstInstallmentToday,
     useMandateForPurchase,
+    additionalPurchase,
+    selectedFolioNumber,
   ]);
 
   const onPlaceOrder = useCallback(async () => {
@@ -629,6 +679,11 @@ export default function FundInvestmentScreen() {
       appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
       return;
     }
+    const selectedFolio = String(selectedFolioNumber || '').trim();
+    if (additionalPurchase && !selectedFolio) {
+      appAlert('Select folio', 'Please choose a folio number to invest more.');
+      return;
+    }
     try {
       setPlacingOrder(true);
       const isDailySip = orderType === 'SIP' && String(sipFrequency).toLowerCase() === 'daily';
@@ -646,7 +701,7 @@ export default function FundInvestmentScreen() {
               sipEndDate: sipEndForApi,
               mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
               firstOrderToday: placeFirstInstallmentToday,
-              folioNo: fundInfo?.folio_number ?? fundInfo?.folio_no,
+              folioNo: selectedFolio || fundInfo?.folio_number || fundInfo?.folio_no,
               euin: user?.euin,
             })
           : buildOrderPlacePayload({
@@ -655,6 +710,8 @@ export default function FundInvestmentScreen() {
               isSip: false,
               mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
               useMandate: useMandateForPurchase,
+              folioNumber: selectedFolio,
+              buySellType: additionalPurchase || selectedFolio ? 'ADDITIONAL' : undefined,
             });
       console.log('[FundInvestment:onPlaceOrder] request payload', payload);
       const res =
@@ -730,6 +787,8 @@ export default function FundInvestmentScreen() {
     placeFirstInstallmentToday,
     user?.euin,
     useMandateForPurchase,
+    additionalPurchase,
+    selectedFolioNumber,
   ]);
 
   const onAuthenticateAndContinue = useCallback(async () => {
@@ -928,17 +987,15 @@ export default function FundInvestmentScreen() {
         vpaId: mode === 'UPI' ? upiVpa : '',
         neftReference: mode === 'NEFT' ? neftReferenceOverride : '',
       });
-      const apiStatus = String(res?.data?.status ?? res?.status ?? '').toLowerCase();
-      const responseString =
-        res?.data?.data?.responsestring ??
-        res?.data?.data?.ResponseString ??
-        res?.data?.message ??
-        '';
-      const paymentUrl = extractOrderAuthUrl(res?.data);
-      if (apiStatus === 'pending') {
-        appAlert('Payment', responseString || 'Payment is pending. Please try again.');
+      const paymentError = getPaymentProcessErrorMessage(res);
+      if (paymentError) {
+        setPaymentModeModalVisible(false);
+        setTimeout(() => {
+          appAlert('Payment', paymentError);
+        }, 350);
         return;
       }
+      const paymentUrl = extractOrderAuthUrl(res?.data);
       if (paymentUrl) {
         setPaymentModeModalVisible(false);
         setSelectedPaymentMode(null);
@@ -947,7 +1004,7 @@ export default function FundInvestmentScreen() {
           title: 'Complete payment',
         });
       } else {
-        appAlert('Payment', responseString || 'Payment gateway URL not found.');
+        appAlert('Payment', 'Payment gateway URL not found.');
       }
     } catch (e) {
       appAlert('Payment failed', String(e?.message || 'Could not start payment.'));
@@ -1075,12 +1132,16 @@ export default function FundInvestmentScreen() {
 
   /** SIP requires an explicit mandate pick; lump-sum with “Use Mandate” requires mandate when active mandates exist. */
   const isPrimaryCtaDisabled =
+    !canPostToBse ||
     (orderType === 'SIP' && (mandateLoading || mandates.length === 0 || !selectedMandate)) ||
     (orderType === 'ONE_TIME' &&
       useMandateForPurchase &&
       (mandateLoading || mandates.length === 0 || !selectedMandate));
 
   const onPrimaryCtaPress = useCallback(() => {
+    if (!canPostToBse || placingOrder) {
+      return;
+    }
     console.log('[FundInvestment:primaryCta] clicked', {
       label: primaryCtaLabel,
       orderType,
@@ -1088,7 +1149,7 @@ export default function FundInvestmentScreen() {
       schemeCode: fundInfo?.scheme_code ?? schemeCode,
     });
     onPlaceOrder();
-  }, [fundInfo?.scheme_code, onPlaceOrder, orderType, placingOrder, primaryCtaLabel, schemeCode]);
+  }, [canPostToBse, fundInfo?.scheme_code, onPlaceOrder, orderType, placingOrder, primaryCtaLabel, schemeCode]);
 
   if (!schemeCode) {
     return (
@@ -1278,6 +1339,21 @@ export default function FundInvestmentScreen() {
                 ))}
               </View>
 
+              {folioOptions.length > 0 ? (
+                <View style={{marginTop: 10}}>
+                  <Text style={styles.fieldLabel}>Folio No.</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownField}
+                    onPress={() => setFolioModalVisible(true)}
+                    activeOpacity={0.85}>
+                    <Text style={styles.dropdownValue} numberOfLines={1}>
+                      {selectedFolioNumber || 'Select folio'}
+                    </Text>
+                    <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               {orderType === 'ONE_TIME' && mandateLoading ? (
                 <View
                   style={[
@@ -1443,6 +1519,29 @@ export default function FundInvestmentScreen() {
           </View>
         ) : null}
       </KeyboardAvoidingView>
+
+      <AppModal
+        visible={folioModalVisible}
+        onClose={() => setFolioModalVisible(false)}
+        title="Select folio number"
+        isBottomSheet
+        maxHeight={'55%'}>
+        {folioOptions.map(folio => {
+          const active = folio === selectedFolioNumber;
+          return (
+            <TouchableOpacity
+              key={folio}
+              style={[styles.modalRow, active && styles.modalRowActive]}
+              onPress={() => {
+                setSelectedFolioNumber(folio);
+                setFolioModalVisible(false);
+              }}
+              activeOpacity={0.9}>
+              <Text style={[styles.modalRowTxt, active && styles.modalRowTxtActive]}>{folio}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </AppModal>
 
       <AppModal
         visible={mandateModalVisible}

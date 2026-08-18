@@ -10,6 +10,32 @@ export function pickHoldingFolio(h) {
   return raw != null ? String(raw).trim() : '';
 }
 
+function addFolioCandidate(seen, value) {
+  const s = value != null ? String(value).trim() : '';
+  if (s) {
+    seen.set(s, s);
+  }
+}
+
+/** Unique folio numbers from a holding row + sip/xsip/lumpsum transactions. */
+export function collectHoldingFolioNumbers(fund) {
+  const seen = new Map();
+  addFolioCandidate(seen, fund?.folio_no);
+  addFolioCandidate(seen, fund?.folio_number);
+  addFolioCandidate(seen, fund?.folio);
+  addFolioCandidate(seen, fund?.client_folio);
+  addFolioCandidate(seen, fund?.folio_id);
+  addFolioCandidate(seen, fund?.folioNumber);
+  for (const bucket of [fund?.lumpsum, fund?.sip, fund?.xsip]) {
+    for (const t of bucket?.transactions || []) {
+      addFolioCandidate(seen, t?.folio_no);
+      addFolioCandidate(seen, t?.folio_number);
+      addFolioCandidate(seen, t?.folio);
+    }
+  }
+  return Array.from(seen.values());
+}
+
 export function pickHoldingUnits(h) {
   if (h == null) {
     return 0;

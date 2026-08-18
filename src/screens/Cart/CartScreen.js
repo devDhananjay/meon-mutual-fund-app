@@ -3,6 +3,7 @@ import {View, Text, StyleSheet, FlatList, TouchableOpacity, Image} from 'react-n
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {
   removeFromCart,
   clearCart,
@@ -186,6 +187,7 @@ export default function CartScreen() {
   const items = useSelector(selectCartItems);
   const total = useSelector(selectCartTotal);
   const user = useSelector(s => s.auth.user);
+  const canPostToBse = useSelector(selectCanPostToBse);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -243,7 +245,7 @@ export default function CartScreen() {
   }, [dispatch, items.length]);
 
   const onCheckout = useCallback(async () => {
-    if (items.length === 0) {
+    if (!canPostToBse || items.length === 0) {
       return;
     }
     try {
@@ -275,7 +277,7 @@ export default function CartScreen() {
               sipEndDate: item?.sipEndDate,
               mandateId: item?.mandateId,
               firstOrderToday: !!item?.firstOrderToday,
-              folioNo: item?.fund?.folio_number ?? item?.fund?.folio_no,
+              folioNo: item?.folioNumber ?? item?.fund?.folio_number ?? item?.fund?.folio_no,
               euin: user?.euin,
             })
           : buildOrderPlacePayload({
@@ -284,6 +286,8 @@ export default function CartScreen() {
               isSip: false,
               mandateId: item?.mandateId,
               useMandate: !!item?.useMandate,
+              folioNumber: item?.folioNumber,
+              buySellType: item?.additionalPurchase || item?.folioNumber ? 'ADDITIONAL' : undefined,
             });
 
         console.log('[cart:onCheckout] placing item', {
@@ -329,7 +333,7 @@ export default function CartScreen() {
     } finally {
       setCheckoutLoading(false);
     }
-  }, [items, navigation, user?.euin]);
+  }, [canPostToBse, items, navigation, user?.euin]);
 
   const onAuthenticateAndContinue = useCallback(async () => {
     if (pendingGatewayUrl) {
@@ -458,10 +462,14 @@ export default function CartScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.checkout, {backgroundColor: colors.primary}]}
+                style={[
+                  styles.checkout,
+                  {backgroundColor: colors.primary},
+                  !canPostToBse && styles.checkoutDisabled,
+                ]}
                 onPress={onCheckout}
                 activeOpacity={0.9}
-                disabled={checkoutLoading}>
+                disabled={checkoutLoading || !canPostToBse}>
                 <Text style={[Textstyles.medium, styles.checkoutTxt]}>
                   {checkoutLoading ? 'Placing order...' : 'Proceed to checkout'}
                 </Text>
@@ -635,5 +643,6 @@ function createCartStyles(colors, isDark) {
       alignItems: 'center',
     },
     checkoutTxt: {color: '#FFFFFF', fontSize: 16, fontWeight: '600'},
+    checkoutDisabled: {opacity: 0.45},
   });
 }
