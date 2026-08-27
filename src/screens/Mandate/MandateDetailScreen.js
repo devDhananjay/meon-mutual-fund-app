@@ -4,7 +4,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import Textstyles from '../../utils/text';
-import {pickStatus} from './mandateFieldUtils';
+import {pickStatus, isEnachMandate} from './mandateFieldUtils';
 import {buildClientDataRows, buildBseDataRows, formatDetailTimestamp} from './mandateDetailLayout';
 import {authenticateMandate} from './mandateAuthFlow';
 import {useAppTheme} from '../../theme/useAppTheme';
@@ -97,6 +97,7 @@ export default function MandateDetailScreen() {
   const [authBusy, setAuthBusy] = useState(false);
 
   const status = useMemo(() => pickStatus(mandate || {}), [mandate]);
+  const showAuthenticate = useMemo(() => isEnachMandate(mandate || {}), [mandate]);
 
   const clientRows = useMemo(() => buildClientDataRows(mandate), [mandate]);
   const bseRows = useMemo(() => buildBseDataRows(mandate), [mandate]);
@@ -105,7 +106,7 @@ export default function MandateDetailScreen() {
   const updated = useMemo(() => formatDetailTimestamp(mandate?.updated_at ?? mandate?.modified_at), [mandate]);
 
   const onAuth = useCallback(async () => {
-    if (!mandate || !canPostToBse) {
+    if (!mandate || !canPostToBse || !showAuthenticate) {
       return;
     }
     setAuthBusy(true);
@@ -114,7 +115,7 @@ export default function MandateDetailScreen() {
     } finally {
       setAuthBusy(false);
     }
-  }, [canPostToBse, mandate, navigation]);
+  }, [canPostToBse, mandate, navigation, showAuthenticate]);
 
   const tabTitle = tab === 'client' ? 'Client Data' : 'BSE Data';
 
@@ -143,19 +144,21 @@ export default function MandateDetailScreen() {
         </View>
         <Text style={styles.headerTitle}>Mandate Details</Text>
         <View style={[styles.topBarSide, styles.topBarSideRight]}>
-          <TouchableOpacity
-            style={[styles.authLink, !canPostToBse && styles.authLinkDisabled]}
-            onPress={onAuth}
-            disabled={authBusy || !canPostToBse}
-            hitSlop={8}>
-            {authBusy ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={[styles.authLinkTxt, {color: canPostToBse ? colors.primary : colors.textSecondary}]}>
-                Authenticate
-              </Text>
-            )}
-          </TouchableOpacity>
+          {showAuthenticate ? (
+            <TouchableOpacity
+              style={[styles.authLink, !canPostToBse && styles.authLinkDisabled]}
+              onPress={onAuth}
+              disabled={authBusy || !canPostToBse}
+              hitSlop={8}>
+              {authBusy ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={[styles.authLinkTxt, {color: canPostToBse ? colors.primary : colors.textSecondary}]}>
+                  Authenticate
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 

@@ -33,6 +33,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow access to upload your signed NACH mandate image.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow saving NACH mandate documents to your photo library when needed.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow camera access to capture your signed NACH mandate.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Figtree-ExtraBold.ttf</string>

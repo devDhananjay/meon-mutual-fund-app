@@ -69,6 +69,9 @@ export const FontSize = {
 /** Same API host as web `apiClient` / `BACKEND_IP` */
 export const baseUrl = 'https://mutualfunds.meon.co.in/v1';
 
+/** Tenant / company slug used by web paths and forgot-password payload. */
+export const companyShortName = 'meon';
+
 export const wp = widthPercentageToDP;
 export const hp = heightPercentageToDP;
 export const wpx = widthFromPixel;

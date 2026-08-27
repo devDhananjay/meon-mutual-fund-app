@@ -1,10 +1,19 @@
 import apiClient from './apiClient';
+import {companyShortName} from '../utils/AppConstant';
 
 /** End-user login — same contract as web `authServices.login` */
 export async function loginWithCredentials(uccCode, password) {
   return apiClient.post('/api/journey/mf/auth/login/', {
     ucc_code: uccCode,
     password,
+  });
+}
+
+/** Forgot password — web parity: `POST /api/journey/forgot-password/` */
+export async function forgotPassword(uccCode) {
+  return apiClient.post('/api/journey/forgot-password/', {
+    company_short_name: companyShortName,
+    ucc_code: String(uccCode || '').trim(),
   });
 }
 

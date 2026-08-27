@@ -91,7 +91,8 @@ function isPublicMfEndpoint(config) {
   const u = config.url || '';
   return (
     u.includes('/api/company/mf/schemes/history/') ||
-    u.includes('/api/journey/mf/user/holdingfolio')
+    u.includes('/api/journey/mf/user/holdingfolio') ||
+    u.includes('/api/journey/forgot-password/')
   );
 }
 
@@ -100,6 +101,10 @@ function shouldSkipLogoutOn401(config) {
   const u = config?.url || '';
   // schemes/list is a browsing endpoint; don't hard-logout on its 401 — let screen show error.
   if (u.includes('/api/company/schemes/list') || u.includes('/api/company/mf/schemes/list')) {
+    return true;
+  }
+  // NACH PDF/form endpoints may return 401 for file-auth reasons; never wipe the session.
+  if (u.includes('/api/journey/mf/nach/')) {
     return true;
   }
   return isPublicMfEndpoint(config);
@@ -113,12 +118,26 @@ apiClient.interceptors.request.use(
         method: (config?.method || 'get').toUpperCase(),
         url: `${config?.baseURL || ''}${config?.url || ''}`,
         params: config?.params,
-        data: config?.data,
+        data: config?.data instanceof FormData ? '[FormData]' : config?.data,
         tokenPresent: Boolean(token),
         tokenLen: token ? String(token).length : 0,
       });
     }
     config.headers = config.headers || {};
+
+    // RN multipart: default application/json breaks Android uploads (Network Error).
+    // Meon CRM / RN pattern: explicitly set multipart/form-data so native adds boundary.
+    const isFormData =
+      typeof FormData !== 'undefined' && config.data instanceof FormData;
+    if (isFormData) {
+      if (typeof config.headers.set === 'function') {
+        config.headers.set('Content-Type', 'multipart/form-data');
+      } else {
+        config.headers['Content-Type'] = 'multipart/form-data';
+        delete config.headers['content-type'];
+      }
+    }
+
     if (isPublicMfEndpoint(config)) {
       delete config.headers.Authorization;
       return config;

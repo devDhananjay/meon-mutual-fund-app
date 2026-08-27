@@ -10,30 +10,62 @@ import AuthBrand from '../../components/auth/AuthBrand';
 import {navigationRef} from '../../navigation/navigationRef';
 import {clearAuthStorage} from '../../services/authStorage';
 import {logout} from '../../store/slices/authSlice';
+import {forgotPassword} from '../../services/authService';
 import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
 
+function extractForgotPasswordError(err) {
+  const data = err?.data;
+  if (data?.errors?.ucc_code?.length) {
+    return String(data.errors.ucc_code[0]);
+  }
+  if (data?.errors?.non_field_errors?.length) {
+    return String(data.errors.non_field_errors[0]);
+  }
+  if (data?.errors?.company_short_name?.length) {
+    return String(data.errors.company_short_name[0]);
+  }
+  if (data?.message) {
+    return String(data.message);
+  }
+  if (err?.message) {
+    return String(err.message);
+  }
+  return 'Unable to send reset instructions. Please try again.';
+}
+
 export default function ForgotPassword() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [uccCode, setUccCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const {colors} = useAppTheme();
 
-  const canSend = usernameOrEmail.trim().length > 0;
+  const canSend = uccCode.trim().length > 0;
 
   const onSend = async () => {
-    if (!canSend) {
-      setFieldError('Username or email is required');
+    const code = uccCode.trim();
+    if (!code) {
+      setFieldError('UCC Code is required');
       return;
     }
     setFieldError('');
     setLoading(true);
-    await new Promise(r => setTimeout(r, 700));
-    setLoading(false);
-    navigation.navigate('EmailSent', {identifier: usernameOrEmail.trim()});
+    try {
+      const result = await forgotPassword(code);
+      const body = result?.data;
+      if (body?.status === 'error') {
+        setFieldError(extractForgotPasswordError({data: body, message: body?.message}));
+        return;
+      }
+      navigation.navigate('EmailSent', {identifier: code});
+    } catch (err) {
+      setFieldError(extractForgotPasswordError(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onBackToSignIn = useCallback(async () => {
@@ -71,21 +103,21 @@ export default function ForgotPassword() {
           </TouchableOpacity>
           <Text style={[styles.title, {color: colors.textPrimary}]}>Forgot Password?</Text>
           <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
-            Enter your username or email address and we will send reset instructions.
+            Enter your username or email address, and we'll give you reset instructions.
           </Text>
           <View style={[styles.card, {backgroundColor: colors.card}]}>
             <CustomInput
-              label="Username / Email"
-              value={usernameOrEmail}
+              label="UCC Code"
+              value={uccCode}
               autoFocus
               onChangeText={v => {
-                setUsernameOrEmail(v);
+                setUccCode(v);
                 if (fieldError) {
                   setFieldError('');
                 }
               }}
-              placeholder="Enter username or email"
-              keyboardType="email-address"
+              placeholder="Enter your UCC Code"
+              autoCapitalize="characters"
               error={fieldError}
             />
             <CustomButton title="Send" onPress={onSend} loading={loading} disabled={!canSend} />
@@ -149,7 +181,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowOffset: {width: 0, height: 3},
     shadowRadius: 8,
-    // elevation: 3,
   },
   secondaryWrap: {marginTop: 12},
 });

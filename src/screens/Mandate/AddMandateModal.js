@@ -19,7 +19,7 @@ import AppModal from '../../components/AppModal';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {appAlert} from '../../utils/appAlert';
 
-const MANDATE_TYPES = ['eNACH', 'NACH', 'UPI Autopay'];
+const MANDATE_TYPES = ['eNACH', 'NACH'];
 const MIN_PICK_DATE = new Date(2000, 0, 1);
 const MAX_PICK_DATE = new Date(2100, 11, 31);
 
@@ -39,9 +39,6 @@ function formatDateForApi(d) {
 }
 
 function mapMandateTypeForApi(display) {
-  if (display === 'UPI Autopay') {
-    return 'UPI_AUTOPAY';
-  }
   return display;
 }
 

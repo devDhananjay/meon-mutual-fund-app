@@ -173,6 +173,26 @@ export function pickMandateListId(item) {
   return s.startsWith('#') ? s : `#${s}`;
 }
 
+/** Physical NACH vs eNACH — gates which list actions / Authenticate to show. */
+export function pickMandateRegistrationType(item) {
+  const raw =
+    item?.mandate_registration_type ??
+    item?.registration_type ??
+    item?.mandate_type ??
+    item?.Mandate_Registration_Type ??
+    '';
+  return String(raw).trim().toLowerCase();
+}
+
+export function isNachMandate(item) {
+  return pickMandateRegistrationType(item) === 'nach';
+}
+
+export function isEnachMandate(item) {
+  const t = pickMandateRegistrationType(item);
+  return t === 'enach' || t === 'e_nach' || t === 'e-nach';
+}
+
 /**
  * Payload for POST /mandate/auth/ — keys aligned with common backend patterns.
  */

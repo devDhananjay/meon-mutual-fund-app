@@ -14,6 +14,7 @@ import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {useMandateData} from '../../hooks/useMandateData';
 import Textstyles from '../../utils/text';
+import {useSelector} from 'react-redux';
 import {
   pickAmount,
   pickBank,
@@ -21,12 +22,20 @@ import {
   pickStartDateDD,
   pickEndDateDD,
   pickStatus,
+  isNachMandate,
 } from './mandateFieldUtils';
 import AddMandateModal from './AddMandateModal';
 import AppModal from '../../components/AppModal';
 import {useAppTheme} from '../../theme/useAppTheme';
 import AppBackButton from '../../components/AppBackButton';
 import { Icons } from '../../utils';
+import {
+  runDownloadNachPdf,
+  runRegenerateNachPdf,
+} from './mandateNachActions';
+import NachUploadModal from './NachUploadModal';
+import {authenticateMandate} from './mandateAuthFlow';
+import {selectCanPostToBse} from '../../store/slices/authSlice';
 
 const STATUS_OPTIONS = [
   {key: 'all', label: 'All'},
@@ -131,37 +140,22 @@ function StatusBadge({ label, styles, isDark }) {
   }
 
   return (
-    <View
-      style={[
-        styles.statusPill,
-        {
-          backgroundColor: bg,
-          flexDirection: 'row',
-          alignItems: 'center',
-        },
-      ]}
-    >
-      {icon && (
+    <View style={[styles.statusPill, {backgroundColor: bg}]}>
+      {icon ? (
         <Image
           source={icon}
-          style={[
-            styles.statusPillIconImg,
-            {marginRight: 6, width: 12, height: 12, tintColor: fg},
-          ]}
+          style={[styles.statusPillIconImg, {marginRight: 6, width: 12, height: 12, tintColor: fg}]}
           resizeMode="contain"
         />
-      )}
-      <Text
-        style={[styles.statusPillTxt, { color: fg }]}
-        numberOfLines={1}
-      >
+      ) : null}
+      <Text style={[styles.statusPillTxt, {color: fg}]} numberOfLines={1}>
         {raw}
       </Text>
     </View>
   );
 }
 
-function MandateCard({item, onViewDetails, styles, isDark}) {
+function MandateCard({item, onViewDetails, onOpenActions, styles, isDark}) {
   const rawMid = pickMandateListId(item);
   const mid = String(rawMid ?? '').startsWith('#') ? rawMid : `#${rawMid}`;
   const bank = pickBank(item);
@@ -176,7 +170,17 @@ function MandateCard({item, onViewDetails, styles, isDark}) {
         <Text style={styles.mandateId} numberOfLines={1}>
           {mid}
         </Text>
-        <StatusBadge label={status} styles={styles} isDark={isDark} />
+        <View style={styles.cardTopRight}>
+          <StatusBadge label={status} styles={styles} isDark={isDark} />
+          <TouchableOpacity
+            onPress={() => onOpenActions(item)}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+            activeOpacity={0.75}
+            style={styles.moreBtn}
+            accessibilityLabel="Mandate actions">
+            <Image source={Icons.threeDots} tintColor={isDark ? '#E5E7EB' : '#374151'} style={styles.moreIcon} resizeMode="contain" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.cardGrid}>
@@ -270,8 +274,12 @@ export default function MandateScreen() {
 
   const {data, isPending, error, refreshing, refetch} = useMandateData(listParams);
   const items = data?.results ?? EMPTY_ITEMS;
+  const canPostToBse = useSelector(selectCanPostToBse);
 
   const [addOpen, setAddOpen] = useState(false);
+  const [actionsMandate, setActionsMandate] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [uploadMandate, setUploadMandate] = useState(null);
 
   const filtered = useMemo(() => {
     const q = normalizeSearchText(search);
@@ -292,6 +300,66 @@ export default function MandateScreen() {
     [navigation],
   );
 
+  const onOpenActions = useCallback(m => {
+    setActionsMandate(m);
+  }, []);
+
+  const closeActions = useCallback(() => {
+    if (actionBusy) {
+      return;
+    }
+    setActionsMandate(null);
+  }, [actionBusy]);
+
+  const mandateActionOptions = useMemo(() => {
+    if (!actionsMandate) {
+      return [];
+    }
+    if (isNachMandate(actionsMandate)) {
+      return [
+        {
+          key: 'download',
+          label: 'Download NACH PDF',
+          run: m => runDownloadNachPdf(m, navigation),
+        },
+        {key: 'regenerate', label: 'Regenerate NACH PDF', run: runRegenerateNachPdf},
+        {
+          key: 'upload',
+          label: 'Upload signed NACH',
+          run: m => {
+            setUploadMandate(m);
+          },
+        },
+      ];
+    }
+    // eNACH: Authentication only
+    return [
+      {
+        key: 'authenticate',
+        label: 'Authentication',
+        disabled: !canPostToBse,
+        run: m => authenticateMandate(navigation, m),
+      },
+    ];
+  }, [actionsMandate, canPostToBse, navigation]);
+
+  const runMandateAction = useCallback(
+    async runner => {
+      if (!actionsMandate || actionBusy) {
+        return;
+      }
+      const target = actionsMandate;
+      setActionsMandate(null);
+      setActionBusy(true);
+      try {
+        await runner(target);
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [actionBusy, actionsMandate],
+  );
+
   const onOpenAddWeb = useCallback(
     uri => {
       navigation.navigate('MandateAuthWebview', {uri, title: 'Add New Mandate'});
@@ -300,8 +368,16 @@ export default function MandateScreen() {
   );
 
   const renderItem = useCallback(
-    ({item}) => <MandateCard item={item} onViewDetails={onViewDetails} styles={styles} isDark={isDark} />,
-    [onViewDetails, styles, isDark],
+    ({item}) => (
+      <MandateCard
+        item={item}
+        onViewDetails={onViewDetails}
+        onOpenActions={onOpenActions}
+        styles={styles}
+        isDark={isDark}
+      />
+    ),
+    [onViewDetails, onOpenActions, styles, isDark],
   );
 
   const listHeader = useMemo(
@@ -422,6 +498,50 @@ export default function MandateScreen() {
           setFilterOpen(false);
         }}
       />
+
+      <AppModal
+        visible={!!actionsMandate}
+        onClose={closeActions}
+        title="Mandate actions"
+        isBottomSheet
+        maxHeight={isNachMandate(actionsMandate) ? '56%' : '36%'}>
+        {mandateActionOptions.map((opt, index, arr) => {
+          const rowDisabled = actionBusy || !!opt.disabled;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[
+                styles.actionRow,
+                index !== arr.length - 1 && styles.actionRowBorder,
+                opt.disabled && styles.actionRowDisabled,
+              ]}
+              onPress={() => {
+                if (opt.disabled) {
+                  return;
+                }
+                runMandateAction(opt.run);
+              }}
+              disabled={rowDisabled}
+              activeOpacity={0.85}>
+              <Text
+                style={[
+                  styles.actionRowLabel,
+                  opt.disabled && {color: colors.textSecondary},
+                ]}>
+                {opt.label}
+              </Text>
+              <Image source={Icons.GoIcon} style={styles.actionRowIcon} resizeMode="contain" />
+            </TouchableOpacity>
+          );
+        })}
+      </AppModal>
+
+      <NachUploadModal
+        visible={!!uploadMandate}
+        mandate={uploadMandate}
+        onClose={() => setUploadMandate(null)}
+        onSuccess={() => refetch()}
+      />
     </SafeAreaView>
   );
 }
@@ -525,22 +645,56 @@ function createMandateStyles(colors, isDark) {
     borderRadius: 10,
     paddingHorizontal: 10,
     minHeight: 40,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
-  mandateId: {...Textstyles.medium, fontSize: 16, fontWeight: '700', color: c.textPrimary, flex: 1, marginRight: 8},
+  mandateId: {
+    ...Textstyles.medium,
+    fontSize: 16,
+    fontWeight: '700',
+    color: c.textPrimary,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    marginRight: 10,
+  },
+  cardTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 6,
+  },
+  moreBtn: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  moreIcon: {
+    width: 16,
+    height: 16,
+    tintColor: c.textSecondary,
+  },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
     paddingHorizontal: 10,
-    paddingRight: 16,
-    paddingVertical: 4,
-    height: 30,
+    paddingVertical: 5,
+    minHeight: 28,
     borderRadius: 8,
-    maxWidth: '48%',
+    maxWidth: 140,
+    flexShrink: 1,
   },
   statusPillIcon: {fontSize: 10, fontWeight: '700', lineHeight: 14},
-  statusPillTxt: {...Textstyles.medium, fontSize: 10.5, fontWeight: '600', textTransform: 'capitalize', lineHeight: 14},
+  statusPillTxt: {
+    ...Textstyles.medium,
+    fontSize: 10.5,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    lineHeight: 14,
+    flexShrink: 1,
+  },
   cardGrid: {
     flexDirection: 'row',
     marginTop: 1,
@@ -690,5 +844,24 @@ function createMandateStyles(colors, isDark) {
     width: 18,
     height: 18,
   },
+  actionRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  actionRowDisabled: {opacity: 0.45},
+  actionRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.border,
+  },
+  actionRowLabel: {
+    ...Textstyles.medium,
+    flex: 1,
+    fontSize: 16,
+    color: c.textPrimary,
+    fontWeight: '600',
+  },
+  actionRowIcon: {width: 12, height: 12, tintColor: c.textSecondary, marginLeft: 8},
 });
 }

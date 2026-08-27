@@ -80,6 +80,8 @@ if (keystorePropertiesFile.exists()) {
 
 configurations.all {
     resolutionStrategy.force "androidx.core:core:1.15.0", "androidx.core:core-ktx:1.15.0"
+    // Ensure 16 KB–aligned uCrop native libs (fixes Play "libucrop.so" rejection).
+    resolutionStrategy.force "com.github.yalantis:ucrop:2.2.11-native"
 }
 
 android {
@@ -88,9 +90,8 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
     packagingOptions {
         jniLibs {
-            // 16KB requirement के लिए fallback (agar uncompressed 16KB packaging उपलब्ध/सही नहीं है)
-            // useLegacyPackaging=true होने पर shared libs compressed तरीके से package होती हैं।
-            useLegacyPackaging true
+            // Prefer uncompressed, 16 KB–aligned native libs (required by Play for targetSdk 35).
+            useLegacyPackaging false
         }
     }
 
@@ -99,8 +100,8 @@ android {
         applicationId "com.meonmutualfunds"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13
-        versionName "1.7"
+        versionCode 16
+        versionName "1.10"
     }
     signingConfigs {
         debug {

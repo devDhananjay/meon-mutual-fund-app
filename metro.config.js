@@ -20,6 +20,12 @@ const config = {
   watchFolders: [path.resolve(projectRoot, 'node_modules/react-native-screens')],
   resolver: {
     resolveRequest(context, moduleName, platform) {
+      if (moduleName === 'react-native-fs') {
+        return {
+          filePath: path.resolve(projectRoot, 'stubs/react-native-fs/index.js'),
+          type: 'sourceFile',
+        };
+      }
       const isLegacyGh =
         typeof moduleName === 'string' &&
         moduleName.includes('react-native-screens') &&

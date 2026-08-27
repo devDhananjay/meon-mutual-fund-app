@@ -40,9 +40,9 @@ export default function EmailSent() {
         <View style={styles.actionWrap}>
           <CustomButton title="Back to Sign In" onPress={() => navigation.navigate('Login')} />
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')} activeOpacity={0.8}>
+        {/* <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')} activeOpacity={0.8}>
           <Text style={[styles.resetNowLink, {color: colors.primary}]}>Reset password now</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </SafeAreaView>
   );
