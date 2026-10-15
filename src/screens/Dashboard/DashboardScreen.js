@@ -364,12 +364,22 @@ export default function DashboardScreen() {
     if (!step) {
       return;
     }
-    if (step.id === 'sip' || step.id === 'funds') {
+    if (step.id === 'sip') {
+      // Keep SIP card clear of the tab bar before measuring.
       scrollRef.current?.scrollToEnd?.({animated: true});
       return;
     }
-    if (step.id === 'search' || step.id === 'holdings' || step.id === 'tabs') {
+    if (step.id === 'funds') {
+      scrollRef.current?.scrollTo?.({y: 120, animated: true});
+      return;
+    }
+    if (step.id === 'search' || step.id === 'holdings') {
       scrollRef.current?.scrollTo?.({y: 0, animated: true});
+      return;
+    }
+    if (step.id === 'tabs') {
+      // Leave scroll where it is — tab bar is fixed; avoid pulling SIP under the hole.
+      scrollRef.current?.scrollToEnd?.({animated: false});
     }
   }, []);
 
@@ -470,17 +480,17 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        <View ref={searchTourRef} collapsable={false}>
-          <TouchableOpacity
-            style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
-            onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
-            activeOpacity={0.8}>
-            <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
-            <Text style={[Textstyles.normal, styles.searchPlaceholder, {color: colors.textSecondary}]}>
-              Search mutual funds...
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          ref={searchTourRef}
+          collapsable={false}
+          style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+          onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
+          activeOpacity={0.8}>
+          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
+          <Text style={[Textstyles.normal, styles.searchPlaceholder, {color: colors.textSecondary}]}>
+            Search mutual funds...
+          </Text>
+        </TouchableOpacity>
       </View>
     ),
     [
@@ -687,42 +697,51 @@ export default function DashboardScreen() {
           <>
         {holdingsCard}
 
-        <View
-          ref={fundsTourRef}
-          collapsable={false}
-          style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <TouchableOpacity
-            style={[styles.listHeaderRow, {borderBottomColor: colors.border}]}
-            activeOpacity={0.85}
-            onPress={cycleSortMode}>
-            <View style={styles.sortLeft}>
-              <View style={styles.sortLeftRow}>
-                <Text style={[styles.sortLabel, {color: colors.textPrimary}]}>Sort</Text>
-                <Image source={Icons.filterIcon} style={[styles.sortIcon, {tintColor: colors.textSecondary}]} resizeMode="contain" />
+        <View style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <View ref={fundsTourRef} collapsable={false}>
+            <TouchableOpacity
+              style={[styles.listHeaderRow, {borderBottomColor: colors.border}]}
+              activeOpacity={0.85}
+              onPress={cycleSortMode}>
+              <View style={styles.sortLeft}>
+                <View style={styles.sortLeftRow}>
+                  <Text style={[styles.sortLabel, {color: colors.textPrimary}]}>Sort</Text>
+                  <Image source={Icons.filterIcon} style={[styles.sortIcon, {tintColor: colors.textSecondary}]} resizeMode="contain" />
+                </View>
+                <Text style={[styles.sortDots, {color: colors.textSecondary}]}>············</Text>
               </View>
-              <Text style={[styles.sortDots, {color: colors.textSecondary}]}>············</Text>
-            </View>
 
-            <View style={styles.sortRight}>
-              <View style={styles.sortRightRow}>
-                {/* {sortMode === 'Current' ?  */}
-                <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text>
-                 {/* : null} */}
-                <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
+              <View style={styles.sortRight}>
+                <View style={styles.sortRightRow}>
+                  <Text style={[styles.sortAngle, {color: colors.textSecondary}]}> &lt;&gt;</Text>
+                  <Text style={[styles.sortValueText, {color: colors.textPrimary}]}>{sortHeaderLabel}</Text>
+                </View>
+                <Text style={[styles.sortDots, {color: colors.textSecondary, right: 7}]}>································</Text>
               </View>
-              <Text style={[styles.sortDots, {color: colors.textSecondary, right: 7}]}>································</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {holdings.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={[Textstyles.normal, styles.emptyText, {color: colors.textSecondary}]}>No holdings yet</Text>
-            </View>
-          ) : null}
+            {holdings.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Text style={[Textstyles.normal, styles.emptyText, {color: colors.textSecondary}]}>No holdings yet</Text>
+              </View>
+            ) : null}
 
-          {holdings.map((item, index) => (
+            {holdings.slice(0, 2).map((item, index) => (
+              <HoldingRow
+                key={String(item.scheme_code ?? item.isin ?? index)}
+                fund={item}
+                sortMode={sortMode}
+                onHoldingPress={onHoldingPress}
+                colors={colors}
+                isDark={isDark}
+                holdingVisible={holdingVisible}
+              />
+            ))}
+          </View>
+
+          {holdings.slice(2).map((item, index) => (
             <HoldingRow
-              key={String(item.scheme_code ?? item.isin ?? index)}
+              key={String(item.scheme_code ?? item.isin ?? `extra-${index}`)}
               fund={item}
               sortMode={sortMode}
               onHoldingPress={onHoldingPress}
@@ -735,10 +754,8 @@ export default function DashboardScreen() {
           <View style={styles.importWrap}>
             <TouchableOpacity
               style={[styles.importBtn, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
-              // disabled={true}
               onPress={() => {
-                appAlert('Coming Soon!')
-                // navigation.navigate('Explore')
+                appAlert('Coming Soon!');
               }}
               activeOpacity={0.85}>
               <View style={styles.importLeft}>
@@ -902,7 +919,8 @@ const styles = StyleSheet.create({
   },
   scrollView: {flex: 1},
   scrollContent: {
-    paddingBottom: 16,
+    // Extra space so SIP card sits above the tab bar during the tour.
+    paddingBottom: 28,
   },
   headerBlock: {
     paddingHorizontal: 16,
@@ -952,7 +970,6 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
     shadowRadius: 8,
-    // elevation: 2,
   },
   searchIconImg: {width: SEARCH_FIELD.iconSize, height: SEARCH_FIELD.iconSize, opacity: 0.9},
   searchPlaceholder: {

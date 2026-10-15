@@ -1388,6 +1388,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-uiscene-bridge (0.1.0)
   - react-native-version-check (3.5.0):
     - React-Core
   - react-native-webview (13.16.1):
@@ -1917,6 +1918,7 @@ DEPENDENCIES:
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
+  - react-native-uiscene-bridge (from `../node_modules/react-native-uiscene-bridge`)
   - react-native-version-check (from `../node_modules/react-native-version-check`)
   - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2053,6 +2055,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-slider:
     :path: "../node_modules/@react-native-community/slider"
+  react-native-uiscene-bridge:
+    :path: "../node_modules/react-native-uiscene-bridge"
   react-native-version-check:
     :path: "../node_modules/react-native-version-check"
   react-native-webview:
@@ -2179,6 +2183,7 @@ SPEC CHECKSUMS:
   react-native-netinfo: b54effb58887516971e6c273ee0ff0dd853021d3
   react-native-safe-area-context: 37b720094bcaa36abcd593e08f2ad16507a94769
   react-native-slider: 28eb4ea255fb797bfef3e3b7a551b61890dd44a4
+  react-native-uiscene-bridge: 81c4e027baf71db9eb4c915fe303b357cb463027
   react-native-version-check: 54a471d70dadf0f72fc142e70f16e4bf473a91a5
   react-native-webview: e1b7ac6d4aca5dab394f1edc7707d4e9d03e16fb
   React-NativeModulesApple: 452b86b29fae99ed0a4015dca3ad9cd222f88abf
@@ -2222,6 +2227,6 @@ SPEC CHECKSUMS:
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888
   Yoga: c758bfb934100bb4bf9cbaccb52557cee35e8bdf
 
-PODFILE CHECKSUM: f63ee9cec37a54ecdda8a10a8153a1c7f608056f
+PODFILE CHECKSUM: 6e0014bca91a2539d495abac13a70f773b59d35c
 
 COCOAPODS: 1.16.2

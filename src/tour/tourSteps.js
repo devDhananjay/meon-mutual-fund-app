@@ -45,7 +45,7 @@ export const EXPLORE_TOUR_STEPS = [
 export const FOLIOS_TOUR_STEPS = [
   {
     id: 'search',
-    title: 'My Folios',
+    title: 'Find a folio',
     body: 'Search your folios and open any holding for details or to invest more.',
   },
 ];

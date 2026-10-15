@@ -271,8 +271,11 @@ export default function MyFoliosScreen() {
 
   const listHeader = useMemo(
     () => (
-      <View style={styles.searchOuter} ref={searchTourRef} collapsable={false}>
-        <View style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
+      <View style={styles.searchOuter}>
+        <View
+          ref={searchTourRef}
+          collapsable={false}
+          style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={[styles.searchInput, {color: colors.textPrimary}]}

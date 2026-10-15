@@ -13,10 +13,11 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
 
-const PAD = 8;
-const TOOLTIP_GAP = 18;
-const TOOLTIP_EST_H = 210;
-const CARET = 10;
+const PAD = 6;
+const TOOLTIP_GAP = 12;
+const TOOLTIP_EST_H = 190;
+const CARET = 9;
+const SIDE_PAD = 16;
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -26,21 +27,24 @@ function getScreenSize() {
   return Dimensions.get('window');
 }
 
-/** Round + clamp measureInWindow into Modal overlay space (statusBarTranslucent). */
+/** Clamp layout already converted to Modal overlay space (see useScreenTour Y offset). */
 function toOverlayLayout(layout) {
   if (!layout) {
     return null;
   }
   const {width: sw, height: sh} = getScreenSize();
+  // Modal with statusBarTranslucent can be taller than window by the status bar.
+  const overlayH = Math.max(sh, Dimensions.get('screen').height);
+
   let x = Math.round(layout.x);
   let y = Math.round(layout.y);
   let width = Math.round(layout.width);
   let height = Math.round(layout.height);
 
   x = clamp(x, 0, sw);
-  y = clamp(y, 0, sh);
+  y = clamp(y, 0, overlayH);
   width = clamp(width, 0, sw - x);
-  height = clamp(height, 0, sh - y);
+  height = clamp(height, 0, overlayH - y);
   if (width < 4 || height < 4) {
     return null;
   }
@@ -66,6 +70,7 @@ export default function AppTourOverlay({
   const {colors, isDark} = useAppTheme();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState(getScreenSize);
+  const [tipH, setTipH] = useState(TOOLTIP_EST_H);
   const isLast = stepIndex >= stepCount - 1;
   const isFirst = stepIndex <= 0;
 
@@ -152,9 +157,10 @@ export default function AppTourOverlay({
     }
     contentKeyRef.current += 1;
     setContentKey(contentKeyRef.current);
+    setTipH(TOOLTIP_EST_H);
 
     tipOpacity.setValue(0);
-    tipTranslate.setValue(step?.placement === 'top' ? -12 : 14);
+    tipTranslate.setValue(step?.placement === 'top' ? -10 : 12);
     tipScale.setValue(0.94);
 
     Animated.parallel([
@@ -185,11 +191,19 @@ export default function AppTourOverlay({
     if (!mapped) {
       return null;
     }
+    const overlayH = Math.max(screen.height, Dimensions.get('screen').height);
     const x = Math.max(0, mapped.x - PAD);
     const y = Math.max(0, mapped.y - PAD);
-    const width = Math.min(screen.width - x, mapped.width + PAD * 2);
-    const height = Math.min(screen.height - y, mapped.height + PAD * 2);
-    const radius = clamp(Math.min(16, Math.round(Math.min(width, height) / 4)), 10, 18);
+    let width = Math.min(screen.width - x, mapped.width + PAD * 2);
+    let height = Math.min(overlayH - y, mapped.height + PAD * 2);
+
+    // Tall lists (holdings) — keep spotlight focused, not full-page.
+    const maxHoleH = Math.round(screen.height * 0.4);
+    if (height > maxHoleH) {
+      height = maxHoleH;
+    }
+
+    const radius = clamp(Math.min(14, Math.round(Math.min(width, height) / 4)), 10, 16);
     return {
       x,
       y,
@@ -202,15 +216,16 @@ export default function AppTourOverlay({
   }, [layout, screen.height, screen.width]);
 
   const tooltipBox = useMemo(() => {
-    const sidePad = 16;
-    const maxW = screen.width - sidePad * 2;
-    const tipW = Math.min(maxW, 360);
+    const maxW = screen.width - SIDE_PAD * 2;
+    const tipW = Math.min(maxW, 340);
+    const usedTipH = tipH > 0 ? tipH : TOOLTIP_EST_H;
+    const overlayH = Math.max(screen.height, Dimensions.get('screen').height);
 
     if (!hole) {
       return {
         style: {
           position: 'absolute',
-          left: sidePad,
+          left: SIDE_PAD,
           width: maxW,
           top: Math.max(insets.top + 24, screen.height * 0.28),
         },
@@ -220,21 +235,36 @@ export default function AppTourOverlay({
     }
 
     const preferBelow = step?.placement !== 'top';
-    const spaceBelow = screen.height - (hole.y + hole.height) - insets.bottom;
-    const spaceAbove = hole.y - insets.top;
-    const placeBelow =
-      preferBelow && spaceBelow >= TOOLTIP_EST_H + TOOLTIP_GAP
-        ? true
-        : spaceAbove < TOOLTIP_EST_H + TOOLTIP_GAP && spaceBelow > spaceAbove;
+    const spaceBelow = overlayH - (hole.y + hole.height) - insets.bottom - 8;
+    const spaceAbove = hole.y - insets.top - 8;
+    let placeBelow = preferBelow;
+    if (preferBelow && spaceBelow < usedTipH + TOOLTIP_GAP) {
+      placeBelow = spaceAbove > spaceBelow;
+    } else if (!preferBelow && spaceAbove < usedTipH + TOOLTIP_GAP) {
+      placeBelow = spaceBelow > spaceAbove;
+    }
 
     let left = hole.cx - tipW / 2;
-    left = clamp(left, sidePad, screen.width - sidePad - tipW);
+    left = clamp(left, SIDE_PAD, screen.width - SIDE_PAD - tipW);
 
-    const top = placeBelow
-      ? Math.min(hole.y + hole.height + TOOLTIP_GAP, screen.height - TOOLTIP_EST_H - insets.bottom)
-      : clamp(hole.y - TOOLTIP_EST_H - TOOLTIP_GAP, insets.top + 8, screen.height);
+    let top = placeBelow
+      ? hole.y + hole.height + TOOLTIP_GAP
+      : hole.y - usedTipH - TOOLTIP_GAP;
 
-    const caretLeft = clamp(hole.cx - left - CARET, 18, tipW - 18 - CARET * 2);
+    // Keep on-screen; prefer staying close to the target (no large dead gap).
+    const minTop = insets.top + 6;
+    const maxTop = overlayH - insets.bottom - usedTipH - 6;
+    if (top < minTop) {
+      top = minTop;
+      if (spaceBelow >= usedTipH + TOOLTIP_GAP) {
+        placeBelow = true;
+        top = hole.y + hole.height + TOOLTIP_GAP;
+      }
+    } else if (top > maxTop) {
+      top = Math.max(minTop, maxTop);
+    }
+
+    const caretLeft = clamp(hole.cx - left - CARET, 16, tipW - 16 - CARET * 2);
 
     return {
       style: {
@@ -246,23 +276,19 @@ export default function AppTourOverlay({
       caret: {left: caretLeft, placeBelow},
       placeBelow,
     };
-  }, [hole, insets.bottom, insets.top, screen.height, screen.width, step?.placement]);
+  }, [hole, insets.bottom, insets.top, screen.height, screen.width, step?.placement, tipH]);
 
   const pulseScale = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.18],
+    outputRange: [1, 1.12],
   });
   const pulseOpacity = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.55, 0],
+    outputRange: [0.5, 0],
   });
   const holeBorderOpacity = holeBreath.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.62, 1],
-  });
-  const holeScale = holeBreath.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.015],
+    outputRange: [0.7, 1],
   });
 
   if (!visible || !step) {
@@ -280,7 +306,9 @@ export default function AppTourOverlay({
       animationType="none"
       statusBarTranslucent
       onShow={() => {
-        onRequestRemeasure?.();
+        requestAnimationFrame(() => {
+          onRequestRemeasure?.();
+        });
       }}
       onRequestClose={onSkip}>
       <View style={styles.root} pointerEvents="box-none">
@@ -320,24 +348,22 @@ export default function AppTourOverlay({
 
         {hole ? (
           <>
-            {/* Expanding pulse ring */}
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.pulseRing,
                 {
-                  top: hole.y - 10,
-                  left: hole.x - 10,
-                  width: hole.width + 20,
-                  height: hole.height + 20,
-                  borderRadius: hole.radius + 8,
+                  top: hole.y - 8,
+                  left: hole.x - 8,
+                  width: hole.width + 16,
+                  height: hole.height + 16,
+                  borderRadius: hole.radius + 6,
                   borderColor: colors.primary,
                   opacity: pulseOpacity,
                   transform: [{scale: pulseScale}],
                 },
               ]}
             />
-            {/* Soft fill + breathing border */}
             <Animated.View
               pointerEvents="none"
               style={[
@@ -352,7 +378,6 @@ export default function AppTourOverlay({
                   backgroundColor: isDark ? 'rgba(30,129,242,0.14)' : 'rgba(30,129,242,0.1)',
                   shadowColor: colors.primary,
                   opacity: holeBorderOpacity,
-                  transform: [{scale: holeScale}],
                 },
               ]}
             />
@@ -360,6 +385,12 @@ export default function AppTourOverlay({
         ) : null}
 
         <Animated.View
+          onLayout={e => {
+            const h = Math.round(e.nativeEvent.layout.height);
+            if (h > 0 && Math.abs(h - tipH) > 2) {
+              setTipH(h);
+            }
+          }}
           style={[
             styles.tooltip,
             tooltipBox.style,

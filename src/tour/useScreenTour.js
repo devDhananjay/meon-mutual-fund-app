@@ -1,5 +1,11 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {DeviceEventEmitter, Dimensions, InteractionManager, Platform} from 'react-native';
+import {
+  DeviceEventEmitter,
+  Dimensions,
+  InteractionManager,
+  Platform,
+  StatusBar,
+} from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import {
   APP_TOUR_REPLAY_EVENT,
@@ -7,6 +13,21 @@ import {
   markScreenTourSeen,
 } from '../tour/tourStorage';
 import {TOUR_SCREEN} from '../tour/tourSteps';
+
+/** Matches MainTabNavigator LiquidGlassTabBar height. */
+export const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 95 : 70;
+
+/**
+ * Translucent Modal draws from the physical top of the screen. On Android,
+ * measureInWindow / window height are often relative to the area below the
+ * status bar — shift Y so the spotlight lands on the real target.
+ */
+export function getTourOverlayYOffset() {
+  if (Platform.OS !== 'android') {
+    return 0;
+  }
+  return Math.round(StatusBar.currentHeight || 0);
+}
 
 function readNodeLayout(node) {
   return new Promise(resolve => {
@@ -19,9 +40,10 @@ function readNodeLayout(node) {
         resolve(null);
         return;
       }
+      const yOffset = getTourOverlayYOffset();
       resolve({
         x: Number(x) || 0,
-        y: Number(y) || 0,
+        y: (Number(y) || 0) + yOffset,
         width: Number(width) || 0,
         height: Number(height) || 0,
       });
@@ -54,7 +76,7 @@ export function useScreenTour({
   stepsRef.current = steps;
 
   const measureStep = useCallback(
-    async (stepId, {retries = 6, delayMs = 40} = {}) => {
+    async (stepId, {retries = 8, delayMs = 50} = {}) => {
       const gen = ++measureGenRef.current;
 
       if (typeof resolveLayout === 'function') {
@@ -79,7 +101,7 @@ export function useScreenTour({
           }
           return;
         }
-        await new Promise(r => setTimeout(r, delayMs + attempt * 30));
+        await new Promise(r => setTimeout(r, delayMs + attempt * 40));
       }
       if (gen === measureGenRef.current) {
         setLayout(null);
@@ -107,7 +129,7 @@ export function useScreenTour({
     const first = stepsRef.current[0];
     onStepChange?.(first, 0);
     InteractionManager.runAfterInteractions(() => {
-      setTimeout(() => measureStep(first.id), 120);
+      setTimeout(() => measureStep(first.id), 160);
     });
   }, [measureStep, onStepChange]);
 
@@ -158,12 +180,14 @@ export function useScreenTour({
       return undefined;
     }
     onStepChange?.(step, stepIndex);
-    // Scroll/layout settle — measure twice (after scroll + a beat later).
-    const t1 = setTimeout(() => measureStep(step.id), 320);
-    const t2 = setTimeout(() => measureStep(step.id), 560);
+    // Scroll/layout settle — measure a few times so spotlight tracks the target.
+    const t1 = setTimeout(() => measureStep(step.id), 280);
+    const t2 = setTimeout(() => measureStep(step.id), 520);
+    const t3 = setTimeout(() => measureStep(step.id), 820);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
     };
   }, [stepIndex, visible, measureStep, onStepChange]);
 
@@ -184,7 +208,7 @@ export function useScreenTour({
     if (!step || !visible) {
       return;
     }
-    measureStep(step.id, {retries: 4, delayMs: 30});
+    measureStep(step.id, {retries: 5, delayMs: 40});
   }, [measureStep, stepIndex, visible]);
 
   return {
@@ -201,15 +225,15 @@ export function useScreenTour({
   };
 }
 
-/** Approximate bottom tab bar hole for Dashboard “tabs” step. */
+/** Bottom tab bar hole for Dashboard “tabs” step (Modal overlay coords). */
 export function getTabBarTourLayout() {
   const {width: sw, height: sh} = Dimensions.get('window');
-  const tabH = Platform.OS === 'ios' ? 83 : 64;
-  const bottomPad = Platform.OS === 'ios' ? 8 : 4;
+  const yOffset = getTourOverlayYOffset();
+  const height = TAB_BAR_HEIGHT;
   return {
-    x: 8,
-    y: Math.round(sh - tabH - bottomPad),
-    width: Math.round(sw - 16),
-    height: Math.round(tabH - 4),
+    x: 4,
+    y: Math.round(yOffset + sh - height),
+    width: Math.round(sw - 8),
+    height: Math.round(height),
   };
 }

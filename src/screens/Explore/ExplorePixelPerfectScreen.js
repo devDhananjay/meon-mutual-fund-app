@@ -449,23 +449,23 @@ export default function ExplorePixelPerfectScreen() {
   const exploreListHeader = useMemo(
     () => (
       <>
-        <View ref={searchTourRef} collapsable={false}>
-          <TouchableOpacity
-            style={[styles.searchWrap, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
-            onPress={onPressSearchBar}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Search mutual funds">
-            <Image
-              source={Icons.SearchIcon}
-              style={[styles.searchIconImg, isDark ? {tintColor: colors.textSecondary} : null]}
-              resizeMode="contain"
-            />
-            <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
-              Search funds...
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          ref={searchTourRef}
+          collapsable={false}
+          style={[styles.searchWrap, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+          onPress={onPressSearchBar}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Search mutual funds">
+          <Image
+            source={Icons.SearchIcon}
+            style={[styles.searchIconImg, isDark ? {tintColor: colors.textSecondary} : null]}
+            resizeMode="contain"
+          />
+          <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
+            Search funds...
+          </Text>
+        </TouchableOpacity>
 
         <View style={[styles.sipBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
