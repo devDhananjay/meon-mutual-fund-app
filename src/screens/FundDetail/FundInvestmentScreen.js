@@ -12,6 +12,8 @@ import {
   Platform,
   AppState,
   Switch,
+  Animated,
+  Easing,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation, useRoute} from '@react-navigation/native';
@@ -46,6 +48,9 @@ import {typeScale} from '../../theme/typography';
 import {appAlert} from '../../utils/appAlert';
 import {fetchCompanyProfileSettings, normalizeSipPlaceOrderDayDiff} from '../../services/companyService';
 import {filterActiveMandatesForOrders} from '../Mandate/mandateFieldUtils';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {INVEST_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 function normalizeFolioNumberList(raw, fallback) {
   const list = [];
@@ -69,6 +74,93 @@ function safeInr(v) {
     return '—';
   }
   return `₹${Number(v).toLocaleString('en-IN')}`;
+}
+
+function InvestScreenLoader({colors, isDark, styles}) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
+
+  const boneStyle = {
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.07)',
+    opacity: pulse,
+  };
+
+  return (
+    <View style={styles.loaderCard}>
+      <View style={styles.loaderTabs}>
+        <Animated.View style={[styles.loaderTabBone, boneStyle]} />
+        <Animated.View style={[styles.loaderTabBone, boneStyle]} />
+      </View>
+      <Animated.View style={[styles.loaderLabelBone, boneStyle]} />
+      <Animated.View style={[styles.loaderInputBone, boneStyle]} />
+      <View style={styles.loaderChipsRow}>
+        <Animated.View style={[styles.loaderChipBone, boneStyle]} />
+        <Animated.View style={[styles.loaderChipBone, boneStyle]} />
+        <Animated.View style={[styles.loaderChipBone, boneStyle]} />
+      </View>
+      <Animated.View style={[styles.loaderFieldBone, {marginTop: 18}, boneStyle]} />
+      <Animated.View style={[styles.loaderInputBone, boneStyle]} />
+      <View style={styles.loaderFooterRow}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={styles.loaderHint}>Loading fund details…</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Quick chips always start at min (e.g. 1000 → 1000, 2000, 5000). */
+function buildQuickAmounts(minAmount, maxAmount) {
+  const min = Math.max(1, Math.round(Number(minAmount) || 500));
+  const maxRaw = Number(maxAmount);
+  const maxCap = Number.isFinite(maxRaw) && maxRaw > 0 ? Math.round(maxRaw) : null;
+
+  const pushUnique = (list, value) => {
+    let v = Math.round(value);
+    if (maxCap != null) {
+      v = Math.min(v, maxCap);
+    }
+    if (v < min || list.includes(v)) {
+      return;
+    }
+    list.push(v);
+  };
+
+  const amounts = [];
+  pushUnique(amounts, min);
+  pushUnique(amounts, min * 2);
+  pushUnique(amounts, min * 5);
+
+  // Fill remaining slots with larger steps when max allows
+  let step = min;
+  while (amounts.length < 3 && step < Number.MAX_SAFE_INTEGER / 2) {
+    step *= 2;
+    pushUnique(amounts, min + step);
+    if (maxCap != null && amounts[amounts.length - 1] >= maxCap) {
+      break;
+    }
+  }
+
+  return amounts.slice(0, 3);
 }
 
 function formatDDMMYYYY(d) {
@@ -361,6 +453,15 @@ export default function FundInvestmentScreen() {
   const [folioModalVisible, setFolioModalVisible] = useState(false);
   const [orderAmount, setOrderAmount] = useState('');
   const [amountError, setAmountError] = useState(null);
+  const orderTypeTourRef = useRef(null);
+  const amountTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      orderType: orderTypeTourRef,
+      amount: amountTourRef,
+    }),
+    [],
+  );
   const [sipFrequency, setSipFrequency] = useState('Monthly');
   const [sipDurationYears, setSipDurationYears] = useState('1');
   const [sipDate, setSipDate] = useState(() => new Date());
@@ -397,10 +498,25 @@ export default function FundInvestmentScreen() {
   const [neftUtr, setNeftUtr] = useState('');
   const waitingAuthReturnRef = useRef(false);
 
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.invest,
+    steps: INVEST_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: !loading && !pendingOrderId && !!fundInfo,
+    autoStartDelayMs: 520,
+  });
+
   const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
   const minSip = useMemo(() => pickMinSipInvestment(fundInfo), [fundInfo]);
   const maxSip = useMemo(() => pickMaxSipInvestment(fundInfo), [fundInfo]);
   const minOrderAmount = orderType === 'SIP' ? minSip : minLumpsum;
+  const quickAmounts = useMemo(
+    () =>
+      orderType === 'SIP'
+        ? buildQuickAmounts(minSip, maxSip)
+        : buildQuickAmounts(minLumpsum),
+    [orderType, minSip, maxSip, minLumpsum],
+  );
   const selectedMandateLabel = selectedMandate
     ? pickMandateLabel(selectedMandate)
     : 'Select your preferred mandate option';
@@ -520,14 +636,16 @@ export default function FundInvestmentScreen() {
 
   const onTapQuickAmount = useCallback(
     v => {
-      let n = v;
+      let n = Math.round(Number(v)) || 0;
       if (orderType === 'SIP') {
-        n = Math.min(maxSip, Math.max(minSip, v));
+        n = Math.min(maxSip, Math.max(minSip, n));
+      } else {
+        n = Math.max(minLumpsum, n);
       }
       setOrderAmount(String(n));
       setAmountError(null);
     },
-    [orderType, minSip, maxSip],
+    [orderType, minSip, maxSip, minLumpsum],
   );
 
   const openCart = useCallback(() => {
@@ -1178,13 +1296,10 @@ export default function FundInvestmentScreen() {
               </View>
             </TouchableOpacity>
           </View>
-          <Text style={[styles.screenTitle, {marginBottom: 12}]} numberOfLines={3}>
+          <Text style={[styles.screenTitle, {marginBottom: 16}]} numberOfLines={3}>
             {displayName}
           </Text>
-          <View style={[styles.loadingBox, styles.loadingBoxInline]}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingHint}>Loading fund details…</Text>
-          </View>
+          <InvestScreenLoader colors={colors} isDark={isDark} styles={styles} />
         </View>
       </SafeAreaView>
     );
@@ -1278,7 +1393,7 @@ export default function FundInvestmentScreen() {
             </View>
           ) : (
             <View style={styles.card}>
-              <View style={styles.orderTabs}>
+              <View style={styles.orderTabs} ref={orderTypeTourRef} collapsable={false}>
                 <TouchableOpacity
                   style={[styles.orderTabBtn, orderType === 'ONE_TIME' && styles.orderTabBtnActive]}
                   activeOpacity={0.85}
@@ -1302,41 +1417,55 @@ export default function FundInvestmentScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.amountInputWrap, amountError ? styles.amountInputWrapErr : null]}>
-                <Text style={styles.amountCurrency}>₹</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  value={orderAmount}
-                  onChangeText={t => {
-                    setOrderAmount(t.replace(/[^0-9]/g, '').slice(0, 12));
-                    setAmountError(null);
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={12}
-                  placeholder="Enter Amount"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-              {amountError ? <Text style={styles.amountErrTxt}>{amountError}</Text> : null}
-              {!amountError && orderType === 'SIP' ? (
-                <Text style={styles.amountHintTxt}>
-                  SIP amount: {safeInr(minSip)} – {safeInr(maxSip)}
-                </Text>
-              ) : null}
-              {!amountError && orderType === 'ONE_TIME' ? (
-                <Text style={styles.amountHintTxt}>Minimum one-time: {safeInr(minLumpsum)}</Text>
-              ) : null}
+              <View style={styles.amountSection} ref={amountTourRef} collapsable={false}>
+                <Text style={styles.amountSectionLabel}>Enter amount</Text>
+                <View
+                  style={[styles.amountInputWrap, amountError ? styles.amountInputWrapErr : null]}>
+                  <Text style={styles.amountCurrency}>₹</Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    value={orderAmount}
+                    onChangeText={t => {
+                      setOrderAmount(t.replace(/[^0-9]/g, '').slice(0, 12));
+                      setAmountError(null);
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={12}
+                    placeholder={String(minOrderAmount)}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+                {amountError ? <Text style={styles.amountErrTxt}>{amountError}</Text> : null}
+                {!amountError && orderType === 'SIP' ? (
+                  <Text style={styles.amountHintTxt}>
+                    Min SIP {safeInr(minSip)}
+                    {maxSip < 999999999 ? ` · Max ${safeInr(maxSip)}` : ''}
+                  </Text>
+                ) : null}
+                {!amountError && orderType === 'ONE_TIME' ? (
+                  <Text style={styles.amountHintTxt}>Minimum {safeInr(minLumpsum)}</Text>
+                ) : null}
 
-              <View style={[styles.quickAmountRow, amountError ? styles.quickRowAfterErr : null]}>
-                {[500, 1000, 2000].map(v => (
-                  <TouchableOpacity
-                    key={v}
-                    style={styles.quickAmountChip}
-                    onPress={() => onTapQuickAmount(v)}
-                    activeOpacity={0.85}>
-                    <Text style={styles.quickAmountChipTxt}>₹{v}</Text>
-                  </TouchableOpacity>
-                ))}
+                <View style={styles.quickAmountRow}>
+                  {quickAmounts.map(v => {
+                    const selected = Number(orderAmount) === v;
+                    return (
+                      <TouchableOpacity
+                        key={v}
+                        style={[styles.quickAmountChip, selected && styles.quickAmountChipSelected]}
+                        onPress={() => onTapQuickAmount(v)}
+                        activeOpacity={0.85}>
+                        <Text
+                          style={[
+                            styles.quickAmountChipTxt,
+                            selected && styles.quickAmountChipTxtSelected,
+                          ]}>
+                          {safeInr(v)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
               {folioOptions.length > 0 ? (
@@ -1685,6 +1814,17 @@ export default function FundInvestmentScreen() {
           onCancel={onCancelSipPicker}
         />
       ) : null}
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
+      />
     </SafeAreaView>
   );
 }
@@ -1758,18 +1898,33 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   orderTabs: {
     flexDirection: 'row',
-    borderRadius: 15,
-    backgroundColor: isDark ? '#2C2C2C' : '#E8EAED',
+    borderRadius: 12,
+    backgroundColor: isDark ? '#2C2C2C' : '#F1F3F5',
     padding: 4,
-    marginBottom: 4,
+    marginBottom: 0,
     overflow: 'hidden',
   },
-  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 15},
-  orderTabBtnActive: {backgroundColor: isDark ? 'rgba(226, 231, 237, 0.15)' : 'white'},
+  orderTabBtn: {flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10},
+  orderTabBtnActive: {
+    backgroundColor: isDark ? 'rgba(226, 231, 237, 0.15)' : '#FFFFFF',
+    shadowColor: isDark ? 'transparent' : '#000',
+    shadowOpacity: isDark ? 0 : 0.06,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 1},
+  },
   orderTabTxt: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.textSecondary, fontWeight: '600'},
   orderTabTxtActive: {color: c.primary},
+  amountSection: {
+    marginTop: 18,
+  },
+  amountSectionLabel: {
+    ...Textstyles.medium,
+    fontSize: 14,
+    color: c.textSecondary,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   amountInputWrap: {
-    marginTop: 16,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: 12,
@@ -1790,7 +1945,14 @@ function getFundInvestmentStyles(colors, isDark) {
     marginRight: 8,
     fontWeight: '600',
   },
-  amountInput: {flex: 1, fontSize: typeScale.amountInput, color: c.textPrimary, paddingVertical: 10},
+  amountInput: {
+    flex: 1,
+    fontSize: typeScale.amountInput,
+    color: c.textPrimary,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 0,
+    textAlignVertical: 'center',
+    ...(Platform.OS === 'android' ? {includeFontPadding: false} : null),
+  },
   amountErrTxt: {
     color: '#DC2626',
     fontSize: 13,
@@ -1805,23 +1967,32 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   quickAmountRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  quickRowAfterErr: {
+    gap: 8,
     marginTop: 12,
   },
   quickAmountChip: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: c.primary,
+    borderColor: c.border,
     borderRadius: 10,
-    paddingVertical: 12,
-    width: '31%',
+    paddingVertical: 11,
     alignItems: 'center',
-    backgroundColor: c.card,
+    backgroundColor: isDark ? c.inputBg : '#F8FAFC',
   },
-  quickAmountChipTxt: {...Textstyles.medium, fontSize: typeScale.bodyMd, color: c.primary, fontWeight: '600'},
-  fieldLabel: {...Textstyles.medium, fontSize: 14, color: c.textSecondary, fontWeight: '600', top:6, marginBottom: 8},
+  quickAmountChipSelected: {
+    borderColor: c.primary,
+    backgroundColor: isDark ? 'rgba(30, 129, 242, 0.16)' : '#EAF4FF',
+  },
+  quickAmountChipTxt: {
+    ...Textstyles.medium,
+    fontSize: typeScale.bodyMd,
+    color: c.textPrimary,
+    fontWeight: '600',
+  },
+  quickAmountChipTxtSelected: {
+    color: c.primary,
+  },
+  fieldLabel: {...Textstyles.medium, fontSize: 14, color: c.textSecondary, fontWeight: '600', marginTop: 6, marginBottom: 8},
   fieldLabelSpaced: {marginTop: 16},
   dropdownField: {
     borderWidth: 1,
@@ -2013,23 +2184,72 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   paymentCancelBtnTxt: {...Textstyles.medium, color: c.textSecondary, fontSize: 14},
   modalLoader: {marginVertical: 12},
-  loadingBox: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    minHeight: 96,
-    borderRadius: 12,
+  loaderCard: {
+    backgroundColor: c.card,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: c.border,
-    backgroundColor: c.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: isDark ? 'transparent' : '#000',
+    shadowOpacity: isDark ? 0 : 0.06,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 4},
+  },
+  loaderTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: isDark ? '#2C2C2C' : '#F1F3F5',
+    marginBottom: 18,
+  },
+  loaderTabBone: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+  },
+  loaderLabelBone: {
+    width: 96,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 10,
+  },
+  loaderInputBone: {
+    height: 56,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  loaderChipsRow: {
+    flexDirection: 'row',
     gap: 8,
   },
-  loadingBoxInline: {
-    marginHorizontal: 0,
-    marginTop: 8,
+  loaderChipBone: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
   },
-  loadingHint: {fontSize: 13, color: c.textSecondary},
+  loaderFieldBone: {
+    width: 72,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 10,
+  },
+  loaderFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 22,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.border,
+  },
+  loaderHint: {
+    ...Textstyles.medium,
+    fontSize: 13,
+    color: c.textSecondary,
+    fontWeight: '500',
+  },
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
 });

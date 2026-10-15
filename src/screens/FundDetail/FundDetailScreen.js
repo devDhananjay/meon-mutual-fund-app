@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Dimensions,
   TextInput,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -71,6 +73,81 @@ function safeInr(v) {
     return '—';
   }
   return `₹${Number(v).toLocaleString('en-IN')}`;
+}
+
+function FundDetailLoader({colors, isDark, styles}) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
+
+  const boneStyle = {
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.07)',
+    opacity: pulse,
+  };
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      showsVerticalScrollIndicator={false}
+      scrollEnabled={false}>
+      <View style={styles.card}>
+        <View style={styles.titleRow}>
+          <Animated.View style={[styles.logo, styles.loaderLogoBone, boneStyle]} />
+          <View style={styles.loaderTitleCol}>
+            <Animated.View style={[styles.loaderTitleLine, boneStyle]} />
+            <Animated.View style={[styles.loaderTitleLineShort, boneStyle]} />
+          </View>
+        </View>
+        <View style={styles.loaderTagsRow}>
+          <Animated.View style={[styles.loaderTagBone, boneStyle]} />
+          <Animated.View style={[styles.loaderTagBone, boneStyle]} />
+          <Animated.View style={[styles.loaderTagBone, {width: 72}, boneStyle]} />
+        </View>
+        <Animated.View style={[styles.loaderChartBone, boneStyle]} />
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.grid2}>
+          {[0, 1, 2, 3].map(i => (
+            <View key={i} style={styles.cell}>
+              <Animated.View style={[styles.loaderCellLabel, boneStyle]} />
+              <Animated.View style={[styles.loaderCellVal, boneStyle]} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Animated.View style={[styles.loaderSectionTitle, boneStyle]} />
+        <Animated.View style={[styles.loaderCalcAmt, boneStyle]} />
+        <Animated.View style={[styles.loaderSliderBone, boneStyle]} />
+      </View>
+
+      <View style={styles.loaderFooterRow}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={styles.loaderHint}>Fetching fund details</Text>
+      </View>
+    </ScrollView>
+  );
 }
 
 function toFiniteNumber(value) {
@@ -898,12 +975,9 @@ export default function FundDetailScreen() {
 
   if (loading && !folioData) {
     return (
-      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]}>
+      <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
         {header}
-        <View style={styles.center}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.loadingTxt}>Loading fund…</Text>
-        </View>
+        <FundDetailLoader colors={colors} isDark={isDark} styles={styles} />
       </SafeAreaView>
     );
   }
@@ -2009,7 +2083,28 @@ function getFundDetailStyles(colors, isDark) {
   modalRowTxt: {fontSize: 14, color: c.textPrimary},
   modalRowTxtActive: {color: c.primary, fontWeight: '500'},
   center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  loadingTxt: {marginTop: 12, color: c.textSecondary},
+  loaderLogoBone: {marginRight: 12},
+  loaderTitleCol: {flex: 1, justifyContent: 'center', gap: 8, paddingTop: 4},
+  loaderTitleLine: {height: 14, borderRadius: 7, width: '92%'},
+  loaderTitleLineShort: {height: 14, borderRadius: 7, width: '58%'},
+  loaderTagsRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, marginBottom: 12},
+  loaderTagBone: {width: 64, height: 24, borderRadius: 10},
+  loaderChartBone: {height: 180, borderRadius: 12, marginTop: 4},
+  loaderCellLabel: {width: '55%', height: 11, borderRadius: 6, marginBottom: 8},
+  loaderCellVal: {width: '40%', height: 16, borderRadius: 8},
+  loaderSectionTitle: {width: 140, height: 14, borderRadius: 7, marginBottom: 14},
+  loaderCalcAmt: {width: 120, height: 22, borderRadius: 8, marginBottom: 14},
+  loaderSliderBone: {height: 28, borderRadius: 14},
+  loaderFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  loaderHint: {...Textstyles.medium, fontSize: 13, color: c.textSecondary, fontWeight: '500'},
   err: {color: '#B91C1C', textAlign: 'center', padding: 16},
   retry: {marginTop: 12, padding: 12},
   retryTxt: {color: c.primary, fontWeight: '600'},

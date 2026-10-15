@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,9 @@ import {appAlert} from '../../utils/appAlert';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
 import {useAppTheme} from '../../theme/useAppTheme';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {PROFILE_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 /** Align Profile with app theme (`useAppTheme`) so light/dark toggle matches everywhere. */
 function getThemePalette(colors, isDark) {
@@ -185,6 +188,22 @@ export default function ProfileScreen() {
   const verifyLine = useMemo(() => verificationLine(user), [user]);
   const verified = useMemo(() => isVerifiedUser(user), [user]);
 
+  const accountsTourRef = useRef(null);
+  const settingsTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      accounts: accountsTourRef,
+      settings: settingsTourRef,
+    }),
+    [],
+  );
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.profile,
+    steps: PROFILE_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    autoStartDelayMs: 480,
+  });
+
   const onOrders = useCallback(() => {
     navigateToMyOrders(navigation);
   }, [navigation]);
@@ -291,41 +310,45 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.profileHint}>Manage your investments and account settings</Text>
               </View>
-              <TouchableOpacity
-                style={styles.profileSettingsBtn}
-                onPress={onProfileSettings}
-                activeOpacity={0.85}
-                hitSlop={8}>
-                {/* <Text style={styles.profileSettingsIcon}>⚙</Text> */}
-                <Image source={Icons.SettingsMinimalistic} style={styles.profileSettingsIconImg} resizeMode="contain" />
-              </TouchableOpacity>
+              <View ref={settingsTourRef} collapsable={false}>
+                <TouchableOpacity
+                  style={styles.profileSettingsBtn}
+                  onPress={onProfileSettings}
+                  activeOpacity={0.85}
+                  hitSlop={8}>
+                  {/* <Text style={styles.profileSettingsIcon}>⚙</Text> */}
+                  <Image source={Icons.SettingsMinimalistic} style={styles.profileSettingsIconImg} resizeMode="contain" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
 
-        <SectionCard title="Accounts" styles={styles}>
-          <ProfileRow
-            icon={Icons.UserRounded}
-            label="Account Details"
-            onPress={onAccountDetails}
-            styles={styles}
-          />
-          <ProfileRow icon={Icons.MyOrdersIcon} label="My Orders" onPress={onOrders} styles={styles} />
-          <ProfileRow icon={Icons.MandateIcon} label="Mandate" onPress={onMandate} styles={styles} />
-          <ProfileRow
-            icon={Icons.BookmarkFilled}
-            label="My Watchlist"
-            onPress={onWatchlist}
-            styles={styles}
-          />
-          <ProfileRow
-            icon={Icons.ChangePasswordIcon}
-            label="Change Password"
-            onPress={onForgotPassword}
-            isLast
-            styles={styles}
-          />
-        </SectionCard>
+        <View ref={accountsTourRef} collapsable={false}>
+          <SectionCard title="Accounts" styles={styles}>
+            <ProfileRow
+              icon={Icons.UserRounded}
+              label="Account Details"
+              onPress={onAccountDetails}
+              styles={styles}
+            />
+            <ProfileRow icon={Icons.MyOrdersIcon} label="My Orders" onPress={onOrders} styles={styles} />
+            <ProfileRow icon={Icons.MandateIcon} label="Mandate" onPress={onMandate} styles={styles} />
+            <ProfileRow
+              icon={Icons.BookmarkFilled}
+              label="My Watchlist"
+              onPress={onWatchlist}
+              styles={styles}
+            />
+            <ProfileRow
+              icon={Icons.ChangePasswordIcon}
+              label="Change Password"
+              onPress={onForgotPassword}
+              isLast
+              styles={styles}
+            />
+          </SectionCard>
+        </View>
 
         <SectionCard title="Support & Legal" styles={styles}>
           <ProfileRow
@@ -374,6 +397,17 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
+      />
     </SafeAreaView>
   );
 }

@@ -1,7 +1,7 @@
 import React, {useMemo, useState, useCallback} from 'react';
 import {Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {CommonActions, useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppHeader from '../../components/AppHeader';
@@ -10,6 +10,9 @@ import {useAppTheme} from '../../theme/useAppTheme';
 import {setThemeMode} from '../../store/slices/themeSlice';
 import {STORAGE_KEYS} from '../../constants/storageKeys';
 import Icons from '../../utils/icons';
+import {navigationRef} from '../../navigation/navigationRef';
+import {requestAppTourReplay} from '../../tour/tourStorage';
+import {appAlert} from '../../utils/appAlert';
 
 export default function ProfileSettingsScreen() {
   const navigation = useNavigation();
@@ -34,6 +37,32 @@ export default function ProfileSettingsScreen() {
     [dispatch],
   );
 
+  const onReplayTour = useCallback(() => {
+    appAlert(
+      'App tour',
+      'Replay tips on Dashboard, and show first-visit tips again on Explore, Folios, Profile, Orders, Mandate, Watchlist, Account Details, Invest, and Cart?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Start',
+          onPress: async () => {
+            await requestAppTourReplay();
+            if (navigationRef.isReady()) {
+              navigationRef.dispatch(
+                CommonActions.navigate({
+                  name: 'MainTabs',
+                  params: {screen: 'Dashboard'},
+                }),
+              );
+            } else {
+              navigation.navigate('MainTabs', {screen: 'Dashboard'});
+            }
+          },
+        },
+      ],
+    );
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <AppHeader
@@ -42,19 +71,6 @@ export default function ProfileSettingsScreen() {
         backgroundColor={isDark ? colors.background : '#FFFFFF'}
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* <View style={styles.group}>  */}
-          {/* <TouchableOpacity
-            style={styles.row}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('AccountDetails')}>
-            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
-              <Image source={Icons.UserRounded} style={styles.rowIcon} resizeMode="contain" />
-            </View>
-            <Text style={styles.rowLabel}>Account Details</Text>
-            <Image source={Icons.GoIcon} style={styles.rowChevron} resizeMode="contain" />
-          </TouchableOpacity> */}
-        {/* </View> */}
-
         <View style={styles.group}>
           <View style={styles.row}>
             <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
@@ -66,13 +82,16 @@ export default function ProfileSettingsScreen() {
               onValueChange={onToggleDarkMode}
               trackColor={{false: '#D5D7DC', true: colors.primary}}
               thumbColor="#FFFFFF"
-              // ios_backgroundColor="#D5D7DC"
             />
           </View>
 
           <View style={[styles.row, styles.rowDivider]}>
             <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
-              <Image source={Icons.NotificationsIcon} style={[styles.rowIcon, {tintColor: '#1E81F2'}]} resizeMode="contain" />
+              <Image
+                source={Icons.NotificationsIcon}
+                style={[styles.rowIcon, {tintColor: '#1E81F2'}]}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.rowLabel}>Notifications</Text>
             <Switch
@@ -80,9 +99,20 @@ export default function ProfileSettingsScreen() {
               onValueChange={setNotificationsEnabled}
               trackColor={{false: '#D5D7DC', true: colors.primary}}
               thumbColor="#FFFFFF"
-              // ios_backgroundColor="#D5D7DC"
             />
           </View>
+
+          <TouchableOpacity style={[styles.row, styles.rowDivider]} activeOpacity={0.8} onPress={onReplayTour}>
+            <View style={[styles.iconWrap, {backgroundColor: isDark ? '#1B2640' : '#EEF5FF'}]}>
+              <Image
+                source={Icons.HelpSupportIcon}
+                style={[styles.rowIcon, {tintColor: colors.primary}]}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.rowLabel}>Replay App Tour</Text>
+            <Image source={Icons.GoIcon} style={styles.rowChevron} resizeMode="contain" />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.row, styles.rowDivider]}

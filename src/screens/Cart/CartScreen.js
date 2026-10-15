@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {View, Text, StyleSheet, FlatList, TouchableOpacity, Image} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -26,6 +26,9 @@ import AppHeader from '../../components/AppHeader';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {pickMaxSipInvestment, pickMinSipInvestment} from '../../utils/schemeLimits';
 import {appAlert} from '../../utils/appAlert';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {CART_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 function formatInr(n) {
   const num = Number(n);
@@ -192,6 +195,14 @@ export default function CartScreen() {
   const [pendingGatewayUrl, setPendingGatewayUrl] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const checkoutTourRef = useRef(null);
+  const tourTargetRefs = useMemo(() => ({checkout: checkoutTourRef}), []);
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.cart,
+    steps: CART_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    autoStartDelayMs: 450,
+  });
 
   const onRemove = useCallback(
     code => {
@@ -424,7 +435,7 @@ export default function CartScreen() {
           ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.emptyWrap}>
+            <View style={styles.emptyWrap} ref={checkoutTourRef} collapsable={false}>
               <View style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                 <Image source={Icons.EmptyCart} style={styles.emptyImg} resizeMode="contain" />
                 <Text style={[Textstyles.medium, styles.emptyTitle, {color: colors.textPrimary}]}>Your cart is empty</Text>
@@ -445,7 +456,10 @@ export default function CartScreen() {
         />
 
         {items.length > 0 ? (
-          <View style={[styles.footer, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
+          <View
+            style={[styles.footer, {backgroundColor: colors.card, borderTopColor: colors.border}]}
+            ref={checkoutTourRef}
+            collapsable={false}>
             <View style={styles.footerRow}>
               <Text style={[styles.footerLabel, {color: colors.textSecondary}]}>Total</Text>
               <Text style={[styles.footerTotal, {color: colors.textPrimary}]}>{formatInr(total)}</Text>
@@ -478,6 +492,17 @@ export default function CartScreen() {
           </View>
         ) : null}
       </View>
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
+      />
     </SafeAreaView>
   );
 }

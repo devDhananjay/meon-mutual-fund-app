@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,9 @@ import Icons from '../../utils/icons';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {SEARCH_FIELD} from '../../theme/searchField';
 import {TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {FOLIOS_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 const PAGE_BG = '#F8FAFC';
 const CARD_BORDER = '#E5E7EB';
@@ -187,6 +190,15 @@ export default function MyFoliosScreen() {
   const {data, isPending, error, refreshing, refetch} = useDetailedFolioData();
   useRefetchOnReconnect(refetch);
   const [search, setSearch] = useState('');
+  const searchTourRef = useRef(null);
+  const tourTargetRefs = useMemo(() => ({search: searchTourRef}), []);
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.myFolios,
+    steps: FOLIOS_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: !isPending,
+    autoStartDelayMs: 480,
+  });
 
   const filteredHoldings = useMemo(() => {
     const holdings = data?.holdings ?? [];
@@ -259,7 +271,7 @@ export default function MyFoliosScreen() {
 
   const listHeader = useMemo(
     () => (
-      <View style={styles.searchOuter}>
+      <View style={styles.searchOuter} ref={searchTourRef} collapsable={false}>
         <View style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
@@ -336,6 +348,17 @@ export default function MyFoliosScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.sectionList}
+      />
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
       />
     </SafeAreaView>
   );

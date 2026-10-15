@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,6 +14,9 @@ import {fetchAuthProfile} from '../../services/authService';
 import {appAlert} from '../../utils/appAlert';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {ACCOUNT_DETAILS_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 function valueOrDash(v) {
   return v == null || String(v).trim() === '' ? '—' : String(v);
@@ -47,6 +50,15 @@ export default function AccountDetailsScreen() {
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const tabsTourRef = useRef(null);
+  const tourTargetRefs = useMemo(() => ({tabs: tabsTourRef}), []);
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.accountDetails,
+    steps: ACCOUNT_DETAILS_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: !loading,
+    autoStartDelayMs: 450,
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -98,7 +110,7 @@ export default function AccountDetailsScreen() {
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <View style={styles.tabWrap}>
+          <View style={styles.tabWrap} ref={tabsTourRef} collapsable={false}>
             <TouchableOpacity
               style={[styles.tabBtn, activeTab === 'personal' && styles.tabBtnActive]}
               onPress={() => setActiveTab('personal')}
@@ -142,6 +154,17 @@ export default function AccountDetailsScreen() {
           </View>
         </View>
       </ScrollView>
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
+      />
     </SafeAreaView>
   );
 }

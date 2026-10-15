@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,9 @@ import Icons from '../../utils/icons';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {SEARCH_FIELD} from '../../theme/searchField';
 import {TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {EXPLORE_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 // Design-first mock dataset (used to guarantee pixel-perfect layout).
 const MOCK_ALL_FUNDS = [
@@ -261,6 +264,23 @@ export default function ExplorePixelPerfectScreen() {
   const [selectedCategory, setSelectedCategory] = useState(''); // '' means All categories
   const [selectedRisk, setSelectedRisk] = useState(''); // '' means All risks
 
+  const searchTourRef = useRef(null);
+  const filtersTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      search: searchTourRef,
+      filters: filtersTourRef,
+    }),
+    [],
+  );
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.explore,
+    steps: EXPLORE_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: true,
+    autoStartDelayMs: 500,
+  });
+
   const sortLabel = useMemo(() => {
     if (sortPeriodKey === 'none') {
       return 'Default';
@@ -429,21 +449,23 @@ export default function ExplorePixelPerfectScreen() {
   const exploreListHeader = useMemo(
     () => (
       <>
-        <TouchableOpacity
-          style={[styles.searchWrap, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
-          onPress={onPressSearchBar}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Search mutual funds">
-          <Image
-            source={Icons.SearchIcon}
-            style={[styles.searchIconImg, isDark ? {tintColor: colors.textSecondary} : null]}
-            resizeMode="contain"
-          />
-          <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
-            Search funds...
-          </Text>
-        </TouchableOpacity>
+        <View ref={searchTourRef} collapsable={false}>
+          <TouchableOpacity
+            style={[styles.searchWrap, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+            onPress={onPressSearchBar}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Search mutual funds">
+            <Image
+              source={Icons.SearchIcon}
+              style={[styles.searchIconImg, isDark ? {tintColor: colors.textSecondary} : null]}
+              resizeMode="contain"
+            />
+            <Text style={[styles.searchPlaceholder, {color: colors.textSecondary}]} numberOfLines={1}>
+              Search funds...
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={[styles.sipBanner, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
@@ -512,18 +534,20 @@ export default function ExplorePixelPerfectScreen() {
           </TouchableOpacity>
         </View>
 
-        <FilterBar
-          count={count}
-          sortLabel={sortLabel}
-          selectedSortKey={sortPeriodKey}
-          onPressSort={onPressSort}
-          categoryOptions={categoryOptions}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          riskOptions={riskOptions}
-          selectedRisk={selectedRisk}
-          onSelectRisk={setSelectedRisk}
-        />
+        <View ref={filtersTourRef} collapsable={false}>
+          <FilterBar
+            count={count}
+            sortLabel={sortLabel}
+            selectedSortKey={sortPeriodKey}
+            onPressSort={onPressSort}
+            categoryOptions={categoryOptions}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            riskOptions={riskOptions}
+            selectedRisk={selectedRisk}
+            onSelectRisk={setSelectedRisk}
+          />
+        </View>
 
         {listLoading && hasActiveListQuery ? (
           <View style={styles.listStatusBox}>
@@ -631,6 +655,17 @@ export default function ExplorePixelPerfectScreen() {
         contentContainerStyle={styles.listContent}
         initialNumToRender={12}
         windowSize={8}
+      />
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
       />
     </SafeAreaView>
   );

@@ -25,6 +25,9 @@ import AppBackButton from '../../components/AppBackButton';
 import {typeScale} from '../../theme/typography';
 import {SEARCH_FIELD} from '../../theme/searchField';
 import AppColors from '../../theme/colors';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {WATCHLIST_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 const PAGE_BG = '#F5F5F5';
 const CARD_BORDER = '#E8E8E8';
@@ -190,6 +193,15 @@ export default function WatchlistScreen() {
   const [search, setSearch] = useState('');
   const [removingCode, setRemovingCode] = useState(null);
   const removeInFlightRef = useRef(false);
+  const searchTourRef = useRef(null);
+  const tourTargetRefs = useMemo(() => ({search: searchTourRef}), []);
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.watchlist,
+    steps: WATCHLIST_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: !isPending,
+    autoStartDelayMs: 480,
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -274,7 +286,7 @@ export default function WatchlistScreen() {
 
   const listHeader = useMemo(
     () => (
-      <View style={styles.pageHead}>
+      <View style={styles.pageHead} ref={searchTourRef} collapsable={false}>
         <View style={[styles.searchCard, {backgroundColor: colors.inputBg, borderColor: colors.border}]}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
@@ -290,7 +302,7 @@ export default function WatchlistScreen() {
         </View>
       </View>
     ),
-    [search, colors.inputBg, colors.border, colors.textSecondary],
+    [search, colors.inputBg, colors.border, colors.textSecondary, colors.textPrimary],
   );
 
   const headerBar = (
@@ -359,6 +371,17 @@ export default function WatchlistScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
+      />
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
       />
     </SafeAreaView>
   );

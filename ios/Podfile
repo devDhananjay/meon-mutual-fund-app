@@ -57,5 +57,42 @@ target 'MeonMutualFunds' do
         end
       end
     end
+
+    # Xcode 26 / Apple Clang: fmt 11.0.2 FMT_STRING consteval fails.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'fmt'
+      target.build_configurations.each do |cfg|
+        cfg.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      end
+    end
+
+    %w[fmt.debug.xcconfig fmt.release.xcconfig].each do |name|
+      xc = File.join(installer.sandbox.root, 'Target Support Files', 'fmt', name)
+      next unless File.exist?(xc)
+      xc_content = File.read(xc)
+      File.write(xc, xc_content.gsub('CLANG_CXX_LANGUAGE_STANDARD = c++20', 'CLANG_CXX_LANGUAGE_STANDARD = c++17'))
+    end
+
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      File.chmod(0644, fmt_base)
+
+      unless content.include?('Xcode 26 workaround')
+        content = content.gsub(
+          "#elif defined(__cpp_consteval)\n#  define FMT_USE_CONSTEVAL 1",
+          "// Xcode 26 workaround: Apple Clang consteval is stricter than fmt 11.0.2 expects\n#elif defined(__cpp_consteval)\n#  define FMT_USE_CONSTEVAL 0",
+        )
+      end
+
+      unless content.include?('XCODE26_FMT_FORCE_NO_CONSTEVAL')
+        content = content.sub(
+          "#if FMT_USE_CONSTEVAL\n#  define FMT_CONSTEVAL consteval\n#  define FMT_CONSTEXPR20 constexpr\n#else\n#  define FMT_CONSTEVAL\n#  define FMT_CONSTEXPR20\n#endif",
+          "#if defined(__apple_build_version__)\n/* XCODE26_FMT_FORCE_NO_CONSTEVAL */\n#  undef FMT_USE_CONSTEVAL\n#  define FMT_USE_CONSTEVAL 0\n#endif\n#if FMT_USE_CONSTEVAL\n#  define FMT_CONSTEVAL consteval\n#  define FMT_CONSTEXPR20 constexpr\n#else\n#  define FMT_CONSTEVAL\n#  define FMT_CONSTEXPR20\n#endif",
+        )
+      end
+
+      File.write(fmt_base, content)
+    end
   end
 end

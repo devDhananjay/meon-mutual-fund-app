@@ -17,6 +17,9 @@ import {selectCanPostToBse} from '../../store/slices/authSlice';
 import {useOrdersData} from '../../hooks/useOrdersData';
 import Textstyles from '../../utils/text';
 import Icons from '../../utils/icons';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {ORDERS_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 import {
   extractOrderAuthUrl,
   isAuthenticatedOrderState,
@@ -596,6 +599,22 @@ export default function MyOrdersScreen() {
   const [draftType, setDraftType] = useState('all');
   const [payingOrderId, setPayingOrderId] = useState(null);
 
+  const searchTourRef = useRef(null);
+  const filterTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      search: searchTourRef,
+      filter: filterTourRef,
+    }),
+    [],
+  );
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.orders,
+    steps: ORDERS_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    autoStartDelayMs: 480,
+  });
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(t);
@@ -758,7 +777,7 @@ export default function MyOrdersScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <View style={styles.searchCard}>
+        <View style={styles.searchCard} ref={searchTourRef} collapsable={false}>
           <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
           <TextInput
             style={styles.searchInput}
@@ -795,8 +814,14 @@ export default function MyOrdersScreen() {
         <View style={styles.headerSlot} />
       )}
       <Text style={styles.headerTitle}>My Orders</Text>
-      <TouchableOpacity style={styles.headerSlot} onPress={openFilter} hitSlop={12} accessibilityLabel="Filter orders">
-        <FilterSlidersIcon styles={styles} tintColor={colors.textPrimary} />
+      <TouchableOpacity
+        style={styles.headerSlot}
+        onPress={openFilter}
+        hitSlop={12}
+        accessibilityLabel="Filter orders">
+        <View ref={filterTourRef} collapsable={false}>
+          <FilterSlidersIcon styles={styles} tintColor={colors.textPrimary} />
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -857,6 +882,17 @@ export default function MyOrdersScreen() {
         onApply={applyFilters}
         onClear={clearFilters}
         styles={styles}
+      />
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
       />
     </SafeAreaView>
   );

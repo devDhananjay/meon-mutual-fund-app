@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -28,12 +28,15 @@ import {useRefetchOnReconnect} from '../../hooks/useRefetchOnReconnect';
 import {Colors} from '../../utils/AppConstant';
 import Textstyles from '../../utils/text';
 import AppModal from '../../components/AppModal';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
 import Icons from '../../utils/icons';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {typeScale} from '../../theme/typography';
 import {SEARCH_FIELD} from '../../theme/searchField';
 import {TAB_SCREEN_SAFE_TOP_EXTRA, TAB_SCREEN_TITLE_TO_SEARCH} from '../../theme/tabScreenLayout';
 import {appAlert} from '../../utils/appAlert';
+import {DASHBOARD_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {getTabBarTourLayout, useScreenTour} from '../../tour/useScreenTour';
 
 function formatInr(value) {
   if (value === null || value === undefined || value === '') {
@@ -243,10 +246,55 @@ export default function DashboardScreen() {
   const [sortMode, setSortMode] = useState('Current');
   const [holdingActionFund, setHoldingActionFund] = useState(null);
 
+  const scrollRef = useRef(null);
+  const searchTourRef = useRef(null);
+  const holdingsTourRef = useRef(null);
+  const fundsTourRef = useRef(null);
+  const sipTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      search: searchTourRef,
+      holdings: holdingsTourRef,
+      funds: fundsTourRef,
+      sip: sipTourRef,
+    }),
+    [],
+  );
+
   const {data, isPending, error, refreshing, refetch} = usePortfolioData();
   useRefetchOnReconnect(refetch);
   const portfolio = data?.portfolio;
   const holdings = data?.holdings ?? [];
+
+  const resolveTourLayout = useCallback(stepId => {
+    if (stepId === 'tabs') {
+      return getTabBarTourLayout();
+    }
+    return null;
+  }, []);
+
+  const onTourStepChange = useCallback(step => {
+    if (!step) {
+      return;
+    }
+    if (step.id === 'sip' || step.id === 'funds') {
+      scrollRef.current?.scrollToEnd?.({animated: true});
+      return;
+    }
+    if (step.id === 'search' || step.id === 'holdings' || step.id === 'tabs') {
+      scrollRef.current?.scrollTo?.({y: 0, animated: true});
+    }
+  }, []);
+
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.dashboard,
+    steps: DASHBOARD_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    resolveLayout: resolveTourLayout,
+    onStepChange: onTourStepChange,
+    enabled: !isPending,
+    listenReplay: true,
+  });
 
   const onHoldingPress = useCallback(fund => {
     setHoldingActionFund(fund);
@@ -335,15 +383,17 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity
-          style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
-          onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
-          activeOpacity={0.8}>
-          <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
-          <Text style={[Textstyles.normal, styles.searchPlaceholder, {color: colors.textSecondary}]}>
-            Search mutual funds...
-          </Text>
-        </TouchableOpacity>
+        <View ref={searchTourRef} collapsable={false}>
+          <TouchableOpacity
+            style={[styles.searchBar, {backgroundColor: colors.inputBg, borderColor: colors.border}]}
+            onPress={() => navigateToAllFundsSIP(navigation, {focusSearch: true})}
+            activeOpacity={0.8}>
+            <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
+            <Text style={[Textstyles.normal, styles.searchPlaceholder, {color: colors.textSecondary}]}>
+              Search mutual funds...
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     ),
     [
@@ -362,7 +412,10 @@ export default function DashboardScreen() {
 
   const holdingsCard = useMemo(
     () => (
-      <View style={[styles.holdingsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+      <View
+        ref={holdingsTourRef}
+        collapsable={false}
+        style={[styles.holdingsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
         <View style={styles.holdingsHeaderRow}>
           <View>
             <Text style={[Textstyles.normal, styles.holdingsLabel, {color: colors.textSecondary}]}>
@@ -478,7 +531,10 @@ export default function DashboardScreen() {
   const listFooter = useMemo(
     () => (
       <View style={styles.footer}>
-        <View style={[styles.sipCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View
+          ref={sipTourRef}
+          collapsable={false}
+          style={[styles.sipCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <View style={[styles.sipIconWrap, {backgroundColor: isDark ? '#1F2937' : '#F6F0F0'}]}>
             <Image
               source={require('../../assets/Icons/calendarSip.png')}
@@ -540,13 +596,17 @@ export default function DashboardScreen() {
       ) : null}
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}>
         {holdingsCard}
 
-        <View style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View
+          ref={fundsTourRef}
+          collapsable={false}
+          style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
           <TouchableOpacity
             style={[styles.listHeaderRow, {borderBottomColor: colors.border}]}
             activeOpacity={0.85}
@@ -613,6 +673,18 @@ export default function DashboardScreen() {
 
         {listFooter}
       </ScrollView>
+
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
+      />
 
       <AppModal
         visible={!!holdingActionFund}

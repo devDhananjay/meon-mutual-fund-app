@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,9 @@ import {
 import NachUploadModal from './NachUploadModal';
 import {authenticateMandate} from './mandateAuthFlow';
 import {selectCanPostToBse} from '../../store/slices/authSlice';
+import AppTourOverlay from '../../components/AppTour/AppTourOverlay';
+import {MANDATE_TOUR_STEPS, TOUR_SCREEN} from '../../tour/tourSteps';
+import {useScreenTour} from '../../tour/useScreenTour';
 
 const STATUS_OPTIONS = [
   {key: 'all', label: 'All'},
@@ -281,6 +284,23 @@ export default function MandateScreen() {
   const [actionBusy, setActionBusy] = useState(false);
   const [uploadMandate, setUploadMandate] = useState(null);
 
+  const searchTourRef = useRef(null);
+  const addTourRef = useRef(null);
+  const tourTargetRefs = useMemo(
+    () => ({
+      search: searchTourRef,
+      add: addTourRef,
+    }),
+    [],
+  );
+  const tour = useScreenTour({
+    screenKey: TOUR_SCREEN.mandate,
+    steps: MANDATE_TOUR_STEPS,
+    targetRefs: tourTargetRefs,
+    enabled: !isPending,
+    autoStartDelayMs: 480,
+  });
+
   const filtered = useMemo(() => {
     const q = normalizeSearchText(search);
     if (!q) {
@@ -383,7 +403,7 @@ export default function MandateScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.pageHead}>
-        <View style={styles.filterHeadRow}>
+        <View style={styles.filterHeadRow} ref={searchTourRef} collapsable={false}>
           <View style={styles.searchWrap}>
             <Image source={Icons.SearchIcon} style={styles.searchIconImg} resizeMode="contain" />
             <TextInput
@@ -472,13 +492,20 @@ export default function MandateScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      <TouchableOpacity
-        style={[styles.fab, {bottom: fabBottom, backgroundColor: colors.primary}]}
-        onPress={() => setAddOpen(true)}
-        activeOpacity={0.9}
-        accessibilityLabel="Add mandate">
-        <Text style={styles.fabPlus}>+</Text>
-      </TouchableOpacity>
+      <View
+        ref={addTourRef}
+        collapsable={false}
+        style={[styles.fab, {bottom: fabBottom, backgroundColor: colors.primary}]}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          onPress={() => setAddOpen(true)}
+          activeOpacity={0.9}
+          accessibilityLabel="Add mandate">
+          <View style={styles.fabInner}>
+            <Text style={styles.fabPlus}>+</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       <AddMandateModal
         visible={addOpen}
@@ -497,6 +524,17 @@ export default function MandateScreen() {
           setStatusFilter(selectedKey);
           setFilterOpen(false);
         }}
+      />
+      <AppTourOverlay
+        visible={tour.visible}
+        step={tour.step}
+        stepIndex={tour.stepIndex}
+        stepCount={tour.stepCount}
+        layout={tour.layout}
+        onNext={tour.onNext}
+        onBack={tour.onBack}
+        onSkip={tour.onSkip}
+        onRequestRemeasure={tour.onRequestRemeasure}
       />
 
       <AppModal
@@ -759,8 +797,10 @@ function createMandateStyles(colors, isDark) {
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    overflow: 'hidden',
     // elevation: 6,
   },
+  fabInner: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   fabPlus: {...Textstyles.normal, fontSize: 32, color: '#FFFFFF', fontWeight: '300', marginTop: -2},
 
   headerFilterIcon: {width: 22, height: 22},
