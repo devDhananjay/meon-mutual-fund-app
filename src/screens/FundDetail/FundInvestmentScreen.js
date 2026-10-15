@@ -43,7 +43,13 @@ import AppBackButton from '../../components/AppBackButton';
 import Icons from '../../utils/icons';
 import Textstyles from '../../utils/text';
 import {useAppTheme} from '../../theme/useAppTheme';
-import {pickMaxSipInvestment, pickMinSipInvestment} from '../../utils/schemeLimits';
+import {
+  buildQuickAmounts,
+  pickMaxPurchaseAmountOrNull,
+  pickMaxSipInvestmentOrNull,
+  pickMinLumpsumAmount,
+  pickMinSipInvestment,
+} from '../../utils/schemeLimits';
 import {typeScale} from '../../theme/typography';
 import {appAlert} from '../../utils/appAlert';
 import {fetchCompanyProfileSettings, normalizeSipPlaceOrderDayDiff} from '../../services/companyService';
@@ -74,6 +80,73 @@ function safeInr(v) {
     return '—';
   }
   return `₹${Number(v).toLocaleString('en-IN')}`;
+}
+
+function digitsOnlyAmount(value) {
+  return String(value || '')
+    .replace(/[^0-9]/g, '')
+    .replace(/^0+(?=\d)/, '')
+    .slice(0, 12);
+}
+
+/** Keep only digits in state parsing; show en-IN grouped value in the field. */
+function formatAmountInput(value) {
+  const digits = digitsOnlyAmount(value);
+  if (!digits) {
+    return '';
+  }
+  return Number(digits).toLocaleString('en-IN');
+}
+
+function FundInvestHeader({logoUrl, displayName, tags, styles, isDark, colors}) {
+  const initial = String(displayName || 'F').trim().charAt(0).toUpperCase() || 'F';
+  return (
+    <View style={styles.fundHeader}>
+      {logoUrl ? (
+        <Image source={{uri: logoUrl}} style={styles.fundLogo} resizeMode="contain" />
+      ) : (
+        <View style={[styles.fundLogo, styles.fundLogoPh]}>
+          <Text style={styles.fundLogoLetter}>{initial}</Text>
+        </View>
+      )}
+      <View style={styles.fundHeaderText}>
+        <Text style={styles.fundHeaderTitle} numberOfLines={3}>
+          {displayName}
+        </Text>
+        {Array.isArray(tags) && tags.length > 0 ? (
+          <View style={styles.fundTagsRow}>
+            {tags.map(t => (
+              <View
+                key={t.key}
+                style={[
+                  styles.fundTag,
+                  {
+                    backgroundColor: isDark ? 'rgba(30, 129, 242, 0.16)' : 'rgba(30, 129, 242, 0.08)',
+                    borderColor: colors.primary,
+                  },
+                ]}>
+                <Text style={[styles.fundTagTxt, {color: colors.primary}]}>{t.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function AmountErrorRow({message, styles}) {
+  if (!message) {
+    return null;
+  }
+  return (
+    <View style={styles.amountErrRow}>
+      <View style={styles.amountErrIcon}>
+        <Text style={styles.amountErrIconTxt}>!</Text>
+      </View>
+      <Text style={styles.amountErrTxt}>{message}</Text>
+    </View>
+  );
 }
 
 function InvestScreenLoader({colors, isDark, styles}) {
@@ -126,41 +199,6 @@ function InvestScreenLoader({colors, isDark, styles}) {
       </View>
     </View>
   );
-}
-
-/** Quick chips always start at min (e.g. 1000 → 1000, 2000, 5000). */
-function buildQuickAmounts(minAmount, maxAmount) {
-  const min = Math.max(1, Math.round(Number(minAmount) || 500));
-  const maxRaw = Number(maxAmount);
-  const maxCap = Number.isFinite(maxRaw) && maxRaw > 0 ? Math.round(maxRaw) : null;
-
-  const pushUnique = (list, value) => {
-    let v = Math.round(value);
-    if (maxCap != null) {
-      v = Math.min(v, maxCap);
-    }
-    if (v < min || list.includes(v)) {
-      return;
-    }
-    list.push(v);
-  };
-
-  const amounts = [];
-  pushUnique(amounts, min);
-  pushUnique(amounts, min * 2);
-  pushUnique(amounts, min * 5);
-
-  // Fill remaining slots with larger steps when max allows
-  let step = min;
-  while (amounts.length < 3 && step < Number.MAX_SAFE_INTEGER / 2) {
-    step *= 2;
-    pushUnique(amounts, min + step);
-    if (maxCap != null && amounts[amounts.length - 1] >= maxCap) {
-      break;
-    }
-  }
-
-  return amounts.slice(0, 3);
 }
 
 function formatDDMMYYYY(d) {
@@ -412,7 +450,7 @@ export default function FundInvestmentScreen() {
     ],
   );
 
-  const {data: folioData, isLoading: loading, error} = useFundData(schemeCode);
+  const {data: folioData, isLoading: loading, error, refetch: refetchFund} = useFundData(schemeCode);
   const {data: mandateData, isPending: mandateLoading} = useMandateData();
   const fundInfo = useMemo(() => folioData?.schemeData ?? null, [folioData?.schemeData]);
   const logoUrl = folioData?.logo_url || fundInfo?.logo_url;
@@ -453,6 +491,7 @@ export default function FundInvestmentScreen() {
   const [folioModalVisible, setFolioModalVisible] = useState(false);
   const [orderAmount, setOrderAmount] = useState('');
   const [amountError, setAmountError] = useState(null);
+  const [amountFocused, setAmountFocused] = useState(false);
   const orderTypeTourRef = useRef(null);
   const amountTourRef = useRef(null);
   const tourTargetRefs = useMemo(
@@ -481,7 +520,7 @@ export default function FundInvestmentScreen() {
   const [mandateModalVisible, setMandateModalVisible] = useState(false);
   const [freqModalVisible, setFreqModalVisible] = useState(false);
   const [selectedMandate, setSelectedMandate] = useState(null);
-  /** Lump-sum only: include `mandate_id` on `/order/place/` when true (web “Use Mandate”). */
+  /** When true, include `mandate_id` (One-time + SIP — same “Use Mandate” toggle). */
   const [useMandateForPurchase, setUseMandateForPurchase] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [pendingStatusLookupId, setPendingStatusLookupId] = useState(null);
@@ -506,16 +545,59 @@ export default function FundInvestmentScreen() {
     autoStartDelayMs: 520,
   });
 
-  const minLumpsum = Number(fundInfo?.min_purchase_amount) || 500;
+  const minLumpsum = useMemo(
+    () => pickMinLumpsumAmount(fundInfo, {additionalPurchase}),
+    [fundInfo, additionalPurchase],
+  );
+  const maxLumpsum = useMemo(() => pickMaxPurchaseAmountOrNull(fundInfo), [fundInfo]);
   const minSip = useMemo(() => pickMinSipInvestment(fundInfo), [fundInfo]);
-  const maxSip = useMemo(() => pickMaxSipInvestment(fundInfo), [fundInfo]);
+  const maxSipOrNull = useMemo(() => pickMaxSipInvestmentOrNull(fundInfo), [fundInfo]);
+  const sipMaxUsable =
+    maxSipOrNull != null && maxSipOrNull >= minSip ? maxSipOrNull : null;
+  const sipLimitsInvalid = maxSipOrNull != null && maxSipOrNull < minSip;
   const minOrderAmount = orderType === 'SIP' ? minSip : minLumpsum;
   const quickAmounts = useMemo(
     () =>
       orderType === 'SIP'
-        ? buildQuickAmounts(minSip, maxSip)
-        : buildQuickAmounts(minLumpsum),
-    [orderType, minSip, maxSip, minLumpsum],
+        ? buildQuickAmounts(minSip, sipMaxUsable ?? undefined)
+        : buildQuickAmounts(minLumpsum, maxLumpsum ?? undefined),
+    [orderType, minSip, sipMaxUsable, minLumpsum, maxLumpsum],
+  );
+
+  const syncAmountErrorForType = useCallback(
+    (nextType, amountStr) => {
+      const raw = Number(digitsOnlyAmount(amountStr));
+      if (!amountStr || !raw) {
+        setAmountError(null);
+        return;
+      }
+      if (nextType === 'SIP') {
+        if (sipLimitsInvalid) {
+          setAmountError('SIP limits look incorrect for this fund');
+          return;
+        }
+        if (raw < minSip) {
+          setAmountError(`Minimum investment is ${safeInr(minSip)}`);
+          return;
+        }
+        if (sipMaxUsable != null && raw > sipMaxUsable) {
+          setAmountError(`Maximum investment is ${safeInr(sipMaxUsable)}`);
+          return;
+        }
+        setAmountError(null);
+        return;
+      }
+      if (raw < minLumpsum) {
+        setAmountError(`Minimum investment is ${safeInr(minLumpsum)}`);
+        return;
+      }
+      if (maxLumpsum != null && raw > maxLumpsum) {
+        setAmountError(`Maximum investment is ${safeInr(maxLumpsum)}`);
+        return;
+      }
+      setAmountError(null);
+    },
+    [sipLimitsInvalid, minSip, sipMaxUsable, minLumpsum, maxLumpsum],
   );
   const selectedMandateLabel = selectedMandate
     ? pickMandateLabel(selectedMandate)
@@ -596,18 +678,8 @@ export default function FundInvestmentScreen() {
     }
   }, [mandates, selectedMandate]);
 
-  const toggleUseMandateForPurchase = useCallback(() => {
-    setUseMandateForPurchase(prev => {
-      const next = !prev;
-      if (!next) {
-        setSelectedMandate(null);
-      }
-      return next;
-    });
-  }, []);
-
   const parseOrderAmount = useCallback(() => {
-    const parsed = Number(String(orderAmount).replace(/[^0-9]/g, ''));
+    const parsed = Number(digitsOnlyAmount(orderAmount));
     return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   }, [orderAmount]);
 
@@ -618,34 +690,50 @@ export default function FundInvestmentScreen() {
       return null;
     }
     if (orderType === 'SIP') {
+      if (sipLimitsInvalid) {
+        setAmountError('SIP limits look incorrect for this fund');
+        return null;
+      }
       if (raw < minSip) {
         setAmountError(`Minimum investment is ${safeInr(minSip)}`);
         return null;
       }
-      if (raw > maxSip) {
-        setAmountError(`Maximum investment is ${safeInr(maxSip)}`);
+      if (sipMaxUsable != null && raw > sipMaxUsable) {
+        setAmountError(`Maximum investment is ${safeInr(sipMaxUsable)}`);
         return null;
       }
-    } else if (raw < minLumpsum) {
-      setAmountError(`Minimum investment is ${safeInr(minLumpsum)}`);
-      return null;
+    } else {
+      if (raw < minLumpsum) {
+        setAmountError(`Minimum investment is ${safeInr(minLumpsum)}`);
+        return null;
+      }
+      if (maxLumpsum != null && raw > maxLumpsum) {
+        setAmountError(`Maximum investment is ${safeInr(maxLumpsum)}`);
+        return null;
+      }
     }
     setAmountError(null);
     return raw;
-  }, [orderType, parseOrderAmount, minSip, maxSip, minLumpsum]);
+  }, [orderType, parseOrderAmount, minSip, sipMaxUsable, sipLimitsInvalid, minLumpsum, maxLumpsum]);
 
   const onTapQuickAmount = useCallback(
     v => {
       let n = Math.round(Number(v)) || 0;
       if (orderType === 'SIP') {
-        n = Math.min(maxSip, Math.max(minSip, n));
+        n = Math.max(minSip, n);
+        if (sipMaxUsable != null) {
+          n = Math.min(sipMaxUsable, n);
+        }
       } else {
         n = Math.max(minLumpsum, n);
+        if (maxLumpsum != null) {
+          n = Math.min(maxLumpsum, n);
+        }
       }
-      setOrderAmount(String(n));
+      setOrderAmount(formatAmountInput(String(n)));
       setAmountError(null);
     },
-    [orderType, minSip, maxSip, minLumpsum],
+    [orderType, minSip, sipMaxUsable, minLumpsum, maxLumpsum],
   );
 
   const openCart = useCallback(() => {
@@ -714,11 +802,7 @@ export default function FundInvestmentScreen() {
     if (orderType === 'SIP' && !validateSipMetaForSubmit()) {
       return;
     }
-    if (orderType === 'SIP' && (!selectedMandate || mandates.length === 0)) {
-      appAlert('Select mandate', 'Please choose a mandate under Choose Mandate Method to start SIP.');
-      return;
-    }
-    if (orderType === 'ONE_TIME' && useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
+    if (useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
       appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
       return;
     }
@@ -738,15 +822,11 @@ export default function FundInvestmentScreen() {
         sipDate: sipDateStr,
         sipEndDate: sipEndStr,
         sipDurationYears: orderType === 'SIP' && !isDaily ? sipDurationYears : undefined,
-        mandateId:
-          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
-            ? selectedMandate?.id ?? selectedMandate?.mandate_id
-            : undefined,
-        mandateLabel:
-          orderType === 'SIP' || (orderType === 'ONE_TIME' && useMandateForPurchase)
-            ? selectedMandateLabel
-            : undefined,
-        useMandate: orderType === 'ONE_TIME' && useMandateForPurchase,
+        mandateId: useMandateForPurchase
+          ? selectedMandate?.id ?? selectedMandate?.mandate_id
+          : undefined,
+        mandateLabel: useMandateForPurchase ? selectedMandateLabel : undefined,
+        useMandate: useMandateForPurchase,
         firstOrderToday: orderType === 'SIP' ? placeFirstInstallmentToday : undefined,
         logo_url: logoUrl,
         folioNumber: additionalPurchase ? String(selectedFolioNumber || '').trim() : undefined,
@@ -789,11 +869,7 @@ export default function FundInvestmentScreen() {
     if (orderType === 'SIP' && !validateSipMetaForSubmit()) {
       return;
     }
-    if (orderType === 'SIP' && (!selectedMandate || mandates.length === 0)) {
-      appAlert('Select mandate', 'Please choose a mandate under Choose Mandate Method to start SIP.');
-      return;
-    }
-    if (orderType === 'ONE_TIME' && useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
+    if (useMandateForPurchase && (!selectedMandate || mandates.length === 0)) {
       appAlert('Select mandate', 'Choose a mandate or turn off Use Mandate.');
       return;
     }
@@ -808,6 +884,9 @@ export default function FundInvestmentScreen() {
       const sipDateForApi =
         orderType === 'SIP' ? (isDailySip ? formatDDMMYYYY(dailySipStartDate) : formatDDMMYYYY(sipDate)) : '';
       const sipEndForApi = orderType === 'SIP' && isDailySip ? formatDDMMYYYY(dailySipEndDate) : undefined;
+      const mandateIdForOrder = useMandateForPurchase
+        ? selectedMandate?.id ?? selectedMandate?.mandate_id
+        : undefined;
       const payload =
         orderType === 'SIP'
           ? buildSipRegisterPayload({
@@ -817,7 +896,7 @@ export default function FundInvestmentScreen() {
               sipDate: sipDateForApi,
               sipDurationYears: Number(sipDurationYears),
               sipEndDate: sipEndForApi,
-              mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+              mandateId: mandateIdForOrder,
               firstOrderToday: placeFirstInstallmentToday,
               folioNo: selectedFolio || fundInfo?.folio_number || fundInfo?.folio_no,
               euin: user?.euin,
@@ -826,7 +905,7 @@ export default function FundInvestmentScreen() {
               schemeCode: fundInfo.scheme_code,
               amount,
               isSip: false,
-              mandateId: selectedMandate?.id ?? selectedMandate?.mandate_id,
+              mandateId: mandateIdForOrder,
               useMandate: useMandateForPurchase,
               folioNumber: selectedFolio,
               buySellType: additionalPurchase || selectedFolio ? 'ADDITIONAL' : undefined,
@@ -1248,12 +1327,11 @@ export default function FundInvestmentScreen() {
     return orderType === 'SIP' ? 'Start SIP' : 'Continue to Invest';
   }, [orderType, placingOrder]);
 
-  /** SIP requires an explicit mandate pick; lump-sum with “Use Mandate” requires mandate when active mandates exist. */
+  /** “Use Mandate” on (One-time or SIP) requires an active mandate pick. */
   const isPrimaryCtaDisabled =
     !canPostToBse ||
-    (orderType === 'SIP' && (mandateLoading || mandates.length === 0 || !selectedMandate)) ||
-    (orderType === 'ONE_TIME' &&
-      useMandateForPurchase &&
+    (orderType === 'SIP' && sipLimitsInvalid) ||
+    (useMandateForPurchase &&
       (mandateLoading || mandates.length === 0 || !selectedMandate));
 
   const onPrimaryCtaPress = useCallback(() => {
@@ -1272,8 +1350,15 @@ export default function FundInvestmentScreen() {
   if (!schemeCode) {
     return (
       <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={styles.center}>
-          <Text style={styles.err}>Missing scheme code</Text>
+        <View style={styles.errorState}>
+          <View style={styles.errorIconCircle}>
+            <Text style={styles.errorIconGlyph}>!</Text>
+          </View>
+          <Text style={styles.errorTitle}>Missing fund</Text>
+          <Text style={styles.errorSubtitle}>Scheme code is missing. Go back and open the fund again.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Text style={styles.retryBtnTxt}>Go back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -1296,9 +1381,14 @@ export default function FundInvestmentScreen() {
               </View>
             </TouchableOpacity>
           </View>
-          <Text style={[styles.screenTitle, {marginBottom: 16}]} numberOfLines={3}>
-            {displayName}
-          </Text>
+          <FundInvestHeader
+            logoUrl={null}
+            displayName={displayName}
+            tags={[]}
+            styles={styles}
+            isDark={isDark}
+            colors={colors}
+          />
           <InvestScreenLoader colors={colors} isDark={isDark} styles={styles} />
         </View>
       </SafeAreaView>
@@ -1308,8 +1398,21 @@ export default function FundInvestmentScreen() {
   if (error || !fundInfo?.scheme_code) {
     return (
       <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={styles.center}>
-          <Text style={styles.err}>{error || 'Could not load fund'}</Text>
+        <View style={styles.scrollContent}>
+          <View style={styles.headerRow}>
+            <AppBackButton onPress={() => navigation.goBack()} hitSlop={14} style={styles.backHit} />
+            <View style={styles.cartHit} />
+          </View>
+        </View>
+        <View style={styles.errorState}>
+          <View style={styles.errorIconCircle}>
+            <Text style={styles.errorIconGlyph}>!</Text>
+          </View>
+          <Text style={styles.errorTitle}>Couldn’t load fund</Text>
+          <Text style={styles.errorSubtitle}>{error || 'Something went wrong. Please try again.'}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={refetchFund} activeOpacity={0.85}>
+            <Text style={styles.retryBtnTxt}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -1319,8 +1422,8 @@ export default function FundInvestmentScreen() {
     <SafeAreaView style={[styles.safe, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -1339,28 +1442,14 @@ export default function FundInvestmentScreen() {
               </View>
             </TouchableOpacity>
           </View>
-          <Text
-            style={[styles.screenTitle, {marginBottom: fundMetaTags.length > 0 ? 6 : 16}]}
-            numberOfLines={3}>
-            {displayName}
-          </Text>
-          {fundMetaTags.length > 0 ? (
-            <View style={styles.fundTagsRow}>
-              {fundMetaTags.map(t => (
-                <View
-                  key={t.key}
-                  style={[
-                    styles.fundTag,
-                    {
-                      backgroundColor: isDark ? 'rgba(30, 129, 242, 0.16)' : 'rgba(30, 129, 242, 0.08)',
-                      borderColor: colors.primary,
-                    },
-                  ]}>
-                  <Text style={[styles.fundTagTxt, {color: colors.primary}]}>{t.label}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <FundInvestHeader
+            logoUrl={logoUrl}
+            displayName={displayName}
+            tags={fundMetaTags}
+            styles={styles}
+            isDark={isDark}
+            colors={colors}
+          />
 
           {pendingOrderId ? (
             <View style={styles.card}>
@@ -1399,7 +1488,7 @@ export default function FundInvestmentScreen() {
                   activeOpacity={0.85}
                   onPress={() => {
                     setOrderType('ONE_TIME');
-                    setAmountError(null);
+                    syncAmountErrorForType('ONE_TIME', orderAmount);
                   }}>
                   <Text style={[styles.orderTabTxt, orderType === 'ONE_TIME' && styles.orderTabTxtActive]}>
                     One-time
@@ -1410,8 +1499,7 @@ export default function FundInvestmentScreen() {
                   activeOpacity={0.85}
                   onPress={() => {
                     setOrderType('SIP');
-                    setAmountError(null);
-                    setUseMandateForPurchase(false);
+                    syncAmountErrorForType('SIP', orderAmount);
                   }}>
                   <Text style={[styles.orderTabTxt, orderType === 'SIP' && styles.orderTabTxtActive]}>SIP</Text>
                 </TouchableOpacity>
@@ -1420,39 +1508,67 @@ export default function FundInvestmentScreen() {
               <View style={styles.amountSection} ref={amountTourRef} collapsable={false}>
                 <Text style={styles.amountSectionLabel}>Enter amount</Text>
                 <View
-                  style={[styles.amountInputWrap, amountError ? styles.amountInputWrapErr : null]}>
+                  style={[
+                    styles.amountInputWrap,
+                    amountFocused && styles.amountInputWrapFocused,
+                    amountError || (orderType === 'SIP' && sipLimitsInvalid)
+                      ? styles.amountInputWrapErr
+                      : null,
+                  ]}>
                   <Text style={styles.amountCurrency}>₹</Text>
                   <TextInput
                     style={styles.amountInput}
                     value={orderAmount}
                     onChangeText={t => {
-                      setOrderAmount(t.replace(/[^0-9]/g, '').slice(0, 12));
+                      setOrderAmount(formatAmountInput(t));
                       setAmountError(null);
                     }}
+                    onFocus={() => setAmountFocused(true)}
+                    onBlur={() => setAmountFocused(false)}
                     keyboardType="number-pad"
-                    maxLength={12}
-                    placeholder={String(minOrderAmount)}
+                    maxLength={17}
+                    placeholder="Enter amount"
                     placeholderTextColor="#9CA3AF"
                   />
                 </View>
-                {amountError ? <Text style={styles.amountErrTxt}>{amountError}</Text> : null}
-                {!amountError && orderType === 'SIP' ? (
+                <AmountErrorRow
+                  styles={styles}
+                  message={
+                    amountError ||
+                    (orderType === 'SIP' && sipLimitsInvalid
+                      ? `SIP limits look incorrect (min ${safeInr(minSip)}, max ${safeInr(maxSipOrNull)})`
+                      : null)
+                  }
+                />
+                {!amountError && orderType === 'SIP' && !sipLimitsInvalid ? (
                   <Text style={styles.amountHintTxt}>
                     Min SIP {safeInr(minSip)}
-                    {maxSip < 999999999 ? ` · Max ${safeInr(maxSip)}` : ''}
+                    {sipMaxUsable != null ? ` · Max ${safeInr(sipMaxUsable)}` : ''}
                   </Text>
                 ) : null}
                 {!amountError && orderType === 'ONE_TIME' ? (
-                  <Text style={styles.amountHintTxt}>Minimum {safeInr(minLumpsum)}</Text>
+                  <Text style={styles.amountHintTxt}>
+                    Minimum {safeInr(minLumpsum)}
+                    {maxLumpsum != null ? ` · Max ${safeInr(maxLumpsum)}` : ''}
+                    {additionalPurchase ? ' (additional purchase)' : ''}
+                  </Text>
                 ) : null}
 
-                <View style={styles.quickAmountRow}>
+                <View
+                  style={[
+                    styles.quickAmountRow,
+                    quickAmounts.length === 1 ? styles.quickAmountRowSolo : null,
+                  ]}>
                   {quickAmounts.map(v => {
-                    const selected = Number(orderAmount) === v;
+                    const selected = orderAmount !== '' && Number(digitsOnlyAmount(orderAmount)) === v;
                     return (
                       <TouchableOpacity
                         key={v}
-                        style={[styles.quickAmountChip, selected && styles.quickAmountChipSelected]}
+                        style={[
+                          styles.quickAmountChip,
+                          quickAmounts.length === 1 && styles.quickAmountChipSolo,
+                          selected && styles.quickAmountChipSelected,
+                        ]}
                         onPress={() => onTapQuickAmount(v)}
                         activeOpacity={0.85}>
                         <Text
@@ -1460,7 +1576,7 @@ export default function FundInvestmentScreen() {
                             styles.quickAmountChipTxt,
                             selected && styles.quickAmountChipTxtSelected,
                           ]}>
-                          {safeInr(v)}
+                          {selected ? `✓ ${safeInr(v)}` : `+${safeInr(v)}`}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -1483,7 +1599,7 @@ export default function FundInvestmentScreen() {
                 </View>
               ) : null}
 
-              {orderType === 'ONE_TIME' && mandateLoading ? (
+              {mandateLoading ? (
                 <View
                   style={[
                     styles.useMandateRow,
@@ -1492,27 +1608,28 @@ export default function FundInvestmentScreen() {
                   <ActivityIndicator size="small" color={colors.primary} />
                   <Text style={[styles.useMandateLabel, {color: colors.textSecondary}]}>Loading mandates…</Text>
                 </View>
-              ) : orderType === 'ONE_TIME' ? (
-                <TouchableOpacity
+              ) : (
+                <View
                   style={[
                     styles.useMandateRow,
                     {borderColor: colors.border, backgroundColor: isDark ? colors.inputBg : '#F9FAFB'},
-                  ]}
-                  onPress={toggleUseMandateForPurchase}
-                  activeOpacity={0.85}>
-                  <View
-                    style={[
-                      styles.useMandateCheck,
-                      useMandateForPurchase && {backgroundColor: '#22C55E', borderColor: '#22C55E'},
-                      !useMandateForPurchase && {borderColor: isDark ? '#6B7280' : '#9CA3AF'},
-                    ]}>
-                    {useMandateForPurchase ? <Text style={styles.useMandateTick}>✓</Text> : null}
-                  </View>
-                  <Text style={[styles.useMandateLabel, {color: colors.textPrimary}]}>Use Mandate</Text>
-                </TouchableOpacity>
-              ) : null}
+                  ]}>
+                  <Text style={[styles.useMandateLabel, {color: colors.textPrimary, flex: 1}]}>Use Mandate</Text>
+                  <Switch
+                    value={useMandateForPurchase}
+                    onValueChange={next => {
+                      setUseMandateForPurchase(!!next);
+                      if (!next) {
+                        setSelectedMandate(null);
+                      }
+                    }}
+                    trackColor={{false: isDark ? '#3A3A3C' : '#E5E7EB', true: '#93C5FD'}}
+                    thumbColor={useMandateForPurchase ? colors.primary : isDark ? '#8E8E93' : '#F4F4F5'}
+                  />
+                </View>
+              )}
 
-              {orderType === 'ONE_TIME' && useMandateForPurchase ? (
+              {useMandateForPurchase ? (
                 <TouchableOpacity
                   style={styles.mandateSelectCard}
                   activeOpacity={0.85}
@@ -1528,43 +1645,42 @@ export default function FundInvestmentScreen() {
               ) : null}
 
               {orderType === 'SIP' ? (
-                <>
-                  <View style={{marginTop: 10}}>
-                    <Text style={styles.fieldLabel}>SIP frequency</Text>
-                    <TouchableOpacity
-                      style={styles.dropdownField}
-                      onPress={() => setFreqModalVisible(true)}
-                      activeOpacity={0.85}>
-                      <Text style={styles.dropdownValue}>{sipFrequency}</Text>
-                      <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
-                    </TouchableOpacity>
-                  </View>
+                <View style={styles.sipDetailsBlock}>
+                  <View style={styles.sipDetailsDivider} />
+                  <Text style={styles.sipDetailsTitle}>SIP details</Text>
+
+                  <Text style={styles.fieldLabel}>SIP frequency</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownField}
+                    onPress={() => setFreqModalVisible(true)}
+                    activeOpacity={0.85}>
+                    <Text style={styles.dropdownValue}>{sipFrequency}</Text>
+                    <Image source={Icons.DropDown} style={styles.dropdownChevron} resizeMode="contain" />
+                  </TouchableOpacity>
 
                   {String(sipFrequency).toLowerCase() === 'daily' ? (
-                    <>
-                      <View style={styles.sipDateRow}>
-                        <View style={styles.sipDateCol}>
-                          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
-                          <TouchableOpacity
-                            style={styles.dropdownField}
-                            onPress={() => setSipPickerKind('dailyStart')}
-                            activeOpacity={0.85}>
-                            <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipStartDate)}</Text>
-                            <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
-                          </TouchableOpacity>
-                        </View>
-                        <View style={styles.sipDateCol}>
-                          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP end date</Text>
-                          <TouchableOpacity
-                            style={styles.dropdownField}
-                            onPress={() => setSipPickerKind('dailyEnd')}
-                            activeOpacity={0.85}>
-                            <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipEndDate)}</Text>
-                            <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
-                          </TouchableOpacity>
-                        </View>
+                    <View style={styles.sipDateRow}>
+                      <View style={styles.sipDateCol}>
+                        <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
+                        <TouchableOpacity
+                          style={styles.dropdownField}
+                          onPress={() => setSipPickerKind('dailyStart')}
+                          activeOpacity={0.85}>
+                          <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipStartDate)}</Text>
+                          <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
+                        </TouchableOpacity>
                       </View>
-                    </>
+                      <View style={styles.sipDateCol}>
+                        <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP end date</Text>
+                        <TouchableOpacity
+                          style={styles.dropdownField}
+                          onPress={() => setSipPickerKind('dailyEnd')}
+                          activeOpacity={0.85}>
+                          <Text style={styles.dropdownValue}>{formatSipDateDisplay(dailySipEndDate)}</Text>
+                          <Image source={Icons.CalendarOthers} style={styles.calendarIcon} resizeMode="contain" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   ) : (
                     <>
                       <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>SIP date</Text>
@@ -1584,25 +1700,14 @@ export default function FundInvestmentScreen() {
                             style={[styles.inlineChip, sipDurationYears === y && styles.inlineChipOn]}
                             onPress={() => setSipDurationYears(y)}
                             activeOpacity={0.85}>
-                            <Text style={[styles.inlineChipTxt, sipDurationYears === y && styles.inlineChipTxtOn]}>{y}</Text>
+                            <Text style={[styles.inlineChipTxt, sipDurationYears === y && styles.inlineChipTxtOn]}>
+                              {y}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     </>
                   )}
-
-                  <TouchableOpacity
-                    style={styles.mandateSelectCard}
-                    activeOpacity={0.85}
-                    onPress={() => setMandateModalVisible(true)}>
-                    <View style={styles.mandateTextWrap}>
-                      <Text style={styles.mandateTitle}>Choose Mandate Method</Text>
-                      <Text style={styles.mandateSub} numberOfLines={2}>
-                        {selectedMandateLabel}
-                      </Text>
-                    </View>
-                    <Image source={Icons.GoIcon} style={styles.mandateArrow} resizeMode="contain" />
-                  </TouchableOpacity>
 
                   <View style={styles.firstOrderRow}>
                     <Text style={styles.firstOrderLabel}>Place first order installment today</Text>
@@ -1613,38 +1718,44 @@ export default function FundInvestmentScreen() {
                       thumbColor={placeFirstInstallmentToday ? '#16A34A' : isDark ? '#8E8E93' : '#F4F4F5'}
                     />
                   </View>
-                </>
+                </View>
               ) : null}
 
-              <Text style={styles.minAmtHint}>
-                {orderType === 'SIP'
-                  ? `SIP range: ${safeInr(minSip)} – ${safeInr(maxSip)}`
-                  : `Min amount: ${safeInr(minLumpsum)}`}
-              </Text>
             </View>
           )}
 
-          <TouchableOpacity style={styles.viewCart} onPress={openCart} activeOpacity={0.85}>
-            <Text style={styles.viewCartTxt}>View cart →</Text>
-          </TouchableOpacity>
           <View style={styles.scrollBottomPad} />
         </ScrollView>
 
         {!pendingOrderId ? (
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.addCartLink} onPress={onAddToCart} activeOpacity={0.85}>
-              <Text style={styles.addCartLinkTxt}>Add to cart</Text>
+            <TouchableOpacity style={styles.footerViewCart} onPress={openCart} activeOpacity={0.85}>
+              <Text style={styles.footerViewCartTxt}>
+                View cart{cartCount > 0 ? ` (${cartCount > 99 ? '99+' : cartCount})` : ''} →
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.primaryCta,
-                (placingOrder || isPrimaryCtaDisabled) && styles.primaryCtaDisabled,
-              ]}
-              onPress={onPrimaryCtaPress}
-              activeOpacity={0.92}
-              disabled={placingOrder || isPrimaryCtaDisabled}>
-              <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>{primaryCtaLabel}</Text>
-            </TouchableOpacity>
+            <View style={styles.footerActions}>
+              <TouchableOpacity style={styles.addCartLink} onPress={onAddToCart} activeOpacity={0.85}>
+                <Text style={styles.addCartLinkTxt}>Add to cart</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.primaryCta,
+                  (placingOrder || isPrimaryCtaDisabled) && styles.primaryCtaDisabled,
+                ]}
+                onPress={onPrimaryCtaPress}
+                activeOpacity={0.92}
+                disabled={placingOrder || isPrimaryCtaDisabled}>
+                {placingOrder ? (
+                  <View style={styles.primaryCtaLoadingRow}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>Placing order…</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.primaryCtaTxt, Textstyles.medium]}>{primaryCtaLabel}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         ) : null}
       </KeyboardAvoidingView>
@@ -1854,23 +1965,48 @@ function getFundInvestmentStyles(colors, isDark) {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#111',
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeTxt: {...Textstyles.medium, color: '#fff', fontSize: 10},
-  screenTitle: {
+  badgeTxt: {...Textstyles.medium, color: '#fff', fontSize: 10, fontWeight: '700'},
+  fundHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  fundLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: isDark ? '#2C2C2C' : '#F3F4F6',
+  },
+  fundLogoPh: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  fundLogoLetter: {
+    ...Textstyles.medium,
+    fontSize: typeScale.bodyLg,
+    fontWeight: '700',
+    color: c.primary,
+  },
+  fundHeaderText: {flex: 1, minWidth: 0},
+  fundHeaderTitle: {
     ...Textstyles.heading,
     fontSize: typeScale.title,
     lineHeight: 22,
     color: c.textPrimary,
-    marginTop: 8,
   },
   fundTagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 14,
+    marginTop: 8,
     gap: 8,
   },
   fundTag: {
@@ -1934,30 +2070,64 @@ function getFundInvestmentStyles(colors, isDark) {
     paddingHorizontal: 14,
     backgroundColor: c.inputBg,
   },
+  amountInputWrapFocused: {
+    borderColor: c.primary,
+    shadowColor: c.primary,
+    shadowOpacity: isDark ? 0.25 : 0.18,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 0},
+    elevation: 2,
+  },
   amountInputWrapErr: {
     borderColor: '#DC2626',
     backgroundColor: isDark ? 'rgba(248,113,113,0.08)' : '#FFFBFB',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   amountCurrency: {
     ...Textstyles.medium,
     fontSize: typeScale.amountCurrency,
+    lineHeight: typeScale.amountInput,
     color: c.textSecondary,
     marginRight: 8,
     fontWeight: '600',
+    ...(Platform.OS === 'android' ? {includeFontPadding: false, textAlignVertical: 'center'} : null),
   },
   amountInput: {
     flex: 1,
     fontSize: typeScale.amountInput,
+    lineHeight: typeScale.amountInput,
     color: c.textPrimary,
     paddingVertical: Platform.OS === 'ios' ? 10 : 0,
     textAlignVertical: 'center',
     ...(Platform.OS === 'android' ? {includeFontPadding: false} : null),
   },
+  amountErrRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 8,
+  },
+  amountErrIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  amountErrIconTxt: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 13,
+  },
   amountErrTxt: {
+    flex: 1,
     color: '#DC2626',
     fontSize: 13,
-    marginTop: 8,
-    marginLeft: 2,
+    lineHeight: 18,
   },
   amountHintTxt: {
     fontSize: 12,
@@ -1970,6 +2140,9 @@ function getFundInvestmentStyles(colors, isDark) {
     gap: 8,
     marginTop: 12,
   },
+  quickAmountRowSolo: {
+    justifyContent: 'flex-start',
+  },
   quickAmountChip: {
     flex: 1,
     borderWidth: 1,
@@ -1978,6 +2151,11 @@ function getFundInvestmentStyles(colors, isDark) {
     paddingVertical: 11,
     alignItems: 'center',
     backgroundColor: isDark ? c.inputBg : '#F8FAFC',
+  },
+  quickAmountChipSolo: {
+    flex: 0,
+    minWidth: '31%',
+    paddingHorizontal: 16,
   },
   quickAmountChipSelected: {
     borderColor: c.primary,
@@ -2027,23 +2205,29 @@ function getFundInvestmentStyles(colors, isDark) {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     gap: 12,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
   },
-  useMandateCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  useMandateTick: {color: '#FFFFFF', fontSize: 13, fontWeight: '800'},
   useMandateLabel: {...Textstyles.medium, fontSize: 15, fontWeight: '600'},
+  sipDetailsBlock: {
+    marginTop: 8,
+  },
+  sipDetailsDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.border,
+    marginTop: 16,
+    marginBottom: 14,
+  },
+  sipDetailsTitle: {
+    ...Textstyles.heading,
+    fontSize: 15,
+    color: c.textPrimary,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
   mandateSelectCard: {
     marginTop: 16,
     borderRadius: 12,
@@ -2071,24 +2255,39 @@ function getFundInvestmentStyles(colors, isDark) {
     paddingVertical: 4,
   },
   firstOrderLabel: {...Textstyles.medium, flex: 1, fontSize: 14, color: c.textPrimary, fontWeight: '600'},
-  minAmtHint: {marginTop: 14, color: c.textSecondary, fontSize: 13},
-  viewCart: {marginTop: 18, alignItems: 'center', paddingVertical: 8},
-  viewCartTxt: {...Textstyles.medium, color: c.primary, fontSize: 16, fontWeight: '600'},
-  scrollBottomPad: {height: 24},
+  scrollBottomPad: {height: 28},
   footer: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 16,
-    backgroundColor: c.background,
+    backgroundColor: c.card,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.border,
+    shadowColor: isDark ? 'transparent' : '#0F172A',
+    shadowOpacity: isDark ? 0 : 0.08,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: -4},
+    elevation: 10,
+  },
+  footerViewCart: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  footerViewCartTxt: {
+    ...Textstyles.medium,
+    color: c.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  footerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   addCartLink: {
     flex: 1,
-    minHeight: 46,
+    minHeight: 48,
     borderRadius: 12,
     backgroundColor: c.card,
     borderWidth: 1,
@@ -2100,7 +2299,7 @@ function getFundInvestmentStyles(colors, isDark) {
   },
   addCartLinkTxt: {...Textstyles.medium, fontSize: typeScale.bodyLg, color: c.primary, fontWeight: '500'},
   primaryCta: {
-    minHeight: 46,
+    minHeight: 48,
     borderRadius: 12,
     backgroundColor: '#1E81F2',
     alignItems: 'center',
@@ -2113,7 +2312,61 @@ function getFundInvestmentStyles(colors, isDark) {
     elevation: 4,
   },
   primaryCtaDisabled: {opacity: 0.65, shadowOpacity: 0, elevation: 0},
+  primaryCtaLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   primaryCtaTxt: {...Textstyles.heading, fontSize: typeScale.bodyLg, color: '#FFFFFF'},
+  errorState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 48,
+  },
+  errorIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: isDark ? 'rgba(248,113,113,0.16)' : '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  errorIconGlyph: {
+    color: '#DC2626',
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  errorTitle: {
+    ...Textstyles.heading,
+    fontSize: typeScale.title,
+    color: c.textPrimary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: c.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  retryBtn: {
+    minHeight: 44,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryBtnTxt: {
+    ...Textstyles.medium,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   authSummaryWrap: {paddingVertical: 4},
   authSummaryLabel: {fontSize: 13, color: c.textSecondary, marginBottom: 6},
   authSummaryAmount: {
@@ -2250,7 +2503,5 @@ function getFundInvestmentStyles(colors, isDark) {
     color: c.textSecondary,
     fontWeight: '500',
   },
-  center: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24},
-  err: {color: '#B91C1C', textAlign: 'center', padding: 16},
 });
 }

@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Image,
   Platform,
   StatusBar,
+  Animated,
+  Easing,
 } from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSelector} from 'react-redux';
@@ -93,6 +95,91 @@ const SORT_MODE_LABEL = {
   Returns: 'Total Returns (%)',
   Current: 'Current Invested',
 };
+
+function DashboardLoader({colors, isDark}) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
+
+  const boneStyle = {
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.07)',
+    opacity: pulse,
+  };
+
+  return (
+    <View>
+      <View style={[styles.holdingsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View style={styles.holdingsHeaderRow}>
+          <View style={styles.loaderHoldingsTextCol}>
+            <Animated.View style={[styles.loaderHoldingsLabel, boneStyle]} />
+            <Animated.View style={[styles.loaderHoldingsBig, boneStyle]} />
+          </View>
+          <View style={styles.holdingsIcons}>
+            <Animated.View style={[styles.iconCircle, boneStyle]} />
+            <Animated.View style={[styles.iconCircle, boneStyle]} />
+          </View>
+        </View>
+        <View style={styles.statsCol}>
+          {[0, 1, 2, 3].map(i => (
+            <View key={i} style={styles.statRow}>
+              <Animated.View style={[styles.loaderStatLabel, boneStyle]} />
+              <Animated.View style={[styles.loaderStatValue, boneStyle]} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={[styles.stocksCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View style={[styles.listHeaderRow, {borderBottomColor: colors.border}]}>
+          <Animated.View style={[styles.loaderSortLeft, boneStyle]} />
+          <Animated.View style={[styles.loaderSortRight, boneStyle]} />
+        </View>
+        {[0, 1, 2, 3].map(i => (
+          <View key={i} style={[styles.holdingCard, {borderBottomColor: colors.border}]}>
+            <View style={styles.holdingLeft}>
+              <Animated.View style={[styles.fundLogo, boneStyle]} />
+              <View style={styles.fundTextCol}>
+                <Animated.View style={[styles.loaderFundTitle, boneStyle]} />
+                <Animated.View style={[styles.loaderFundSub, boneStyle]} />
+              </View>
+            </View>
+            <Animated.View style={[styles.loaderSpark, boneStyle]} />
+            <View style={styles.holdingRight}>
+              <Animated.View style={[styles.loaderRightBig, boneStyle]} />
+              <Animated.View style={[styles.loaderRightSmall, boneStyle]} />
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.loaderFooterRow}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[Textstyles.medium, styles.loaderHint, {color: colors.textSecondary}]}>
+          Loading portfolio…
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 function FundLogo({uri, name, colors, isDark}) {
   // Some call-sites (e.g. modal) don't pass theme colors; keep rendering safe.
@@ -588,19 +675,16 @@ export default function DashboardScreen() {
 
       {listHeader}
 
-      {showInlineLoader ? (
-        <View style={styles.loadingInline}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[Textstyles.normal, styles.loadingTextInline, {color: colors.textSecondary}]}>Loading portfolio…</Text>
-        </View>
-      ) : null}
-
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}>
+        {showInlineLoader ? (
+          <DashboardLoader colors={colors} isDark={isDark} />
+        ) : (
+          <>
         {holdingsCard}
 
         <View
@@ -672,6 +756,8 @@ export default function DashboardScreen() {
         </View>
 
         {listFooter}
+          </>
+        )}
       </ScrollView>
 
       <AppTourOverlay
@@ -774,6 +860,27 @@ const styles = StyleSheet.create({
     color: Colors.GREY,
     fontSize: 14,
   },
+  loaderHoldingsTextCol: {flex: 1, paddingRight: 8},
+  loaderHoldingsLabel: {width: 108, height: 12, borderRadius: 6},
+  loaderHoldingsBig: {width: 168, height: 26, borderRadius: 8, marginTop: 8},
+  loaderStatLabel: {width: 118, height: 12, borderRadius: 6},
+  loaderStatValue: {width: 132, height: 14, borderRadius: 7},
+  loaderSortLeft: {width: 62, height: 13, borderRadius: 6},
+  loaderSortRight: {width: 108, height: 13, borderRadius: 6},
+  loaderFundTitle: {width: '88%', height: 12, borderRadius: 6},
+  loaderFundSub: {width: '54%', height: 10, borderRadius: 5, marginTop: 8},
+  loaderSpark: {width: 68, height: 10, borderRadius: 5, marginHorizontal: 8},
+  loaderRightBig: {width: 72, height: 12, borderRadius: 6},
+  loaderRightSmall: {width: 48, height: 10, borderRadius: 5, marginTop: 8, alignSelf: 'flex-end'},
+  loaderFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 16,
+    paddingVertical: 12,
+  },
+  loaderHint: {fontSize: 13, fontWeight: '500'},
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,

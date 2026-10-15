@@ -160,7 +160,11 @@ function CartLineItem({item, onRemove, onChangeAmount, onToggleSip, styles}) {
         </View>
       </View>
       <Text style={styles.minNote}>
-        {item.isSIP ? `SIP ${formatInr(min)} – ${formatInr(max)}` : `Min. ${formatInr(min)}`}
+        {item.isSIP
+          ? Number.isFinite(max)
+            ? `SIP ${formatInr(min)} – ${formatInr(max)}`
+            : `Min SIP ${formatInr(min)}`
+          : `Min. ${formatInr(min)}`}
       </Text>
       {item.isSIP ? (
         <Text style={styles.sipMeta}>

@@ -45,6 +45,7 @@ import AppModal from '../../components/AppModal';
 import Icons from '../../utils/icons';
 import {useAppTheme} from '../../theme/useAppTheme';
 import {
+  buildQuickAmounts,
   pickMaxSipInvestmentOrNull,
   pickMinSipInvestment,
   pickMinSipInvestmentOrNull,
@@ -1350,17 +1351,23 @@ export default function FundDetailScreen() {
             <TextInput
               style={styles.amountInput}
               value={orderAmount}
-              onChangeText={t => setOrderAmount(t.replace(/[^0-9]/g, ''))}
+              onChangeText={t => {
+                const digits = t.replace(/[^0-9]/g, '').slice(0, 12);
+                setOrderAmount(digits.replace(/^0+(?=\d)/, ''));
+              }}
               keyboardType="number-pad"
-              placeholder={String(minOrderAmount)}
+              placeholder="Enter amount"
               placeholderTextColor={Colors.GREY}
             />
           </View>
 
           <View style={styles.quickAmountRow}>
-            {[500, 1000, 2000].map(v => (
+            {buildQuickAmounts(
+              orderType === 'SIP' ? minSip : minLumpsum,
+              orderType === 'SIP' ? pickMaxSipInvestmentOrNull(fundInfo) ?? undefined : undefined,
+            ).map(v => (
               <TouchableOpacity key={v} style={styles.quickAmountChip} onPress={() => onTapQuickAmount(v)} activeOpacity={0.85}>
-                <Text style={styles.quickAmountChipTxt}>₹{v}</Text>
+                <Text style={styles.quickAmountChipTxt}>{safeInr(v)}</Text>
               </TouchableOpacity>
             ))}
           </View>
