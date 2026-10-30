@@ -91,7 +91,7 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
     packagingOptions {
         jniLibs {
-            // Prefer uncompressed, 16 KB–aligned native libs (required by Play for targetSdk 35).
+            // Prefer uncompressed, 16 KB–aligned native libs (required by Play for targetSdk 35+).
             useLegacyPackaging false
         }
     }
@@ -101,8 +101,8 @@ android {
         applicationId "com.meonmutualfunds"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 18
-        versionName "1.12"
+        versionCode 20
+        versionName "1.14"
     }
     signingConfigs {
         debug {
